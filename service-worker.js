@@ -1,6 +1,6 @@
 // Service worker - jednoduchá cache pro offline mapu osy.
 // Verzuj při každé větší změně (změna CACHE_NAME invaliduje cache).
-var CACHE_NAME = 'martinovice-v0.1-2026-05-29';
+var CACHE_NAME = 'martinovice-v0.2-2026-05-29';
 var ASSETS = [
   './',
   './index.html',
