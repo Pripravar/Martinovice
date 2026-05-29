@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<title>I/16 Mladá Boleslav – Martinovice</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Martinovice">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#16213e">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="manifest" href="manifest.json">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+:root {
+  --bg:#1a1a2e; --panel:#16213e; --panel2:#0f3460;
+  --accent:#e94560; --accent2:#f5a623;
+  --text:#eaeaea; --text2:#a0aec0;
+  --green:#48bb78; --border:rgba(255,255,255,0.08); --radius:12px;
+}
+html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; }
+body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+
+#header {
+  background:var(--panel);
+  border-bottom:1px solid var(--border);
+  padding:10px 12px;
+  padding-top:calc(10px + env(safe-area-inset-top));
+  padding-left:calc(12px + env(safe-area-inset-left));
+  padding-right:calc(12px + env(safe-area-inset-right));
+  display:flex; align-items:center; gap:8px;
+  z-index:1000; flex-shrink:0;
+}
+#header .title {
+  font-size:13px; font-weight:700; color:var(--text);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  flex:1; min-width:0;
+}
+#header .title .sub { font-size:11px; color:var(--text2); font-weight:500; display:block; }
+#km-display {
+  background:var(--panel2); color:var(--accent2);
+  padding:6px 10px; border-radius:8px;
+  font-size:14px; font-weight:800; font-family:monospace;
+  white-space:nowrap;
+}
+.hbtn {
+  background:var(--panel2); color:var(--text);
+  border:none; padding:8px 10px; border-radius:8px;
+  font-size:14px; cursor:pointer; min-width:38px;
+}
+.hbtn.active { background:var(--accent); color:#fff; }
+.hbtn:active { transform:scale(0.95); }
+
+#map { flex:1; width:100%; background:#000; }
+
+/* Vyklápěcí panel vrstev */
+#layers-panel {
+  position:absolute; top:0; right:0;
+  background:var(--panel); border-left:1px solid var(--border);
+  width:260px; max-width:85vw; height:100%;
+  padding:16px; padding-top:calc(16px + env(safe-area-inset-top));
+  z-index:2000; transform:translateX(100%);
+  transition:transform 0.25s ease;
+  overflow-y:auto;
+  box-shadow:-4px 0 16px rgba(0,0,0,0.4);
+}
+#layers-panel.open { transform:translateX(0); }
+#layers-panel h3 {
+  font-size:13px; color:var(--text2); margin-bottom:8px;
+  text-transform:uppercase; letter-spacing:0.5px; font-weight:700;
+}
+#layers-panel .section { margin-bottom:18px; }
+#layers-panel label {
+  display:flex; align-items:center; gap:10px;
+  padding:8px 6px; border-radius:6px; cursor:pointer;
+  font-size:14px;
+}
+#layers-panel label:hover { background:rgba(255,255,255,0.04); }
+#layers-panel input[type=radio], #layers-panel input[type=checkbox] {
+  accent-color:var(--accent); width:16px; height:16px;
+}
+#layers-close {
+  position:absolute; top:calc(12px + env(safe-area-inset-top)); right:12px;
+  background:none; border:none; color:var(--text2);
+  font-size:22px; cursor:pointer;
+}
+
+/* GPS marker */
+.gps-wrap { position:relative; width:20px; height:20px; }
+.gps-dot-inner {
+  position:absolute; top:50%; left:50%;
+  width:14px; height:14px; margin:-7px 0 0 -7px;
+  background:#4a9eff; border:2px solid #fff; border-radius:50%;
+  box-shadow:0 0 8px rgba(74,158,255,0.6);
+}
+.gps-arrow {
+  width:0; height:0;
+  border-left:5px solid transparent; border-right:5px solid transparent;
+  border-bottom:10px solid #4a9eff;
+}
+
+/* Toast */
+#toast {
+  position:absolute; bottom:30px; left:50%; transform:translateX(-50%);
+  background:rgba(0,0,0,0.85); color:#fff;
+  padding:10px 16px; border-radius:8px;
+  font-size:13px; max-width:80vw; text-align:center;
+  z-index:3000; opacity:0; pointer-events:none;
+  transition:opacity 0.25s;
+}
+#toast.show { opacity:1; }
+
+/* Sync indikátor */
+#sync {
+  position:absolute; top:calc(70px + env(safe-area-inset-top)); right:12px;
+  background:rgba(0,0,0,0.7); color:#fff;
+  padding:6px 10px; border-radius:6px; font-size:12px;
+  z-index:1500; display:none;
+}
+#sync.show { display:block; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div class="title">
+    I/16 Mladá Boleslav – Martinovice
+    <span class="sub">925125026 · 0,000 – 8,200 km</span>
+  </div>
+  <div id="km-display">km –</div>
+  <button class="hbtn" id="btn-gps" onclick="toggleGPS(!gpsActive)" title="GPS">📍</button>
+  <button class="hbtn" id="btn-layers" onclick="toggleLayers()" title="Vrstvy">☰</button>
+</div>
+
+<div id="map"></div>
+
+<div id="layers-panel">
+  <button id="layers-close" onclick="closeLayersPanel()">×</button>
+  <h3>Mapa</h3>
+  <div class="section">
+    <label><input type="radio" name="base" value="outdoor" onchange="switchBase('outdoor')"> Mapy.cz Outdoor</label>
+    <label><input type="radio" name="base" value="basic" onchange="switchBase('basic')"> Mapy.cz Základní</label>
+    <label><input type="radio" name="base" value="aerial" onchange="switchBase('aerial')"> Mapy.cz Letecká</label>
+    <label><input type="radio" name="base" value="osm" checked onchange="switchBase('osm')"> OpenStreetMap</label>
+  </div>
+  <h3>Vrstvy</h3>
+  <div class="section">
+    <label><input type="checkbox" id="lyr-trasa" checked onchange="toggleLayer('trasa',this.checked)"> Osa trasy</label>
+    <label><input type="checkbox" id="lyr-st100" checked onchange="toggleLayer('st100',this.checked)"> Staničení 100 m</label>
+    <label><input type="checkbox" id="lyr-st20" onchange="toggleLayer('st20',this.checked)"> Staničení 20 m</label>
+    <label><input type="checkbox" id="lyr-katastr" onchange="toggleKatastr(this.checked)"> Katastrální mapa ČÚZK</label>
+    <label><input type="checkbox" id="lyr-gps" onchange="toggleGPS(this.checked)"> Moje poloha (GPS)</label>
+  </div>
+</div>
+
+<div id="sync"></div>
+<div id="toast"></div>
+
+<script>
+// ═════ KONFIGURACE ════════════════════════════════════════════════
+var MAPY_API_KEY = 'fIcPmjjF9IiG3gidEUs5F1bX6LW8P8plo0qYUIq_VSs';
+var KM_START = 0.000;
+var KM_END = 8.200;
+
+// ═════ DATA OSY (z GPX podklady/osa martinovice) ════════════════════
+var GPX_POINTS=[
+  [50.427048,14.945027],[50.427067,14.945301],[50.427094,14.945494],[50.427110,14.945708],[50.427105,14.945929],
+  [50.427094,14.946213],[50.427097,14.946414],[50.427060,14.946609],[50.427030,14.946808],[50.426987,14.947009],
+  [50.426945,14.947222],[50.426907,14.947385],[50.426840,14.947554],[50.426804,14.947656],[50.426758,14.947774],
+  [50.426710,14.947865],[50.426613,14.948023],[50.426537,14.948179],[50.426468,14.948283],[50.426370,14.948437],
+  [50.426266,14.948566],[50.426186,14.948669],[50.426117,14.948769],[50.426037,14.948871],[50.425934,14.949008],
+  [50.425790,14.949198],[50.425610,14.949424],[50.425480,14.949600],[50.425293,14.949815],[50.425144,14.950056],
+  [50.424965,14.950297],[50.424805,14.950480],[50.424644,14.950708],[50.424500,14.950920],[50.424360,14.951138],
+  [50.424168,14.951419],[50.423954,14.951743],[50.423843,14.951928],[50.423720,14.952172],[50.423540,14.952462],
+  [50.423410,14.952706],[50.423294,14.952940],[50.423176,14.953141],[50.423060,14.953380],[50.422930,14.953656],
+  [50.422820,14.953887],[50.422726,14.954128],[50.422623,14.954337],[50.422527,14.954587],[50.422417,14.954865],
+  [50.422333,14.955024],[50.422237,14.955305],[50.422130,14.955565],[50.422043,14.955791],[50.421960,14.956017],
+  [50.421860,14.956274],[50.421757,14.956591],[50.421677,14.956863],[50.421593,14.957094],[50.421524,14.957334],
+  [50.421436,14.957649],[50.421390,14.957849],[50.421345,14.958057],[50.421257,14.958384],[50.421196,14.958691],
+  [50.421124,14.959037],[50.421066,14.959398],[50.421005,14.959725],[50.420967,14.960098],[50.420918,14.960484],
+  [50.420864,14.960879],[50.420837,14.961292],[50.420807,14.961823],[50.420780,14.962274],[50.420770,14.962666],
+  [50.420757,14.963129],[50.420757,14.963674],[50.420746,14.964135],[50.420760,14.964731],[50.420760,14.965246],
+  [50.420770,14.966149],[50.420773,14.966691],[50.420770,14.967123],[50.420800,14.967995],[50.420790,14.968550],
+  [50.420780,14.968907],[50.420788,14.969255],[50.420795,14.969668],[50.420803,14.970318],[50.420815,14.970784],
+  [50.420815,14.971348],[50.420830,14.971954],[50.420830,14.972388],[50.420840,14.972936],[50.420840,14.973499],
+  [50.420845,14.973987],[50.420860,14.974526],[50.420864,14.974845],[50.420860,14.975328],[50.420880,14.975940],
+  [50.420864,14.976557],[50.420870,14.977300],[50.420876,14.977847],[50.420870,14.978351],[50.420860,14.978904],
+  [50.420880,14.979349],[50.420850,14.979835],[50.420826,14.980285],[50.420803,14.980467],[50.420780,14.980660],
+  [50.420780,14.980905],[50.420723,14.981267],[50.420696,14.981473],[50.420666,14.981667],[50.420647,14.981838],
+  [50.420586,14.982120],[50.420532,14.982441],[50.420475,14.982697],[50.420414,14.982967],[50.420322,14.983332],
+  [50.420265,14.983641],[50.420174,14.983943],[50.420094,14.984305],[50.419990,14.984649],[50.419914,14.984979],
+  [50.419840,14.985247],[50.419746,14.985615],[50.419632,14.986094],[50.419533,14.986481],[50.419437,14.986867],
+  [50.419353,14.987216],[50.419304,14.987516],[50.419224,14.987747],[50.419160,14.988069],[50.419080,14.988465],
+  [50.418987,14.988884],[50.418907,14.989319],[50.418860,14.989600],[50.418777,14.990080],[50.418724,14.990410],
+  [50.418674,14.990885],[50.418630,14.991253],[50.418580,14.991714],[50.418552,14.992111],[50.418533,14.992470],
+  [50.418510,14.992826],[50.418500,14.993173],[50.418488,14.993688],[50.418484,14.994013],[50.418495,14.994367],
+  [50.418495,14.994763],[50.418484,14.995187],[50.418503,14.995665],[50.418520,14.996070],[50.418560,14.996593],
+  [50.418594,14.996963],[50.418630,14.997325],[50.418674,14.997893],[50.418736,14.998304],[50.418810,14.998803],
+  [50.418890,14.999355],[50.418964,14.999806],[50.419020,15.000134],[50.419086,15.000493],[50.419147,15.000937],
+  [50.419224,15.001399],[50.419290,15.001839],[50.419360,15.002322],[50.419415,15.002740],[50.419514,15.003400],
+  [50.419598,15.003984],[50.419693,15.004613],[50.419740,15.004971],[50.419796,15.005401],[50.419853,15.005878],
+  [50.419937,15.006410],[50.420006,15.006833],[50.420060,15.007215],[50.420140,15.007746],[50.420216,15.008196],
+  [50.420270,15.008582],[50.420364,15.009033],[50.420460,15.009473],[50.420567,15.009993],[50.420696,15.010460],
+  [50.420788,15.010803],[50.420920,15.011286],[50.421085,15.011737],[50.421204,15.012128],[50.421394,15.012632],
+  [50.421570,15.013082],[50.421790,15.013603],[50.422024,15.014059],[50.422203,15.014413],[50.422417,15.014837],
+  [50.422657,15.015256],[50.422905,15.015663],[50.423164,15.016092],[50.423410,15.016458],[50.423714,15.016897],
+  [50.424015,15.017331],[50.424320,15.017745],[50.424660,15.018189],[50.425068,15.018694],[50.425365,15.019059],
+  [50.425660,15.019440],[50.425926,15.019756],[50.426186,15.020051],[50.426483,15.020416],[50.426760,15.020749],
+  [50.427020,15.021103],[50.427260,15.021403],[50.427498,15.021714],[50.427780,15.022100],[50.428013,15.022444],
+  [50.428272,15.022840],[50.428530,15.023270],[50.428738,15.023603],[50.428920,15.023968],[50.429077,15.024268],
+  [50.429256,15.024611],[50.429447,15.024998],[50.429646,15.025480],[50.429817,15.025909],[50.429966,15.026253],
+  [50.430138,15.026703],[50.430218,15.027015],[50.430350,15.027432],[50.430485,15.027873],[50.430603,15.028280],
+  [50.430670,15.028624],[50.430786,15.029149],[50.430880,15.029557],[50.430940,15.029964],[50.431026,15.030394],
+  [50.431072,15.030791],[50.431130,15.031102],[50.431175,15.031446],[50.431225,15.031799],[50.431250,15.032165],
+  [50.431313,15.032539],[50.431355,15.032915],[50.431390,15.033226],[50.431416,15.033645],[50.431450,15.033956],
+  [50.431470,15.034288],[50.431510,15.034556],[50.431526,15.034803],[50.431553,15.035083],[50.431572,15.035447],
+  [50.431606,15.035801],[50.431633,15.036166],[50.431667,15.036530],[50.431690,15.036853],[50.431725,15.037164],
+  [50.431744,15.037539],[50.431778,15.037947],[50.431820,15.038344],[50.431840,15.038709],[50.431892,15.039039],
+  [50.431908,15.039302],[50.431940,15.039521],[50.431953,15.039725],[50.431988,15.039977],[50.432053,15.040278],
+  [50.432125,15.040600],[50.432213,15.040895],[50.432300,15.041109],[50.432426,15.041479],[50.432507,15.041812],
+  [50.432594,15.042134],[50.432682,15.042521],[50.432710,15.042724],[50.432770,15.042981],[50.432900,15.043518],
+  [50.433018,15.044044],[50.433147,15.044483],[50.433260,15.044902],[50.433434,15.045331],[50.433570,15.045674],
+  [50.433666,15.045911],[50.433857,15.046286],[50.434063,15.046608],[50.434240,15.046994],[50.434444,15.047380],
+  [50.434704,15.047852],[50.434902,15.048271]
+];
+
+var CALIB_POINTS=[
+  {lat:50.4270175,lng:14.9449067,km:0.000},   // ZÚ
+  {lat:50.4349761,lng:15.0483650,km:8.200}    // KÚ
+];
+
+// ═════ STAV ════════════════════════════════════════════════════════
+var map;
+var baseLayers = {};
+var layerGroups = {};
+var currentBasemap = 'osm';
+var gpsActive = false;
+var gpsWatcher = null;
+var gpsMarker = null;
+var gpsCentering = false;
+var gpsHeading = null;
+var gpxCumulative = [];
+var calibSorted = [];
+
+// ═════ MATEMATIKA TRASY (převzato ze Sulice) ═══════════════════════
+function haversine(la1,lo1,la2,lo2) {
+  var R=6371000, p1=la1*Math.PI/180, p2=la2*Math.PI/180;
+  var dp=(la2-la1)*Math.PI/180, dl=(lo2-lo1)*Math.PI/180;
+  var a=Math.sin(dp/2)*Math.sin(dp/2)+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)*Math.sin(dl/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function segBearing(lat1,lon1,lat2,lon2) {
+  var p1=lat1*Math.PI/180, p2=lat2*Math.PI/180;
+  var dl=(lon2-lon1)*Math.PI/180;
+  var x=Math.sin(dl)*Math.cos(p2);
+  var y=Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(dl);
+  return (Math.atan2(x,y)*180/Math.PI+360)%360;
+}
+
+function buildCumulative() {
+  gpxCumulative=[0];
+  for(var i=1;i<GPX_POINTS.length;i++)
+    gpxCumulative.push(gpxCumulative[i-1]+haversine(GPX_POINTS[i-1][0],GPX_POINTS[i-1][1],GPX_POINTS[i][0],GPX_POINTS[i][1]));
+}
+
+function nearestOnRoute(lat,lng) {
+  var minD=Infinity, bestCum=0;
+  var cosLat = Math.cos(lat * Math.PI / 180);
+  for(var i=0;i<GPX_POINTS.length-1;i++){
+    var ax=GPX_POINTS[i][0], ay=GPX_POINTS[i][1];
+    var bx=GPX_POINTS[i+1][0], by=GPX_POINTS[i+1][1];
+    var dlat=bx-ax, dlng=(by-ay)*cosLat;
+    var clat=lat-ax, clng=(lng-ay)*cosLat;
+    var lenSq=dlat*dlat+dlng*dlng;
+    var t = lenSq>0 ? Math.max(0,Math.min(1,(clat*dlat+clng*dlng)/lenSq)) : 0;
+    var px=ax+t*(bx-ax), py=ay+t*(by-ay);
+    var d=haversine(lat,lng,px,py);
+    if(d<minD){
+      minD=d;
+      bestCum=gpxCumulative[i]+t*(gpxCumulative[i+1]-gpxCumulative[i]);
+    }
+  }
+  return {cum:bestCum, dist:minD};
+}
+
+function buildCalibSorted() {
+  calibSorted = CALIB_POINTS.map(function(cp){
+    var n = nearestOnRoute(cp.lat, cp.lng);
+    return {gpxM: n.cum, realKm: cp.km};
+  }).sort(function(a,b){ return a.realKm - b.realKm; });
+}
+
+function interp(arr,xKey,yKey,x) {
+  var s=arr;
+  if(x<=s[0][xKey]){var sl=(s[1][yKey]-s[0][yKey])/(s[1][xKey]-s[0][xKey]);return s[0][yKey]+sl*(x-s[0][xKey]);}
+  if(x>=s[s.length-1][xKey]){var n=s.length-1,sl2=(s[n][yKey]-s[n-1][yKey])/(s[n][xKey]-s[n-1][xKey]);return s[n][yKey]+sl2*(x-s[n][xKey]);}
+  for(var j=0;j<s.length-1;j++){if(x>=s[j][xKey]&&x<=s[j+1][xKey]){var t=(x-s[j][xKey])/(s[j+1][xKey]-s[j][xKey]);return s[j][yKey]+t*(s[j+1][yKey]-s[j][yKey]);}}
+  return s[0][yKey];
+}
+
+function realKmToLatLng(realKm) {
+  var gpxM=interp(calibSorted,'realKm','gpxM',realKm);
+  for(var i=0;i<gpxCumulative.length-1;i++){
+    if(gpxM>=gpxCumulative[i]&&gpxM<=gpxCumulative[i+1]){
+      var seg=gpxCumulative[i+1]-gpxCumulative[i];
+      var frac=seg>0?(gpxM-gpxCumulative[i])/seg:0;
+      return [GPX_POINTS[i][0]+frac*(GPX_POINTS[i+1][0]-GPX_POINTS[i][0]),
+              GPX_POINTS[i][1]+frac*(GPX_POINTS[i+1][1]-GPX_POINTS[i][1])];
+    }
+  }
+  return null;
+}
+
+function gpxCumToRealKm(gpxM) { return interp(calibSorted,'gpxM','realKm',gpxM); }
+
+function gpsToKm(lat,lng) {
+  try { return gpxCumToRealKm(nearestOnRoute(lat,lng).cum); }
+  catch(e) { return null; }
+}
+
+function bearingAtGpxM(gpxM) {
+  for(var i=0;i<gpxCumulative.length-1;i++){
+    if(gpxM>=gpxCumulative[i]&&gpxM<=gpxCumulative[i+1]){
+      return segBearing(GPX_POINTS[i][0],GPX_POINTS[i][1],GPX_POINTS[i+1][0],GPX_POINTS[i+1][1]);
+    }
+  }
+  var n=GPX_POINTS.length-1;
+  return segBearing(GPX_POINTS[n-1][0],GPX_POINTS[n-1][1],GPX_POINTS[n][0],GPX_POINTS[n][1]);
+}
+
+function fmtKm(km) {
+  var w=Math.floor(km), f=Math.round((km-w)*1000);
+  if(f===1000){w++;f=0;}
+  return w+'+'+String(f).padStart(3,'0');
+}
+
+function showToast(msg,dur) {
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show');},dur||2500);
+}
+
+// ═════ MAPA ════════════════════════════════════════════════════════
+function initMap() {
+  // Střed = středový bod trasy
+  var lats = GPX_POINTS.map(function(p){return p[0];});
+  var lngs = GPX_POINTS.map(function(p){return p[1];});
+  var midLat = (Math.min.apply(null,lats)+Math.max.apply(null,lats))/2;
+  var midLng = (Math.min.apply(null,lngs)+Math.max.apply(null,lngs))/2;
+
+  map = L.map('map', {
+    center:[midLat, midLng],
+    zoom:13, maxZoom:20, zoomControl:true,
+    rotate:true, bearing:0, touchRotate:true,
+    rotateControl:{ position:'topleft', closeOnZeroBearing:true }
+  });
+
+  var mUrl = function(type){ return 'https://api.mapy.cz/v1/maptiles/'+type+'/256/{z}/{x}/{y}?apikey='+MAPY_API_KEY; };
+  baseLayers.outdoor = L.tileLayer(mUrl('outdoor'), {maxZoom:20, maxNativeZoom:20, attribution:'© Mapy.cz'});
+  baseLayers.basic   = L.tileLayer(mUrl('basic'),   {maxZoom:20, maxNativeZoom:20, attribution:'© Mapy.cz'});
+  baseLayers.aerial  = L.tileLayer(mUrl('aerial'),  {maxZoom:20, maxNativeZoom:20, attribution:'© Mapy.cz'});
+  baseLayers.osm     = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {maxZoom:19, maxNativeZoom:19, attribution:'© OpenStreetMap'});
+
+  // OSM jako výchozí (Mapy.cz vyžaduje doménovou registraci API klíče)
+  baseLayers.osm.addTo(map);
+  currentBasemap = 'osm';
+
+  // ČÚZK Katastrální mapa (WMS overlay)
+  baseLayers.katastr = L.tileLayer.wms('https://services.cuzk.cz/wms/wms.asp', {
+    layers:'KN', format:'image/png', transparent:true,
+    opacity:0.6, attribution:'© ČÚZK', maxZoom:20, version:'1.3.0'
+  });
+
+  map.on('dragstart', function(){ gpsCentering=false; });
+
+  // Trasa + staničení
+  buildRoute();
+  buildStaniceni(0.100, true);   // 100 m – viditelné
+  buildStaniceni(0.020, false);  // 20 m – jen vytvořit, zapnout přes checkbox
+
+  // Po inicializaci přibliž na celou trasu
+  setTimeout(function(){
+    var b = L.latLngBounds(GPX_POINTS);
+    map.fitBounds(b, {padding:[40,40]});
+  }, 100);
+}
+
+function switchBase(name) {
+  if(baseLayers[currentBasemap]) map.removeLayer(baseLayers[currentBasemap]);
+  baseLayers[name].addTo(map);
+  currentBasemap = name;
+}
+
+function toggleKatastr(on) {
+  if(on) baseLayers.katastr.addTo(map);
+  else map.removeLayer(baseLayers.katastr);
+}
+
+function toggleLayer(name, on) {
+  var g = layerGroups[name];
+  if(!g) return;
+  if(on) g.addTo(map);
+  else map.removeLayer(g);
+}
+
+// ═════ TRASA ═══════════════════════════════════════════════════════
+function buildRoute() {
+  layerGroups.trasa = L.layerGroup().addTo(map);
+  var ll = GPX_POINTS.map(function(p){return [p[0],p[1]];});
+  // Tmavé pozadí + červená vrchní pro kontrast
+  L.polyline(ll, {color:'#000', weight:9, opacity:0.2, interactive:false}).addTo(layerGroups.trasa);
+  L.polyline(ll, {color:'#e94560', weight:4, opacity:0.95, interactive:false}).addTo(layerGroups.trasa);
+
+  // Markery ZÚ / KÚ
+  var startPos = realKmToLatLng(KM_START);
+  var endPos   = realKmToLatLng(KM_END);
+  var mkS = L.divIcon({className:'', iconAnchor:[0,10],
+    html:'<div style="background:#48bb78;color:#000;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.5);white-space:nowrap;">▶ ZÚ km '+fmtKm(KM_START)+'</div>'});
+  var mkE = L.divIcon({className:'', iconAnchor:[0,10],
+    html:'<div style="background:#e94560;color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.5);white-space:nowrap;">⏹ KÚ km '+fmtKm(KM_END)+'</div>'});
+  if(startPos) L.marker(startPos, {icon:mkS, interactive:false}).addTo(layerGroups.trasa);
+  if(endPos)   L.marker(endPos,   {icon:mkE, interactive:false}).addTo(layerGroups.trasa);
+}
+
+// ═════ STANIČENÍ ═══════════════════════════════════════════════════
+function buildStaniceni(stepKm, is100) {
+  var groupKey = is100 ? 'st100' : 'st20';
+  layerGroups[groupKey] = L.layerGroup();
+  if(is100) layerGroups[groupKey].addTo(map);   // 100 m výchozí zapnuto
+
+  var realKm = Math.round(Math.ceil(KM_START/stepKm)*stepKm*10000)/10000;
+  while(realKm <= KM_END + 0.0001) {
+    var skip = false;
+    if(!is100) {
+      var mod = Math.round(realKm * 1000) % 100;
+      if(mod === 0) skip = true;   // 20 m: přeskočit místa kde je 100 m značka
+    }
+    if(!skip) {
+      var gpxM = interp(calibSorted,'realKm','gpxM',realKm);
+      var bear = bearingAtGpxM(gpxM);
+      var pos  = realKmToLatLng(realKm);
+      if(pos) addStanMarker(layerGroups[groupKey], pos[0], pos[1], realKm, is100, bear);
+    }
+    realKm = Math.round((realKm + stepKm) * 10000) / 10000;
+  }
+}
+
+function addStanMarker(group, lat, lng, realKm, is100, bear) {
+  var label = fmtKm(realKm);
+  var tickLen = is100 ? 22 : 12;
+  var tickW   = is100 ? 3 : 1.5;
+  var color   = is100 ? '#f5a623' : '#bbb';
+  var fontSize= is100 ? '20px' : '14px';
+  var fontW   = is100 ? '900' : '700';
+  var offset  = is100 ? 50 : 34;
+
+  // Čárka kolmá k ose
+  var tickRot = (bear + 90) % 360;
+  var C = 60, cc = C/2;
+  var tickSvg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="'+C+'" height="'+C+'" style="overflow:visible;display:block;">' +
+    '<g transform="rotate('+tickRot.toFixed(1)+' '+cc+' '+cc+')">' +
+      '<line x1="'+cc+'" y1="'+(cc-tickLen)+'" x2="'+cc+'" y2="'+(cc+tickLen)+'" stroke="'+color+'" stroke-width="'+tickW+'" stroke-linecap="round"/>' +
+    '</g></svg>';
+  var tickIcon = L.divIcon({className:'', html:tickSvg, iconSize:[C,C], iconAnchor:[cc,cc]});
+  L.marker([lat,lng], {icon:tickIcon, interactive:false, zIndexOffset:-10}).addTo(group);
+
+  // Text vlevo od osy
+  var perpRad = (bear - 90) * Math.PI / 180;
+  var dx = Math.sin(perpRad) * offset;
+  var dy = -Math.cos(perpRad) * offset;
+  var shadow = '-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000';
+  var DW = 200, DH = 32;
+  var ancX = Math.round(DW + dx);
+  var ancY = Math.round(DH/2 + dy);
+  var textHtml =
+    '<div style="width:'+DW+'px;height:'+DH+'px;display:flex;align-items:center;justify-content:flex-end;pointer-events:none;">'+
+    '<span style="color:'+color+';font-size:'+fontSize+';font-weight:'+fontW+';font-family:Segoe UI,system-ui,sans-serif;white-space:nowrap;line-height:1;text-shadow:'+shadow+';">'+label+'</span></div>';
+  var textIcon = L.divIcon({className:'', html:textHtml, iconSize:[DW,DH], iconAnchor:[ancX,ancY]});
+  L.marker([lat,lng], {icon:textIcon, interactive:false}).addTo(group);
+}
+
+// ═════ GPS ═════════════════════════════════════════════════════════
+function toggleGPS(en) { en ? startGPS() : stopGPS(); }
+
+function startGPS() {
+  if(!navigator.geolocation) { showToast('GPS není k dispozici'); return; }
+  gpsActive = true; gpsCentering = true;
+  document.getElementById('btn-gps').classList.add('active');
+  document.getElementById('lyr-gps').checked = true;
+  gpsWatcher = navigator.geolocation.watchPosition(
+    function(pos){ updateGPS(pos.coords.latitude, pos.coords.longitude); },
+    function(err){ showToast('GPS chyba: '+err.message); },
+    {enableHighAccuracy:true, maximumAge:2000, timeout:10000}
+  );
+  startCompass();
+}
+
+function stopGPS() {
+  gpsActive = false; gpsCentering = false;
+  document.getElementById('btn-gps').classList.remove('active');
+  document.getElementById('lyr-gps').checked = false;
+  if(gpsWatcher !== null) { navigator.geolocation.clearWatch(gpsWatcher); gpsWatcher = null; }
+  if(gpsMarker) { map.removeLayer(gpsMarker); gpsMarker = null; }
+  document.getElementById('km-display').textContent = 'km –';
+  window.removeEventListener('deviceorientation', handleOrientation, true);
+  gpsHeading = null;
+}
+
+function startCompass() {
+  function attach() {
+    window.removeEventListener('deviceorientation', handleOrientation, true);
+    window.addEventListener('deviceorientation', handleOrientation, true);
+    try { window.addEventListener('deviceorientationabsolute', handleOrientation, true); } catch(e){}
+  }
+  if(typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(function(s){ attach(); }).catch(function(e){ attach(); });
+  } else attach();
+}
+
+function handleOrientation(e) {
+  var h = null;
+  if(e.webkitCompassHeading != null) h = e.webkitCompassHeading;
+  else if(e.alpha != null) h = (360 - e.alpha) % 360;
+  if(h !== null) {
+    gpsHeading = Math.round(h);
+    if(gpsMarker) gpsMarker.setIcon(buildGpsIcon());
+  }
+}
+
+function buildGpsIcon() {
+  var arrow = '';
+  if(gpsHeading !== null) {
+    arrow = '<div class="gps-arrow" style="transform:rotate('+gpsHeading+'deg) translateY(-7px);transform-origin:center bottom;margin-left:-4px;margin-top:-14px;position:absolute;top:50%;left:50%;"></div>';
+  }
+  return L.divIcon({className:'', html:'<div class="gps-wrap"><div class="gps-dot-inner"></div>'+arrow+'</div>', iconSize:[20,20], iconAnchor:[10,10]});
+}
+
+function updateGPS(lat, lng) {
+  if(!gpsMarker) {
+    gpsMarker = L.marker([lat,lng], {icon:buildGpsIcon(), zIndexOffset:1000}).addTo(map);
+  } else {
+    gpsMarker.setLatLng([lat,lng]);
+  }
+  if(gpsCentering) map.panTo([lat,lng]);
+  var km = gpsToKm(lat, lng);
+  var nr = nearestOnRoute(lat, lng);
+  if(km !== null && nr.dist < 200) {
+    document.getElementById('km-display').textContent = 'km '+fmtKm(km);
+  } else {
+    document.getElementById('km-display').textContent = 'mimo trasu';
+  }
+}
+
+// ═════ PANEL VRSTEV ════════════════════════════════════════════════
+function toggleLayers() {
+  document.getElementById('layers-panel').classList.toggle('open');
+}
+function closeLayersPanel() {
+  document.getElementById('layers-panel').classList.remove('open');
+}
+
+// ═════ START ══════════════════════════════════════════════════════
+window.addEventListener('load', function() {
+  buildCumulative();
+  buildCalibSorted();
+  initMap();
+
+  // Service worker pro PWA cache
+  if('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js').catch(function(e){
+      console.warn('SW registrace selhala:', e);
+    });
+  }
+});
+</script>
+</body>
+</html>

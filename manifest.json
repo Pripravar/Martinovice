@@ -1,0 +1,25 @@
+{
+  "name": "I/16 Mladá Boleslav – Martinovice",
+  "short_name": "Martinovice",
+  "description": "Mapa stavby I/16 Mladá Boleslav – Martinovice",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1a1a2e",
+  "theme_color": "#16213e",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' fill='%2316213e'/><text x='96' y='130' font-size='110' text-anchor='middle' fill='%23f5a623' font-family='sans-serif' font-weight='900'>M</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%2316213e'/><text x='256' y='350' font-size='300' text-anchor='middle' fill='%23f5a623' font-family='sans-serif' font-weight='900'>M</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
