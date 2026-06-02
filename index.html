@@ -5395,6 +5395,35 @@ function nearestBranchKm(lat,lng) {
   return (best && best.dist<=25) ? best : null;
 }
 
+// Staničení podél VLASTNÍ osy zadaného SO (boční trasa), ne hlavní I/16.
+// Projektuje [lat,lng] na osu/osy SO_OSY se shodným kanonickým id a vrátí {id, km, dist}
+// té nejbližší. Vrací null, když SO žádnou osu nemá (bodové objekty jako SO 122 bez GPX).
+function branchKmForSO(soId, lat, lng){
+  if(!soId || !Array.isArray(SO_OSY) || !SO_OSY.length) return null;
+  var canon = soCanonId(soId), best=null, bestD=Infinity;
+  var cosLat=Math.cos(lat*Math.PI/180);
+  SO_OSY.forEach(function(so){
+    if(soCanonId(so.id) !== canon) return;
+    if(!so._cum) so._cum=soOsyCum(so.geom);
+    var g=so.geom;
+    for(var i=0;i<g.length-1;i++){
+      var ax=g[i][0], ay=g[i][1], bx=g[i+1][0], by=g[i+1][1];
+      var dx=bx-ax, dy=(by-ay)*cosLat;
+      var px=lat-ax, py=(lng-ay)*cosLat;
+      var len2=dx*dx+dy*dy;
+      var t=len2>0?Math.max(0,Math.min(1,(px*dx+py*dy)/len2)):0;
+      var cx=ax+t*(bx-ax), cy=ay+t*(by-ay);
+      var d=haversine(lat,lng,cx,cy);
+      if(d<bestD){
+        bestD=d;
+        var distM=so._cum[i]+t*(so._cum[i+1]-so._cum[i]);
+        best={id:so.id, km:so.km0+distM/1000, dist:d};
+      }
+    }
+  });
+  return (best && best.dist <= SO_TOLERANCE_M) ? best : null;
+}
+
 // Skutečná poloha bodového SO na mapě (km + kolmý offset perp) – shodně s buildDoplnky().
 // Cachuje se na objektu (o._pos), ať se nepočítá při každém focení znovu.
 function doplnekLatLng(o){
@@ -6101,6 +6130,7 @@ function ppAnswer(yes) {
               url: visibleUrl,
               stamped: !!yes,   // true = v galerii verze s razítkem
               so: (meta.so || ''),   // přiřazený stavební objekt (složka), '' = Nezařazené
+              kmAxis: (meta.kmAxis || ''),  // '' = km hlavní I/16; jinak id boční osy, na které km je
               km: meta.km, author: meta.author,
               lat: meta.lat, lng: meta.lng,
               time: new Date().toLocaleString('cs-CZ'),
@@ -6165,7 +6195,12 @@ window.addEventListener('load', function() {
         window.photoSession.phase = 'stamp';
         // Výběr stavebního objektu (složky) podle staničení, pak teprve razítko + upload.
         chooseSOForPhoto(km, latlng.lat, latlng.lng, function(so){
-          window.photoSession.pendingMeta.so = so || '';
+          var meta = window.photoSession.pendingMeta;
+          meta.so = so || '';
+          // Má-li vybraný objekt vlastní osu (boční trasu) poblíž, ulož staničení té osy
+          // místo km hlavní I/16 (smysluplné u kolmých přeložek / přístupů).
+          var br = branchKmForSO(so, latlng.lat, latlng.lng);
+          if(br){ meta.km = fmtKm(br.km); meta.kmAxis = br.id; }
           ppAnswer(true);  // true = v galerii bude razítkovaná verze
         });
       });
