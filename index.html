@@ -5289,6 +5289,66 @@ function nearestBranchKm(lat,lng) {
   return (best && best.dist<=25) ? best : null;
 }
 
+// Skutečná poloha bodového SO na mapě (km + kolmý offset perp) – shodně s buildDoplnky().
+// Cachuje se na objektu (o._pos), ať se nepočítá při každém focení znovu.
+function doplnekLatLng(o){
+  if(o._pos) return o._pos;
+  var pos = realKmToLatLng(o.km); if(!pos) return null;
+  if(o.perp){
+    var gpxM = interp(calibSorted,'realKm','gpxM',o.km);
+    var bear = bearingAtGpxM(gpxM);
+    pos = offsetLatLng(pos[0],pos[1],bear,o.perp);
+  }
+  o._pos = pos;
+  return pos;
+}
+// Nejmenší vzdálenost (m) bodu [lat,lng] od boční osy SO_OSY.
+function distToOsa(so,lat,lng){
+  if(!so._cum) so._cum=soOsyCum(so.geom);
+  var g=so.geom, cosLat=Math.cos(lat*Math.PI/180), bestD=Infinity;
+  for(var i=0;i<g.length-1;i++){
+    var ax=g[i][0], ay=g[i][1], bx=g[i+1][0], by=g[i+1][1];
+    var dx=bx-ax, dy=(by-ay)*cosLat;
+    var px=lat-ax, py=(lng-ay)*cosLat;
+    var len2=dx*dx+dy*dy;
+    var t=len2>0?Math.max(0,Math.min(1,(px*dx+py*dy)/len2)):0;
+    var cx=ax+t*(bx-ax), cy=ay+t*(by-ay);
+    var d=haversine(lat,lng,cx,cy);
+    if(d<bestD) bestD=d;
+  }
+  return bestD;
+}
+// Kanonické id SO (sloučí 'SO 150 osa 1' a 'SO 150 osa 2' na 'SO 150').
+function soCanonId(id){
+  var m = String(id).match(/^SO\s+\d+(?:\.\d+)?/i);
+  return m ? m[0] : id;
+}
+// Kandidáti na zařazení fotky podle GPS: bodové (DOPLNKY_SO) i boční osy (SO_OSY)
+// do SO_TOLERANCE_M metrů od polohy [lat,lng], řazeno od nejbližšího. Sloučí duplicitní id.
+function soKandidatiGPS(lat,lng){
+  var byId = {};
+  function add(id, short, dist){
+    var ex = byId[id];
+    if(ex){ if(dist < ex.dist){ ex.dist = dist; if(short) ex.short = short; } }
+    else byId[id] = {id:id, short:short||'', dist:dist};
+  }
+  (typeof DOPLNKY_SO!=='undefined'?DOPLNKY_SO:[]).forEach(function(o){
+    var p=doplnekLatLng(o); if(!p) return;
+    var d=haversine(lat,lng,p[0],p[1]);
+    if(d<=SO_TOLERANCE_M){
+      var short=String(o.nazev||o.id).replace(o.id+' – ','').replace(o.id+' - ','').replace(/^\s*\d+[.,]\d+\s*/,'').trim();
+      add(o.id, short, d);
+    }
+  });
+  (Array.isArray(SO_OSY)?SO_OSY:[]).forEach(function(so){
+    var d=distToOsa(so,lat,lng);
+    if(d<=SO_TOLERANCE_M) add(soCanonId(so.id), so.nazev||'', d);
+  });
+  var out=[]; for(var k in byId) if(byId.hasOwnProperty(k)) out.push(byId[k]);
+  out.sort(function(a,b){return a.dist-b.dist;});
+  return out;
+}
+
 // NN nadzemní vedení - značky ⚡ s popupem "NN nadzemní"
 var vedeniNNLayer = null;
 function buildVedeniNN() {
@@ -5780,7 +5840,8 @@ var SO_OBJEKTY = (function(){
   return list;
 })();
 
-var SO_TOLERANCE = 0.050;   // ±50 m okolo objektu
+var SO_TOLERANCE = 0.050;   // ±50 m okolo objektu (km-fallback, když chybí GPS)
+var SO_TOLERANCE_M = 50;    // okruh v metrech pro výběr SO podle GPS
 
 // Objekty, do jejichž okolí (±50 m) spadá dané staničení (km jako číslo).
 // Řazeno od nejbližšího (střed rozsahu) k nejvzdálenějšímu.
@@ -5803,11 +5864,16 @@ function soLabel(id){
   return id;
 }
 
-// Vybere SO pro novou fotku. 1 kandidát → rovnou; víc → modál; bez km / 0 kandidátů → ruční výběr.
+// Vybere SO pro novou fotku. Primárně podle GPS (jen SO v okruhu 50 m, řazeno od nejbližšího);
+// když GPS chybí, fallback na km-staničení. 1 kandidát → rovnou; víc → modál; 0 → ruční výběr.
 // cb dostane id objektu (string) nebo '' když „Nepřiřazovat".
-function chooseSOForPhoto(kmStr, cb){
-  var kmNum = parseKmStr(kmStr);
-  var kand = soKandidati(kmNum);
+function chooseSOForPhoto(kmStr, lat, lng, cb){
+  var kand;
+  if(typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)){
+    kand = soKandidatiGPS(lat, lng);
+  } else {
+    kand = soKandidati(parseKmStr(kmStr));
+  }
   if(kand.length === 1){ cb(kand[0].id); return; }
   if(kand.length === 0){ openSOPicker(SO_OBJEKTY.slice(), cb, true); return; }
   openSOPicker(kand, cb, false);
@@ -5818,12 +5884,14 @@ function openSOPicker(list, cb, manual){
   var body  = document.getElementById('so-pick-list');
   var sub   = document.getElementById('so-pick-sub');
   if(!modal || !body){ cb(''); return; }
-  if(sub) sub.textContent = manual ? '⚠ Staničení/GPS chybí – vyber objekt ručně' : 'Vyber stavební objekt pro tuto fotku';
+  if(sub) sub.textContent = manual ? '⚠ Staničení/GPS chybí – vyber objekt ručně' : 'Nejbližší objekty v okruhu 50 m – vyber pro tuto fotku';
   body.innerHTML = '';
   list.forEach(function(o){
     var b = document.createElement('button');
     b.className = 'so-pick-btn';
-    b.textContent = o.id + (o.short ? '  —  ' + o.short : '');
+    var lbl = o.id + (o.short ? '  —  ' + o.short : '');
+    if(typeof o.dist === 'number') lbl += '  (' + Math.round(o.dist) + ' m)';
+    b.textContent = lbl;
     b.onclick = function(){ _closeSOPicker(); cb(o.id); };
     body.appendChild(b);
   });
@@ -5988,7 +6056,7 @@ window.addEventListener('load', function() {
         window.photoSession.pendingMeta  = {km: km, author: author, lat: latlng.lat, lng: latlng.lng};
         window.photoSession.phase = 'stamp';
         // Výběr stavebního objektu (složky) podle staničení, pak teprve razítko + upload.
-        chooseSOForPhoto(km, function(so){
+        chooseSOForPhoto(km, latlng.lat, latlng.lng, function(so){
           window.photoSession.pendingMeta.so = so || '';
           ppAnswer(true);  // true = v galerii bude razítkovaná verze
         });
