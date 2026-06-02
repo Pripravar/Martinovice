@@ -1447,8 +1447,22 @@ var DOPLNKY_SO=[
  {id:'SO 462',kat:'elektro',km:7.200,perp:88,nazev:'SO 462 – 7,200 Přeložka SEK CETIN (7,200–7,545)'},
  {id:'SO 496',kat:'elektro',km:7.785,perp:88,nazev:'SO 496 – 7,785 Automatický sčítač dopravy'},
  {id:'SO 520',kat:'plyn',km:2.225,perp:-95,nazev:'SO 520 – 2,225 Přeložka STL plynu'},
- {id:'SO 760',kat:'phs',km:6.100,perp:105,nazev:'SO 760 – 6,100 Protihluková stěna (vlevo)'},
- {id:'SO 761',kat:'phs',km:7.600,perp:105,nazev:'SO 761 – 7,600 Protihluková stěna (vlevo)'},
+ // Silniční napojení a přeložky komunikací (kat 'silnice')
+ {id:'SO 122',kat:'silnice',km:6.080,perp:48,nazev:'SO 122 – 6,080 Přeložka silnice III/27612'},
+ {id:'SO 123',kat:'silnice',km:0.230,perp:48,nazev:'SO 123 – 0,230 Přeložka místní komunikace'},
+ {id:'SO 125',kat:'silnice',km:4.705,perp:48,nazev:'SO 125 – 4,705 Napojení původní I/16 do MÚK Židněves'},
+ {id:'SO 126',kat:'silnice',km:7.320,perp:48,nazev:'SO 126 – 7,320 Napojení původní I/16 do MÚK Martinovice'},
+ {id:'SO 127',kat:'silnice',km:7.840,perp:48,nazev:'SO 127 – 7,840 Napojení ČSPH na I/16'},
+ {id:'SO 128',kat:'silnice',km:7.800,perp:-48,nazev:'SO 128 – 7,800 Obratiště BUS Martinovice'},
+ // Vodohospodářské úpravy (kat 'voda')
+ {id:'SO 323',kat:'voda',km:2.695,perp:-72,nazev:'SO 323 – 2,695 Úprava Valské svodnice'},
+ {id:'SO 326',kat:'voda',km:5.048,perp:-72,nazev:'SO 326 – 5,048 Úprava Sukoradské stoky'},
+ {id:'SO 329',kat:'voda',km:7.870,perp:-72,nazev:'SO 329 – 7,870 Úprava Přepeřského potoka'},
+ {id:'SO 342',kat:'voda',km:4.705,perp:-90,nazev:'SO 342 – 4,705 Přeložka vodovodu PVC 225 (MÚK Židněves)'},
+ {id:'SO 344',kat:'voda',km:7.300,perp:-90,nazev:'SO 344 – 7,300 Přeložka vodovodu (MÚK Martinovice)'},
+ // Veřejné osvětlení
+ {id:'SO 433',kat:'elektro',km:7.500,perp:70,nazev:'SO 433 – 7,500 Veřejné osvětlení Martinovice'},
+ // SO 760/761 (protihlukové stěny) jsou vykresleny jako barevné úseky podél osy v STAVEBNI_OBJEKTY.
 ];
 
 // Lineární SO – boční přeložky a přístupové cesty (samostatné GPX geometrie, mimo hlavní osu).
@@ -1500,6 +1514,9 @@ var SO_VYKRESY = {
   {nazev:'101 02.1 Situace km 0,000-2,500', soubor:'pdf/SO_101/101_02.1_Situace_km_0_000-2_500_C.pdf', typ:'02.1'},
   {nazev:'101 02.2 Situace km 2,500 - 5,500', soubor:'pdf/SO_101/101_02.2_Situace_km_2_500_-_5_500_C.pdf', typ:'02.2'},
   {nazev:'101 02.3 Situace km 5,500 - 8,200', soubor:'pdf/SO_101/101_02.3_Situace_km_5_500_-_8_200_C.pdf', typ:'02.3'},
+  {nazev:'Koordinační situace km 0,000 – 2,500', soubor:'pdf/C_02.1_situace_km_0-2500.pdf', typ:'KS'},
+  {nazev:'Koordinační situace km 2,500 – 5,500', soubor:'pdf/C_02.2_situace_km_2500-5500.pdf', typ:'KS'},
+  {nazev:'Koordinační situace km 5,500 – 8,200', soubor:'pdf/C_02.3_situace_km_5500-8200.pdf', typ:'KS'},
   {nazev:'101 03.1 PP km 0,000-2,500', soubor:'pdf/SO_101/101_03.1_PP_km_0_000-2_500_C.pdf', typ:'03.1'},
   {nazev:'101 03.2 PP km 2,500-5,500', soubor:'pdf/SO_101/101_03.2_PP_km_2_500-5_500_C.pdf', typ:'03.2'},
   {nazev:'101 03.3 PP km 5,500-8,200', soubor:'pdf/SO_101/101_03.3_PP_km_5_500-8_200_C.pdf', typ:'03.3'},
@@ -4854,8 +4871,23 @@ var SANACE = [];
 // Barevné polylinie SO podél osy. Lineární SO děl na úseky (a,b,c…) když nejsou souvislé.
 // Formát: {id:'SO 101.a', kmOd:0.186, kmDo:0.710, barva:'#3b82f6', label:'SO 101', short:'…'}
 // Viz reference/datova-pole.md §5. DOPLNIT:
+// off = kolmý offset (m): kladný = vlevo od osy, záporný = vpravo. oneLabel = jeden štítek; labelKm = kde.
 var STAVEBNI_OBJEKTY = [
-  /* {id:'SO 101.a', kmOd:0.186, kmDo:0.710, barva:'#3b82f6', label:'SO 101', short:'SO 101 - intravilán (km 0,186–0,710)'}, */
+  // — MÚK a protihlukové stěny (rozsah dle TZ / orientačně) —
+  {id:'SO 111', kmOd:4.400, kmDo:5.000, off:-22, barva:'#db2777', label:'SO 111', short:'MÚK Židněves (rozsah orient.)'},
+  {id:'SO 112', kmOd:7.000, kmDo:7.800, off:-22, barva:'#db2777', label:'SO 112', short:'MÚK Martinovice (rozsah orient.)'},
+  {id:'SO 124', kmOd:7.340, kmDo:7.700, off:84,  barva:'#ca8a04', label:'SO 124', short:'Přeložka MK (vlevo)'},
+  {id:'SO 760', kmOd:5.940, kmDo:6.170, off:98,  barva:'#64748b', label:'SO 760', short:'Protihluková stěna (vlevo)'},
+  {id:'SO 761', kmOd:7.507, kmDo:7.855, off:98,  barva:'#64748b', label:'SO 761', short:'Protihluková stěna (vlevo)'},
+  // — Celotrasová SO (km 0,000–8,200), barevné pruhy podél osy —
+  {id:'SO 301', kmOd:0.000, kmDo:8.200, off:30,  barva:'#2563eb', label:'SO 301', short:'Odvodnění I/16',            oneLabel:true, labelKm:0.8},
+  {id:'SO 380', kmOd:0.000, kmDo:8.200, off:46,  barva:'#16a34a', label:'SO 380', short:'Úpravy meliorací ZÚ–KÚ',    oneLabel:true, labelKm:2.2},
+  {id:'SO 801', kmOd:0.000, kmDo:8.200, off:62,  barva:'#65a30d', label:'SO 801', short:'Vegetační úpravy',           oneLabel:true, labelKm:3.6},
+  {id:'SO 860', kmOd:0.000, kmDo:8.200, off:78,  barva:'#475569', label:'SO 860', short:'Oplocení',                   oneLabel:true, labelKm:5.0},
+  {id:'SO 190', kmOd:0.000, kmDo:8.200, off:-30, barva:'#f59e0b', label:'SO 190', short:'Dopravní značení',           oneLabel:true, labelKm:1.5},
+  {id:'SO 180', kmOd:0.000, kmDo:8.200, off:-46, barva:'#d97706', label:'SO 180', short:'Přechodné dopravní značení', oneLabel:true, labelKm:2.9},
+  {id:'SO 020', kmOd:0.000, kmDo:8.200, off:-62, barva:'#6b7280', label:'SO 020', short:'Příprava území',             oneLabel:true, labelKm:4.3},
+  {id:'SO 830', kmOd:0.000, kmDo:8.200, off:-78, barva:'#92400e', label:'SO 830', short:'Rekultivace ploch',          oneLabel:true, labelKm:5.7},
 ];
 
 // ═══════════════════════════════════
@@ -4952,12 +4984,13 @@ function buildSanace() {
 function buildSO() {
   var mainGroup = L.layerGroup().addTo(map);
   layerGroups.so = mainGroup;
-  var soOffset = 20;
 
   STAVEBNI_OBJEKTY.forEach(function(so) {
     var key = 'so' + so.id.replace(/[ .]/g,'_').toLowerCase();
     var subGroup = L.layerGroup().addTo(mainGroup);
     layerGroups[key] = subGroup;
+    var soOffset = (so.off != null) ? so.off : 20;
+    var lblTxt = so.label || so.id;
 
     var pts = [];
     var bearList = [];
@@ -4979,31 +5012,53 @@ function buildSO() {
     if(pts.length < 2) return;
 
     var line = L.polyline(pts, {color:so.barva, weight:7, opacity:0.55});
-    line.bindPopup(
-      '<b>' + so.id + '</b> // I/16 Mladá Boleslav – Martinovice' +
-      '<br>km <b>' + fmtKm(so.kmOd) + ' – ' + fmtKm(so.kmDo) + '</b>',
-      {className:'so-tooltip', maxWidth:240}
-    );
+    var pop = '<b>' + so.id + '</b> // I/16 Mladá Boleslav – Martinovice' +
+      (so.short ? '<br>' + escapeHtml(so.short) : '') +
+      '<br>km <b>' + fmtKm(so.kmOd) + ' – ' + fmtKm(so.kmDo) + '</b>';
+    var vk = soVykresyKey(so.id);
+    if(vk && SO_VYKRESY[vk]) {
+      pop += '<br><button onclick="openSOVykresy(\'' + vk + '\')" ' +
+             'style="margin-top:6px;background:' + so.barva + ';color:#fff;border:none;' +
+             'border-radius:6px;padding:6px 10px;font-size:13px;font-weight:700;">📂 Výkresy ' + so.id + '</button>';
+    }
+    line.bindPopup(pop, {className:'so-tooltip', maxWidth:260});
     line.addTo(subGroup);
 
-    var step = 20;
-    for(var pi = 1; pi < pts.length - 1; pi += step) {
-      var bear2 = bearList[pi];
+    function placeLabel(plat, plng, bear2) {
       var rot = bear2;
       if(rot > 90 && rot < 270) rot = (rot + 180) % 360;
       var perpRad2 = (bear2 - 90) * Math.PI / 180;
-      var offExtra = 20 / 6371000;
-      var latL = pts[pi][0] + offExtra*(180/Math.PI)*Math.cos(perpRad2);
-      var lngL = pts[pi][1] + offExtra*(180/Math.PI)*Math.sin(perpRad2)/Math.cos(pts[pi][0]*Math.PI/180);
+      var offExtra = (soOffset >= 0 ? 8 : -8) / 6371000;
+      var latL = plat + offExtra*(180/Math.PI)*Math.cos(perpRad2);
+      var lngL = plng + offExtra*(180/Math.PI)*Math.sin(perpRad2)/Math.cos(plat*Math.PI/180);
       var lbl = L.divIcon({
         className:'',
         html:'<div style="color:'+so.barva+';font-size:14px;font-weight:800;white-space:nowrap;'+
              'text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;'+
              'transform:rotate('+(rot+90).toFixed(0)+'deg);transform-origin:0 50%;">'+
-             so.id+'</div>',
+             lblTxt+'</div>',
         iconSize:[0,0], iconAnchor:[0,0],
       });
       L.marker([latL,lngL],{icon:lbl,interactive:false}).addTo(subGroup);
+    }
+
+    if(so.oneLabel) {
+      var lkm = (so.labelKm != null) ? so.labelKm : (so.kmOd + so.kmDo) / 2;
+      var lpos = realKmToLatLng(lkm);
+      if(lpos) {
+        var lgpxM = interp(calibSorted,'realKm','gpxM',lkm);
+        var lbear = bearingAtGpxM(lgpxM);
+        var lperp = (lbear - 90) * Math.PI / 180;
+        var loff = soOffset / 6371000;
+        var llat = lpos[0] + loff*(180/Math.PI)*Math.cos(lperp);
+        var llng = lpos[1] + loff*(180/Math.PI)*Math.sin(lperp)/Math.cos(lpos[0]*Math.PI/180);
+        placeLabel(llat, llng, lbear);
+      }
+    } else {
+      var step = 20;
+      for(var pi = 1; pi < pts.length - 1; pi += step) {
+        placeLabel(pts[pi][0], pts[pi][1], bearList[pi]);
+      }
     }
   });
 }
@@ -5148,7 +5203,7 @@ function buildPrikopy() {
 // Vlastní kategorie Martinovice (ne generický 3xx/4xx/5xx model šablony).
 // perp = posun KOLMO k ose v METRECH (geografický offset), badge = číslo SO.
 // Klik na popup → onStaniceniClick(km) otevře PDF panel se Situací i Svodidly.
-var KAT_STYL = { most:'#e94560', nadjezd:'#d6336c', dun:'#38a169', voda:'#3182ce', elektro:'#dd6b20', plyn:'#805ad5', phs:'#718096' };
+var KAT_STYL = { most:'#e94560', nadjezd:'#d6336c', dun:'#38a169', voda:'#3182ce', elektro:'#dd6b20', plyn:'#805ad5', phs:'#718096', silnice:'#ca8a04' };
 
 function offsetLatLng(lat,lng,bear,meters){
   var dir=(bear+90)*Math.PI/180;
@@ -5230,7 +5285,7 @@ function soOsyBearingAt(geom, cumArr, distM) {
 // Štítek staničení boční osy SO. Barvy modré (odlišné od oranžové/šedé hlavní trasy).
 // is100=true → velké jako 20m na hlavní trase (18px); jinak poloviční (9px).
 // soShort se vypíše jen u 100m štítků kvůli přehlednosti (která osa to je).
-function addSOStanMarker(group, lat, lng, km, bear, is100, soShort) {
+function addSOStanMarker(group, lat, lng, km, bear, is100, soShort, vkKey) {
   var color    = is100 ? '#0ea5e9' : '#7dd3fc';
   var tickLen  = is100 ? 12 : 6;
   var tickW    = is100 ? 1.5 : 1;
@@ -5250,17 +5305,23 @@ function addSOStanMarker(group, lat, lng, km, bear, is100, soShort) {
   var tickIcon = L.divIcon({className:'', html:tickSvg, iconSize:[C,C], iconAnchor:[cc,cc]});
   L.marker([lat,lng],{icon:tickIcon,interactive:false,zIndexOffset:-15}).addTo(group);
 
-  // Text kolmo vlevo od osy
+  // Text kolmo vlevo od osy. S vkKey je klikatelný → otevře výkresy daného SO.
+  var clickable = !!vkKey;
   var perpRad = (bear - 90) * Math.PI / 180;
   var dx = Math.sin(perpRad) * offset, dy = -Math.cos(perpRad) * offset;
   var shadow = '-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff';
   var DW = 200, DH = 36;
   var ancX = Math.round(DW + dx), ancY = Math.round(DH/2 + dy);
+  var pe = clickable ? 'all;cursor:pointer' : 'none';
   var textHtml =
-    '<div style="width:'+DW+'px;height:'+DH+'px;display:flex;align-items:center;justify-content:flex-end;pointer-events:none;">'+
+    '<div style="width:'+DW+'px;height:'+DH+'px;display:flex;align-items:center;justify-content:flex-end;pointer-events:'+pe+';">'+
     '<span style="color:'+color+';font-size:'+fontSize+';font-weight:'+fontW+';font-family:Segoe UI,system-ui,sans-serif;white-space:nowrap;line-height:1;text-shadow:'+shadow+';">'+label+'</span></div>';
   var textIcon = L.divIcon({className:'', html:textHtml, iconSize:[DW,DH], iconAnchor:[ancX,ancY]});
-  L.marker([lat,lng],{icon:textIcon,interactive:false,zIndexOffset:115}).addTo(group);
+  var textM = L.marker([lat,lng],{icon:textIcon,interactive:clickable,zIndexOffset:115});
+  if(clickable){
+    textM.on('click',function(e){L.DomEvent.stopPropagation(e);openSOVykresy(vkKey);});
+  }
+  textM.addTo(group);
 }
 
 function buildSOLinie() {
@@ -5293,7 +5354,7 @@ function buildSOLinie() {
       var d20 = (km20 - so.km0)*1000;
       if(d20<-1 || d20>total+1) continue;
       var ll20 = soOsyPointAt(so.geom, so._cum, d20);
-      if(ll20) addSOStanMarker(layerGroups.soSt20, ll20[0], ll20[1], km20, soOsyBearingAt(so.geom, so._cum, d20), false, soShort);
+      if(ll20) addSOStanMarker(layerGroups.soSt20, ll20[0], ll20[1], km20, soOsyBearingAt(so.geom, so._cum, d20), false, soShort, vk2);
     }
 
     // 100m štítky (velké jako hlavní trasa 20m) – vlastní vrstva, s označením SO
@@ -5304,7 +5365,7 @@ function buildSOLinie() {
       var dist = (km - so.km0)*1000;
       if(dist<-1 || dist>total+1) continue;
       var ll = soOsyPointAt(so.geom, so._cum, dist);
-      if(ll) addSOStanMarker(layerGroups.soSt100, ll[0], ll[1], km, soOsyBearingAt(so.geom, so._cum, dist), true, soShort);
+      if(ll) addSOStanMarker(layerGroups.soSt100, ll[0], ll[1], km, soOsyBearingAt(so.geom, so._cum, dist), true, soShort, vk2);
     }
   });
 }
