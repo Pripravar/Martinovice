@@ -1160,6 +1160,14 @@ document.addEventListener('touchend', function(e){
     <label>🏗️ Stavební objekty SO</label>
     <label class="toggle"><input type="checkbox" id="lyr-so" checked onchange="toggleLayer('so',this.checked)"><span class="toggle-slider"></span></label>
   </div>
+  <div class="layer-row" style="padding-left:12px;">
+    <label style="font-size:12px;">↳ 📏 Staničení SO 100m</label>
+    <label class="toggle"><input type="checkbox" id="lyr-soSt100" checked onchange="toggleLayer('soSt100',this.checked)"><span class="toggle-slider"></span></label>
+  </div>
+  <div class="layer-row" style="padding-left:12px;">
+    <label style="font-size:12px;">↳ 📐 Staničení SO 20m</label>
+    <label class="toggle"><input type="checkbox" id="lyr-soSt20" onchange="toggleLayer('soSt20',this.checked)"><span class="toggle-slider"></span></label>
+  </div>
   <div class="layer-row">
     <label>📍 GPS poloha</label>
     <label class="toggle"><input type="checkbox" id="lyr-gps" checked onchange="toggleGPS(this.checked)"><span class="toggle-slider"></span></label>
@@ -2526,7 +2534,7 @@ var gpsActive = false;
 var gpsCentering = false;
 var gpxCumulative = [];
 var calibSorted = null;
-var layerGroups = {trasa:null, st100:null, st20:null, pr:null, propustky:null, prikopy:null, etapy:null, etapa1:null, etapa2:null, etapa3:null, etapa4:null, so:null, so101_1:null, so101_2:null, so101_3:null, sanace:null, notes:null, notes0:null, notes1:null, notes2:null, notes3:null, notes4:null, notes5:null, notes6:null};
+var layerGroups = {trasa:null, st100:null, st20:null, soSt100:null, soSt20:null, pr:null, propustky:null, prikopy:null, etapy:null, etapa1:null, etapa2:null, etapa3:null, etapa4:null, so:null, so101_1:null, so101_2:null, so101_3:null, sanace:null, notes:null, notes0:null, notes1:null, notes2:null, notes3:null, notes4:null, notes5:null, notes6:null};
 
 // ── MATH ──────────────────────────────
 function haversine(lat1,lon1,lat2,lon2) {
@@ -5161,10 +5169,60 @@ function soOsyPointAt(geom,cumArr,distM) {
   return geom[geom.length-1];
 }
 
+// Bearing (°) osy SO ve vzdálenosti distM od začátku – pro natočení čárky staničení.
+function soOsyBearingAt(geom, cumArr, distM) {
+  var n = geom.length - 1;
+  if(distM <= 0) return segBearing(geom[0][0],geom[0][1],geom[1][0],geom[1][1]);
+  for(var i=0;i<cumArr.length-1;i++){
+    if(distM>=cumArr[i] && distM<=cumArr[i+1])
+      return segBearing(geom[i][0],geom[i][1],geom[i+1][0],geom[i+1][1]);
+  }
+  return segBearing(geom[n-1][0],geom[n-1][1],geom[n][0],geom[n][1]);
+}
+
+// Štítek staničení boční osy SO. Barvy modré (odlišné od oranžové/šedé hlavní trasy).
+// is100=true → velké jako 20m na hlavní trase (18px); jinak poloviční (9px).
+// soShort se vypíše jen u 100m štítků kvůli přehlednosti (která osa to je).
+function addSOStanMarker(group, lat, lng, km, bear, is100, soShort) {
+  var color    = is100 ? '#0ea5e9' : '#7dd3fc';
+  var tickLen  = is100 ? 12 : 6;
+  var tickW    = is100 ? 1.5 : 1;
+  var fontSize = is100 ? '18px' : '9px';
+  var fontW    = is100 ? '800' : '700';
+  var offset   = is100 ? 34 : 22;
+  var label    = is100 ? (soShort + '  ' + fmtKm(km)) : fmtKm(km);
+
+  // Čárka kolmo na osu
+  var tickRot = (bear + 90) % 360;
+  var C = 60, cc = C/2;
+  var tickSvg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="'+C+'" height="'+C+'" style="overflow:visible;display:block;">' +
+    '<g transform="rotate('+tickRot.toFixed(1)+' '+cc+' '+cc+')">' +
+      '<line x1="'+cc+'" y1="'+(cc-tickLen)+'" x2="'+cc+'" y2="'+(cc+tickLen)+'" stroke="'+color+'" stroke-width="'+tickW+'" stroke-linecap="round"/>' +
+    '</g></svg>';
+  var tickIcon = L.divIcon({className:'', html:tickSvg, iconSize:[C,C], iconAnchor:[cc,cc]});
+  L.marker([lat,lng],{icon:tickIcon,interactive:false,zIndexOffset:-15}).addTo(group);
+
+  // Text kolmo vlevo od osy
+  var perpRad = (bear - 90) * Math.PI / 180;
+  var dx = Math.sin(perpRad) * offset, dy = -Math.cos(perpRad) * offset;
+  var shadow = '-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff';
+  var DW = 200, DH = 36;
+  var ancX = Math.round(DW + dx), ancY = Math.round(DH/2 + dy);
+  var textHtml =
+    '<div style="width:'+DW+'px;height:'+DH+'px;display:flex;align-items:center;justify-content:flex-end;pointer-events:none;">'+
+    '<span style="color:'+color+';font-size:'+fontSize+';font-weight:'+fontW+';font-family:Segoe UI,system-ui,sans-serif;white-space:nowrap;line-height:1;text-shadow:'+shadow+';">'+label+'</span></div>';
+  var textIcon = L.divIcon({className:'', html:textHtml, iconSize:[DW,DH], iconAnchor:[ancX,ancY]});
+  L.marker([lat,lng],{icon:textIcon,interactive:false,zIndexOffset:115}).addTo(group);
+}
+
 function buildSOLinie() {
   if(!Array.isArray(SO_OSY) || !SO_OSY.length) return;
   var grp = layerGroups.so || L.layerGroup().addTo(map);
   layerGroups.so = grp;
+  // Vlastní vrstvy staničení bočních SO (100m zapnuto, 20m vypnuto – jako hlavní trasa)
+  layerGroups.soSt100 = L.layerGroup().addTo(map);
+  layerGroups.soSt20  = L.layerGroup();
   var col = { prel:'#f6ad55', pristup:'#9aa5b1' };
   SO_OSY.forEach(function(so){
     var c = col[so.grp] || '#9aa5b1';
@@ -5177,19 +5235,29 @@ function buildSOLinie() {
     pl.bindPopup('<div style="font-size:13px;"><b>'+so.id+'</b><br>'+escapeHtml(so.nazev)+
       '<br><span style="color:#666;font-size:11px;">staničení '+fmtKm(so.km0)+' – '+fmtKm(so.kmKU)+'</span>'+vkBtn+'</div>');
     pl.addTo(grp);
-    // km štítky podél osy — po 0,1 km vnitřního staničení
-    var startH = Math.ceil(so.km0*10 - 1e-6);   // první štítek (jednotky 0,1 km)
-    var endH   = Math.floor(so.kmKU*10 + 1e-6);  // poslední štítek
+
+    var soShort = so.id.replace(/^SO\s+/i, '');  // "130", "151 osa 2" …
+
+    // 20m štítky (poloviční) – vlastní vrstva, přeskoč násobky 100m (tam je 100m štítek)
+    var step20 = 0.020;
+    for(var k=Math.ceil(so.km0/step20 - 1e-6)*step20; k<=so.kmKU+1e-6; k+=step20){
+      var km20 = Math.round(k*1000)/1000;
+      if(Math.round(km20*1000) % 100 === 0) continue;
+      var d20 = (km20 - so.km0)*1000;
+      if(d20<-1 || d20>total+1) continue;
+      var ll20 = soOsyPointAt(so.geom, so._cum, d20);
+      if(ll20) addSOStanMarker(layerGroups.soSt20, ll20[0], ll20[1], km20, soOsyBearingAt(so.geom, so._cum, d20), false, soShort);
+    }
+
+    // 100m štítky (velké jako hlavní trasa 20m) – vlastní vrstva, s označením SO
+    var startH = Math.ceil(so.km0*10 - 1e-6);
+    var endH   = Math.floor(so.kmKU*10 + 1e-6);
     for(var h=startH; h<=endH; h++){
       var km = h/10;
       var dist = (km - so.km0)*1000;
       if(dist<-1 || dist>total+1) continue;
       var ll = soOsyPointAt(so.geom, so._cum, dist);
-      if(!ll) continue;
-      var icon = L.divIcon({className:'so-km-label',
-        html:'<div style="background:rgba(255,255,255,0.85);border:1px solid '+c+';border-radius:4px;padding:0 3px;font-size:10px;line-height:13px;color:#333;white-space:nowrap;font-weight:600;">'+fmtKm(km)+'</div>',
-        iconSize:[38,15], iconAnchor:[19,7]});
-      L.marker(ll, {icon:icon, interactive:false, zIndexOffset:120}).addTo(grp);
+      if(ll) addSOStanMarker(layerGroups.soSt100, ll[0], ll[1], km, soOsyBearingAt(so.geom, so._cum, dist), true, soShort);
     }
   });
 }
