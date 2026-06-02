@@ -1,6 +1,10 @@
-// Service worker - jednoduchá cache pro offline mapu osy.
+// Service worker - cache pro offline mapu osy.
 // Verzuj při každé větší změně (změna CACHE_NAME invaliduje cache).
-var CACHE_NAME = 'martinovice-v0.3-2026-06-02';
+//
+// DŮLEŽITÉ: HTML/navigace jde NETWORK-FIRST. Připnutá PWA na iOS si jinak
+// drží starý index.html z cache a po pushi neukazuje aktualizaci. Online
+// se vždy stáhne čerstvý HTML, offline padá zpět na poslední cache.
+var CACHE_NAME = 'martinovice-v0.4-2026-06-02';
 var ASSETS = [
   './',
   './index.html',
@@ -23,22 +27,47 @@ self.addEventListener('activate', function(e) {
   self.clients.claim();
 });
 
+function isHtmlRequest(req){
+  if(req.mode === 'navigate') return true;
+  var acc = req.headers.get('accept') || '';
+  return acc.indexOf('text/html') !== -1;
+}
+
 self.addEventListener('fetch', function(e) {
-  // Mapové dlaždice a externí JS/CSS – jen network (necachujeme, aby se nevyplnila kapacita)
-  var url = e.request.url;
+  var req = e.request;
+  var url = req.url;
+
+  // Mapové dlaždice a externí JS/CSS – jen network (necachujeme)
   if(url.indexOf('api.mapy.cz') !== -1 ||
      url.indexOf('tile.openstreetmap.org') !== -1 ||
      url.indexOf('services.cuzk.cz') !== -1 ||
      url.indexOf('unpkg.com') !== -1) {
     return; // browser default
   }
-  // Statika – cache-first
-  e.respondWith(
-    caches.match(e.request).then(function(r){
-      return r || fetch(e.request).then(function(resp){
-        if(resp && resp.status === 200 && e.request.method === 'GET') {
+
+  // HTML / navigace – NETWORK-FIRST (čerstvý index.html po pushi), offline → cache
+  if(isHtmlRequest(req)) {
+    e.respondWith(
+      fetch(req).then(function(resp){
+        if(resp && resp.status === 200 && req.method === 'GET') {
           var cl = resp.clone();
-          caches.open(CACHE_NAME).then(function(c){ c.put(e.request, cl); });
+          caches.open(CACHE_NAME).then(function(c){ c.put(req, cl); });
+        }
+        return resp;
+      }).catch(function(){
+        return caches.match(req).then(function(r){ return r || caches.match('./index.html'); });
+      })
+    );
+    return;
+  }
+
+  // Ostatní statika – cache-first
+  e.respondWith(
+    caches.match(req).then(function(r){
+      return r || fetch(req).then(function(resp){
+        if(resp && resp.status === 200 && req.method === 'GET') {
+          var cl = resp.clone();
+          caches.open(CACHE_NAME).then(function(c){ c.put(req, cl); });
         }
         return resp;
       });

@@ -1413,6 +1413,18 @@ var DOPLNKY_SO=[
  {id:'SO 146',kat:'dun',km:4.940,perp:62,nazev:'SO 146 – 4,940 Příjezd k DUN'},
  {id:'SO 147',kat:'dun',km:5.130,perp:62,nazev:'SO 147 – 5,130 Příjezd k DUN'},
  {id:'SO 148',kat:'dun',km:7.450,perp:62,nazev:'SO 148 – 7,450 Příjezd k DUN'},
+ // DUN a retenční nádrže (SO 360.x) – poloha z vytyčovacích souřadnic S-JTSK v TZ 360_01 (převod na WGS84).
+ // 360.3 nemá vytyčovací tabulku → poloha odečtena ze situace 360.3_01 (orientačně).
+ {id:'SO 360.1', kat:'dun',lat:50.427367,lng:14.948150,nazev:'SO 360.1 – DUN a retenční nádrž'},
+ {id:'SO 360.2', kat:'dun',lat:50.426865,lng:14.948809,nazev:'SO 360.2 – DUN a retenční nádrž'},
+ {id:'SO 360.3', kat:'dun',lat:50.424595,lng:14.954538,nazev:'SO 360.3 – DUN a retenční nádrž (poloha orientačně)'},
+ {id:'SO 360.4', kat:'dun',lat:50.421222,lng:14.962412,nazev:'SO 360.4 – DUN a retenční nádrž'},
+ {id:'SO 360.5', kat:'dun',lat:50.421307,lng:14.964119,nazev:'SO 360.5 – DUN a retenční nádrž'},
+ {id:'SO 360.6', kat:'dun',lat:50.421270,lng:14.979359,nazev:'SO 360.6 – DUN a retenční nádrž'},
+ {id:'SO 360.7', kat:'dun',lat:50.421957,lng:14.981462,nazev:'SO 360.7 – DUN a retenční nádrž'},
+ {id:'SO 360.8', kat:'dun',lat:50.421212,lng:15.012334,nazev:'SO 360.8 – DUN a retenční nádrž'},
+ {id:'SO 360.9', kat:'dun',lat:50.421493,lng:15.013164,nazev:'SO 360.9 – DUN a retenční nádrž'},
+ {id:'SO 360.10',kat:'dun',lat:50.431470,lng:15.039063,nazev:'SO 360.10 – DUN a retenční nádrž'},
  {id:'SO 321',kat:'voda',km:0.654,perp:-72,nazev:'SO 321 – 0,654 Úprava HOZ 1'},
  {id:'SO 322',kat:'voda',km:1.430,perp:-72,nazev:'SO 322 – 1,430 Úprava HOZ 2'},
  {id:'SO 324',kat:'voda',km:3.960,perp:-72,nazev:'SO 324 – 3,960 Úprava HOZ 3'},
@@ -2937,6 +2949,20 @@ function onStaniceniClick(realKm) {
   openDocPanel(pages, realKm, 0);
 }
 
+// Popisek záložky výkresu: z 'nazev' odstraní číselný prefix SO + subkód,
+// nechá jen čitelný název. Když nevyjde, padá zpět na 'typ'.
+function docTabLabel(p){
+  var n = p && p.nazev ? String(p.nazev).trim() : '';
+  if(n){
+    var s = n.replace(/^SO\s+/i,'');               // "SO 01 ..." → "01 ..."
+    s = s.replace(/^\d+(?:\.\d+)?\s+/,'');          // číslo SO ("101 ", "020 ", "360.3 ")
+    s = s.replace(/^[A-Za-z]?\d+(?:\.\d+)?\s+/,''); // subkód ("04 ", "02.1 ", "00 ")
+    s = s.trim();
+    return s || n;
+  }
+  return (p && p.typ) ? p.typ : '📄';
+}
+
 function openDocPanel(pages, realKm, startIdx) {
   docPages   = pages;
   docPageIdx = startIdx || 0;
@@ -2957,7 +2983,8 @@ function openDocPanel(pages, realKm, startIdx) {
   pages.forEach(function(p, i) {
     var btn = document.createElement('button');
     btn.className = 'pdf-tab' + (i===docPageIdx?' active':'');
-    btn.textContent = p.typ;
+    btn.textContent = docTabLabel(p);
+    btn.title = p.nazev || '';
     btn.onclick = (function(idx){return function(){docGoTo(idx);};})(i);
     tabs.appendChild(btn);
   });
@@ -5122,10 +5149,17 @@ function buildDoplnky() {
   layerGroups.doplnky = doplnkyLayer;
 
   DOPLNKY_SO.forEach(function(o) {
-    var pos = realKmToLatLng(o.km); if(!pos) return;
-    var gpxM = interp(calibSorted,'realKm','gpxM',o.km);
-    var bear = bearingAtGpxM(gpxM);
-    var p = o.perp ? offsetLatLng(pos[0],pos[1],bear,o.perp) : pos;
+    var p;
+    if(o.lat != null && o.lng != null) {
+      // Přesná poloha z TZ (vytyčovací souřadnice → WGS84) – bez kolmého offsetu
+      p = [o.lat, o.lng];
+      if(o.km == null) { var kmc = gpsToKm(o.lat, o.lng); if(kmc != null) o.km = Math.round(kmc*1000)/1000; }
+    } else {
+      var pos = realKmToLatLng(o.km); if(!pos) return;
+      var gpxM = interp(calibSorted,'realKm','gpxM',o.km);
+      var bear = bearingAtGpxM(gpxM);
+      p = o.perp ? offsetLatLng(pos[0],pos[1],bear,o.perp) : pos;
+    }
     var c = KAT_STYL[o.kat] || '#888';
     var num = o.id.replace('SO ','');
     var icon = L.divIcon({className:'', iconSize:[0,0],
@@ -5134,7 +5168,7 @@ function buildDoplnky() {
            'white-space:nowrap;position:absolute;transform:translate(-50%,-50%);">'+num+'</div>'});
     var m = L.marker(p,{icon:icon, interactive:true, zIndexOffset:180});
     var vk = soVykresyKey(o.id);
-    var btns = '<button onclick="onStaniceniClick('+o.km+')" style="margin-top:6px;background:#0f3460;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;">📐 Trasa (km '+fmtKm(o.km)+')</button>';
+    var btns = (o.km != null) ? '<button onclick="onStaniceniClick('+o.km+')" style="margin-top:6px;background:#0f3460;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;">📐 Trasa (km '+fmtKm(o.km)+')</button>' : '';
     if(vk){
       btns += '<br><button onclick="openSOVykresy(\''+vk+'\')" style="margin-top:6px;background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;">📂 Výkresy '+o.id+'</button>';
     }
@@ -5293,6 +5327,7 @@ function nearestBranchKm(lat,lng) {
 // Cachuje se na objektu (o._pos), ať se nepočítá při každém focení znovu.
 function doplnekLatLng(o){
   if(o._pos) return o._pos;
+  if(o.lat != null && o.lng != null){ o._pos = [o.lat, o.lng]; return o._pos; }
   var pos = realKmToLatLng(o.km); if(!pos) return null;
   if(o.perp){
     var gpxM = interp(calibSorted,'realKm','gpxM',o.km);
@@ -5436,7 +5471,8 @@ function openPropPanel(prop) {
   propPages.forEach(function(p, i) {
     var btn = document.createElement('button');
     btn.className = 'pdf-tab' + (i===0?' active':'');
-    btn.textContent = p.typ;
+    btn.textContent = docTabLabel(p);
+    btn.title = p.nazev || '';
     btn.onclick = (function(idx){ return function(){
       renderPropPage(idx);
     };})(i);
@@ -7228,11 +7264,31 @@ function toggleTaskSubLayer(which, visible) {
 }
 
 // ── PWA: service worker registrace ──────────────────────────────────
+function showUpdateBanner() {
+  if(document.getElementById('sw-update-banner')) return;
+  var b = document.createElement('div');
+  b.id = 'sw-update-banner';
+  b.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:var(--green,#48bb78);color:#fff;padding:12px 14px;padding-bottom:calc(12px + env(safe-area-inset-bottom));font-size:13px;font-weight:700;text-align:center;z-index:6000;cursor:pointer;box-shadow:0 -2px 10px rgba(0,0,0,.4);';
+  b.textContent = '🔄 Nová verze aplikace – ťukni pro načtení';
+  b.onclick = function(){ window.location.reload(true); };
+  document.body.appendChild(b);
+}
+
 function registerServiceWorker() {
   if(!('serviceWorker' in navigator)) return Promise.reject('SW nepodporován');
   return navigator.serviceWorker.register('service-worker.js')
     .then(function(reg){
       console.log('Service worker zaregistrován:', reg.scope);
+      // Nová verze nalezena → ukaž banner (jen když už nějaký SW ovládá stránku)
+      reg.addEventListener('updatefound', function(){
+        var nw = reg.installing;
+        if(!nw) return;
+        nw.addEventListener('statechange', function(){
+          if(nw.state === 'installed' && navigator.serviceWorker.controller) {
+            showUpdateBanner();
+          }
+        });
+      });
       return reg;
     })
     .catch(function(err){
