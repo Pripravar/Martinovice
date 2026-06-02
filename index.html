@@ -1162,7 +1162,7 @@ document.addEventListener('touchend', function(e){
   </div>
   <div class="layer-row" style="padding-left:12px;">
     <label style="font-size:12px;">↳ 📏 Staničení SO 100m</label>
-    <label class="toggle"><input type="checkbox" id="lyr-soSt100" checked onchange="toggleLayer('soSt100',this.checked)"><span class="toggle-slider"></span></label>
+    <label class="toggle"><input type="checkbox" id="lyr-soSt100" onchange="toggleLayer('soSt100',this.checked)"><span class="toggle-slider"></span></label>
   </div>
   <div class="layer-row" style="padding-left:12px;">
     <label style="font-size:12px;">↳ 📐 Staničení SO 20m</label>
@@ -2513,9 +2513,13 @@ function openSOVykresy(soId){
     if(typeof showToast==='function') showToast('Pro SO '+soId+' nejsou výkresy', 1800);
     return;
   }
-  var pages = SO_VYKRESY[soId].map(function(v){
+  var pages = filterDocPages(SO_VYKRESY[soId]).map(function(v){
     return {soubor:v.soubor, nazev:v.nazev, typ:(v.typ||'📄')};
   });
+  if(!pages.length){
+    if(typeof showToast==='function') showToast('Pro SO '+soId+' nejsou výkresy', 1800);
+    return;
+  }
   openDocPanel(pages, null, 0);
 }
 // Z id objektu (SO_OSY / DOPLNKY_SO) odvodí klíč do SO_VYKRESY (číslo SO).
@@ -2947,6 +2951,15 @@ function onStaniceniClick(realKm) {
     });
   }
   openDocPanel(pages, realKm, 0);
+}
+
+// Boilerplate výkresy (titulní desky, seznam příloh) – v aplikaci nenabízíme.
+function isBoilerplateDoc(p){
+  var n = p && p.nazev ? String(p.nazev) : '';
+  return /(^|\s)(Desky|Seznam\s+p[řr]íloh|Seznam\s+priloh|Titulní\s+list|Titulka)(\s|$)/i.test(n);
+}
+function filterDocPages(pages){
+  return (pages || []).filter(function(p){ return !isBoilerplateDoc(p); });
 }
 
 // Popisek záložky výkresu: z 'nazev' odstraní číselný prefix SO + subkód,
@@ -5255,7 +5268,7 @@ function buildSOLinie() {
   var grp = layerGroups.so || L.layerGroup().addTo(map);
   layerGroups.so = grp;
   // Vlastní vrstvy staničení bočních SO (100m zapnuto, 20m vypnuto – jako hlavní trasa)
-  layerGroups.soSt100 = L.layerGroup().addTo(map);
+  layerGroups.soSt100 = L.layerGroup();  // vypnuto po startu – uživatel si zapne
   layerGroups.soSt20  = L.layerGroup();
   var col = { prel:'#f6ad55', pristup:'#9aa5b1' };
   SO_OSY.forEach(function(so){
@@ -5442,7 +5455,7 @@ function openPropPanel(prop) {
   // Varianta A: každý propustek má pole 'vykresy' s kompletní sadou (situace, PP, vzor.řezy, ...)
   // Varianta B (fallback): pokud je definován jen 'soubor' + 'tz', sestav minimální pole
   if(prop.vykresy && prop.vykresy.length) {
-    propPages = prop.vykresy.slice();
+    propPages = filterDocPages(prop.vykresy.slice());
   } else {
     propPages = [
       {soubor: prop.soubor, nazev: prop.nazev, typ: '📐 Situace'},
