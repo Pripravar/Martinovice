@@ -1157,7 +1157,11 @@ document.addEventListener('touchend', function(e){
     <label class="toggle"><input type="checkbox" id="lyr-doplnky" checked onchange="toggleLayer('doplnky',this.checked)"><span class="toggle-slider"></span></label>
   </div>
   <div class="layer-row">
-    <label>🏗️ Stavební objekty SO</label>
+    <label>🌈 Barevné SO pruhy (ekvidistanty)</label>
+    <label class="toggle"><input type="checkbox" id="lyr-ekvi" checked onchange="toggleLayer('ekvi',this.checked)"><span class="toggle-slider"></span></label>
+  </div>
+  <div class="layer-row">
+    <label>🏗️ Boční osy SO (přeložky, cesty)</label>
     <label class="toggle"><input type="checkbox" id="lyr-so" checked onchange="toggleLayer('so',this.checked)"><span class="toggle-slider"></span></label>
   </div>
   <div class="layer-row" style="padding-left:12px;">
@@ -2567,7 +2571,7 @@ var gpsActive = false;
 var gpsCentering = false;
 var gpxCumulative = [];
 var calibSorted = null;
-var layerGroups = {trasa:null, st100:null, st20:null, soSt100:null, soSt20:null, pr:null, propustky:null, prikopy:null, etapy:null, etapa1:null, etapa2:null, etapa3:null, etapa4:null, so:null, so101_1:null, so101_2:null, so101_3:null, sanace:null, notes:null, notes0:null, notes1:null, notes2:null, notes3:null, notes4:null, notes5:null, notes6:null};
+var layerGroups = {trasa:null, st100:null, st20:null, soSt100:null, soSt20:null, pr:null, propustky:null, prikopy:null, etapy:null, etapa1:null, etapa2:null, etapa3:null, etapa4:null, so:null, ekvi:null, so101_1:null, so101_2:null, so101_3:null, sanace:null, notes:null, notes0:null, notes1:null, notes2:null, notes3:null, notes4:null, notes5:null, notes6:null};
 
 // ── MATH ──────────────────────────────
 function haversine(lat1,lon1,lat2,lon2) {
@@ -4982,36 +4986,41 @@ function buildSanace() {
 }
 
 function buildSO() {
+  // Vlastní vypínatelná vrstva „Barevné SO pruhy (ekvidistanty)" – nezávislá na SO_OSY.
   var mainGroup = L.layerGroup().addTo(map);
-  layerGroups.so = mainGroup;
+  layerGroups.ekvi = mainGroup;
+
+  // Bod na pruhu pro dané km: vrací {lat,lng,bear} s kolmým offsetem soOffset.
+  function ptAtKm(km, soOffset) {
+    var pos = realKmToLatLng(km);
+    if(!pos) return null;
+    var bear = bearingAtGpxM(interp(calibSorted,'realKm','gpxM',km));
+    var perpRad = (bear - 90) * Math.PI / 180;
+    var off = soOffset / 6371000;
+    return {
+      lat: pos[0] + off*(180/Math.PI)*Math.cos(perpRad),
+      lng: pos[1] + off*(180/Math.PI)*Math.sin(perpRad)/Math.cos(pos[0]*Math.PI/180),
+      bear: bear
+    };
+  }
 
   STAVEBNI_OBJEKTY.forEach(function(so) {
-    var key = 'so' + so.id.replace(/[ .]/g,'_').toLowerCase();
+    var key = 'ekvi_' + so.id.replace(/[ .]/g,'_').toLowerCase();
     var subGroup = L.layerGroup().addTo(mainGroup);
     layerGroups[key] = subGroup;
     var soOffset = (so.off != null) ? so.off : 20;
     var lblTxt = so.label || so.id;
 
     var pts = [];
-    var bearList = [];
     var km = so.kmOd;
     while(km <= so.kmDo + 0.001) {
-      var pos = realKmToLatLng(km);
-      if(pos) {
-        var gpxM = interp(calibSorted,'realKm','gpxM',km);
-        var bear = bearingAtGpxM(gpxM);
-        var perpRad = (bear - 90) * Math.PI / 180;
-        var off = soOffset / 6371000;
-        var lat = pos[0] + off*(180/Math.PI)*Math.cos(perpRad);
-        var lng = pos[1] + off*(180/Math.PI)*Math.sin(perpRad)/Math.cos(pos[0]*Math.PI/180);
-        pts.push([lat, lng]);
-        bearList.push(bear);
-      }
+      var p = ptAtKm(km, soOffset);
+      if(p) pts.push([p.lat, p.lng]);
       km = Math.round((km + 0.020) * 1000) / 1000;
     }
     if(pts.length < 2) return;
 
-    var line = L.polyline(pts, {color:so.barva, weight:7, opacity:0.55});
+    var line = L.polyline(pts, {color:so.barva, weight:4, opacity:0.7});
     var pop = '<b>' + so.id + '</b> // I/16 Mladá Boleslav – Martinovice' +
       (so.short ? '<br>' + escapeHtml(so.short) : '') +
       '<br>km <b>' + fmtKm(so.kmOd) + ' – ' + fmtKm(so.kmDo) + '</b>';
@@ -5024,42 +5033,31 @@ function buildSO() {
     line.bindPopup(pop, {className:'so-tooltip', maxWidth:260});
     line.addTo(subGroup);
 
+    // Štítek SO podél pruhu – text vodorovně podél osy, NIKDY vzhůru nohama.
     function placeLabel(plat, plng, bear2) {
-      var rot = bear2;
-      if(rot > 90 && rot < 270) rot = (rot + 180) % 360;
-      var perpRad2 = (bear2 - 90) * Math.PI / 180;
-      var offExtra = (soOffset >= 0 ? 8 : -8) / 6371000;
-      var latL = plat + offExtra*(180/Math.PI)*Math.cos(perpRad2);
-      var lngL = plng + offExtra*(180/Math.PI)*Math.sin(perpRad2)/Math.cos(plat*Math.PI/180);
+      var br = bear2 * Math.PI / 180;
+      var theta = Math.atan2(-Math.cos(br), Math.sin(br)) * 180 / Math.PI;
+      if(Math.sin(br) < 0) theta += 180;  // čte se zleva doprava
       var lbl = L.divIcon({
         className:'',
-        html:'<div style="color:'+so.barva+';font-size:14px;font-weight:800;white-space:nowrap;'+
-             'text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;'+
-             'transform:rotate('+(rot+90).toFixed(0)+'deg);transform-origin:0 50%;">'+
+        html:'<div style="color:'+so.barva+';font-size:11px;font-weight:700;white-space:nowrap;'+
+             'text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff;'+
+             'transform:translate(-50%,-50%) rotate('+theta.toFixed(1)+'deg);">'+
              lblTxt+'</div>',
         iconSize:[0,0], iconAnchor:[0,0],
       });
-      L.marker([latL,lngL],{icon:lbl,interactive:false}).addTo(subGroup);
+      L.marker([plat,plng],{icon:lbl,interactive:false}).addTo(subGroup);
     }
 
-    if(so.oneLabel) {
-      var lkm = (so.labelKm != null) ? so.labelKm : (so.kmOd + so.kmDo) / 2;
-      var lpos = realKmToLatLng(lkm);
-      if(lpos) {
-        var lgpxM = interp(calibSorted,'realKm','gpxM',lkm);
-        var lbear = bearingAtGpxM(lgpxM);
-        var lperp = (lbear - 90) * Math.PI / 180;
-        var loff = soOffset / 6371000;
-        var llat = lpos[0] + loff*(180/Math.PI)*Math.cos(lperp);
-        var llng = lpos[1] + loff*(180/Math.PI)*Math.sin(lperp)/Math.cos(lpos[0]*Math.PI/180);
-        placeLabel(llat, llng, lbear);
-      }
-    } else {
-      var step = 20;
-      for(var pi = 1; pi < pts.length - 1; pi += step) {
-        placeLabel(pts[pi][0], pts[pi][1], bearList[pi]);
-      }
-    }
+    // Popisky co 500 m. Když do úseku žádný násobek 500 m nespadne, dej 1 štítek doprostřed.
+    var labelKms = [];
+    var lk = Math.ceil(so.kmOd / 0.5 - 1e-6) * 0.5;
+    for(; lk <= so.kmDo + 1e-6; lk += 0.5) labelKms.push(Math.round(lk*1000)/1000);
+    if(!labelKms.length) labelKms.push(Math.round((so.kmOd + so.kmDo)/2 * 1000)/1000);
+    labelKms.forEach(function(lkm){
+      var p = ptAtKm(lkm, soOffset);
+      if(p) placeLabel(p.lat, p.lng, p.bear);
+    });
   });
 }
 
