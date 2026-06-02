@@ -1353,8 +1353,24 @@ var DOCS_SVODIDLA = [
   {kmOd:2.500, kmDo:5.500, soubor:PDF_BASE+'svodidla_km_2500-5500.pdf', nazev:'C_03.2 Výkres svodidel km 2,500 – 5,500'},
   {kmOd:5.500, kmDo:8.200, soubor:PDF_BASE+'svodidla_km_5500-8200.pdf', nazev:'C_03.3 Výkres svodidel km 5,500 – 8,200'}
 ];
-var DOCS_PP      = [ /* DOPLNIT: podélné profily */ ];
-var DOCS_VPR     = [ /* DOPLNIT: vzorové příčné řezy */ ];
+// Podélné profily SO 101 (po km) — long-press na trase zobrazí pasující list
+var DOCS_PP      = [
+  {kmOd:0.000, kmDo:2.500, soubor:'pdf/SO_101/101_03.1_PP_km_0_000-2_500_C.pdf', nazev:'Podélný profil SO 101 km 0,000–2,500'},
+  {kmOd:2.500, kmDo:5.500, soubor:'pdf/SO_101/101_03.2_PP_km_2_500-5_500_C.pdf', nazev:'Podélný profil SO 101 km 2,500–5,500'},
+  {kmOd:5.500, kmDo:8.200, soubor:'pdf/SO_101/101_03.3_PP_km_5_500-8_200_C.pdf', nazev:'Podélný profil SO 101 km 5,500–8,200'}
+];
+// Vzorové příčné řezy SO 101 (pro celou trasu)
+var DOCS_VPR     = [
+  {kmOd:0.000, kmDo:8.200, soubor:'pdf/SO_101/101_04_Vzorove_pricne_rezy_C.pdf', nazev:'Vzorové příčné řezy SO 101'}
+];
+// Pracovní (podrobné) příčné řezy SO 101 (po km)
+var DOCS_PRR     = [
+  {kmOd:0.100, kmDo:1.800, soubor:'pdf/SO_101/101_05.1_PR_0_100-1_800_C.pdf', nazev:'Pracovní řezy SO 101 km 0,100–1,800'},
+  {kmOd:1.900, kmDo:3.700, soubor:'pdf/SO_101/101_05.2_PR_1_900-3_700_C.pdf', nazev:'Pracovní řezy SO 101 km 1,900–3,700'},
+  {kmOd:3.800, kmDo:5.600, soubor:'pdf/SO_101/101_05.3_PR_3_800-5_600_C.pdf', nazev:'Pracovní řezy SO 101 km 3,800–5,600'},
+  {kmOd:5.700, kmDo:7.000, soubor:'pdf/SO_101/101_05.4_PR_5_700-7_000_C.pdf', nazev:'Pracovní řezy SO 101 km 5,700–7,000'},
+  {kmOd:7.100, kmDo:8.200, soubor:'pdf/SO_101/101_05.5_PR_7_100-8_200_C.pdf', nazev:'Pracovní řezy SO 101 km 7,100–8,200'}
+];
 var DOCS_DZ      = [ /* DOPLNIT: dopravní značení */ ];
 var DOCS_CHPR    = [ /* DOPLNIT: charakteristické příčné řezy */ ];
 var DOCS_KLAD    = [ /* DOPLNIT: kladečské plány */ ];
@@ -1440,6 +1456,1059 @@ var VEDENI_NN = [ /* DOPLNIT volitelně: křížení NN vedení */ ];
 // PRACOVNÍ ŘEZY - pokud je PDPS má, naplň DOCS_PR; jinak nech prázdné
 var DOCS_PR = {};
 function findPR(realKm) { return null; }
+
+// Výkresy ze složky PDPS/D – per SO. Klik na SO/staničení → openSOVykresy(id).
+// Generováno z podklady/PDPS/.../D_Dokumentace objektů. Názvy souborů sanitizovány na ASCII.
+var SO_VYKRESY = {
+  '001': [
+  {nazev:'SO 01 A. PZ PDPS', soubor:'pdf/SO_001/SO_01_A._PZ_PDPS.pdf', typ:'01'},
+  {nazev:'SO 01 B. STZ PDPS', soubor:'pdf/SO_001/SO_01_B._STZ_PDPS.pdf', typ:'01'},
+  {nazev:'SO 01 C.1 Situacni vykres sirsich vztahu PDPS', soubor:'pdf/SO_001/SO_01_C.1_Situacni_vykres_sirsich_vztahu_PDPS.pdf', typ:'01'},
+  {nazev:'SO 01 C.2 Katastralni situacni vykres PDPS', soubor:'pdf/SO_001/SO_01_C.2_Katastralni_situacni_vykres_PDPS.pdf', typ:'01'},
+  {nazev:'SO 01 D.1 TZ PDPS', soubor:'pdf/SO_001/SO_01_D.1_TZ_PDPS.pdf', typ:'01'},
+  {nazev:'SO 01 D.2 vykres PDPS', soubor:'pdf/SO_001/SO_01_D.2_vykres_PDPS.pdf', typ:'01'},
+  {nazev:'SO 01 HL Desky TIT PDPS', soubor:'pdf/SO_001/SO_01_HL_Desky_TIT_PDPS.pdf', typ:'01'},
+  {nazev:'SO 01 HL Desky seznam PDPS', soubor:'pdf/SO_001/SO_01_HL_Desky_seznam_PDPS.pdf', typ:'01'}
+  ],
+  '020': [
+  {nazev:'020 Příprava území', soubor:'pdf/SO_020/020_Priprava_uzemi_C.pdf', typ:''}
+  ],
+  '101': [
+  {nazev:'101 00 Desky', soubor:'pdf/SO_101/101_00_Desky_C.pdf', typ:'00'},
+  {nazev:'101 00 Seznam příloh', soubor:'pdf/SO_101/101_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'101 01 Technická zpráva 250318', soubor:'pdf/SO_101/101_01_Technicka_zprava_C_250318.pdf', typ:'01'},
+  {nazev:'101 02.1 Situace km 0,000-2,500', soubor:'pdf/SO_101/101_02.1_Situace_km_0_000-2_500_C.pdf', typ:'02.1'},
+  {nazev:'101 02.2 Situace km 2,500 - 5,500', soubor:'pdf/SO_101/101_02.2_Situace_km_2_500_-_5_500_C.pdf', typ:'02.2'},
+  {nazev:'101 02.3 Situace km 5,500 - 8,200', soubor:'pdf/SO_101/101_02.3_Situace_km_5_500_-_8_200_C.pdf', typ:'02.3'},
+  {nazev:'101 03.1 PP km 0,000-2,500', soubor:'pdf/SO_101/101_03.1_PP_km_0_000-2_500_C.pdf', typ:'03.1'},
+  {nazev:'101 03.2 PP km 2,500-5,500', soubor:'pdf/SO_101/101_03.2_PP_km_2_500-5_500_C.pdf', typ:'03.2'},
+  {nazev:'101 03.3 PP km 5,500-8,200', soubor:'pdf/SO_101/101_03.3_PP_km_5_500-8_200_C.pdf', typ:'03.3'},
+  {nazev:'101 04 Vzorové příčné řezy', soubor:'pdf/SO_101/101_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'101 05.1 PR 0,100-1,800', soubor:'pdf/SO_101/101_05.1_PR_0_100-1_800_C.pdf', typ:'05.1'},
+  {nazev:'101 05.2 PR 1,900-3,700', soubor:'pdf/SO_101/101_05.2_PR_1_900-3_700_C.pdf', typ:'05.2'},
+  {nazev:'101 05.3 PR 3,800-5,600', soubor:'pdf/SO_101/101_05.3_PR_3_800-5_600_C.pdf', typ:'05.3'},
+  {nazev:'101 05.4 PR 5,700-7,000', soubor:'pdf/SO_101/101_05.4_PR_5_700-7_000_C.pdf', typ:'05.4'},
+  {nazev:'101 05.5 PR 7,100-8,200', soubor:'pdf/SO_101/101_05.5_PR_7_100-8_200_C.pdf', typ:'05.5'},
+  {nazev:'101 06.01 PROPUSTEK RAM 2x2 m 0,660', soubor:'pdf/SO_101/101_06.01_PROPUSTEK_RAM_2x2_m_0_660_C.pdf', typ:'06.01'},
+  {nazev:'101 06.02 PROPUSTEK RAM 2x2 m 1,480', soubor:'pdf/SO_101/101_06.02_PROPUSTEK_RAM_2x2_m_1_480_C.pdf', typ:'06.02'},
+  {nazev:'101 06.03 PROPUSTEK DN 1200 mm 1,680', soubor:'pdf/SO_101/101_06.03_PROPUSTEK_DN_1200_mm_1_680_C.pdf', typ:'06.03'},
+  {nazev:'101 06.04 PROPUSTEK DN 1200 mm 2,280', soubor:'pdf/SO_101/101_06.04_PROPUSTEK_DN_1200_mm_2_280_C.pdf', typ:'06.04'},
+  {nazev:'101 06.05 PROPUSTEK DN 1200 mm 2,470', soubor:'pdf/SO_101/101_06.05_PROPUSTEK_DN_1200_mm_2_470_C.pdf', typ:'06.05'},
+  {nazev:'101 06.06 PROPUSTEK DN 800 mm 3,090', soubor:'pdf/SO_101/101_06.06_PROPUSTEK_DN_800_mm_3_090_C.pdf', typ:'06.06'},
+  {nazev:'101 06.07 PROPUSTEK DN 1200 mm 3,490', soubor:'pdf/SO_101/101_06.07_PROPUSTEK_DN_1200_mm_3_490_C.pdf', typ:'06.07'},
+  {nazev:'101 06.08 PROPUSTEK RAM 2x2 m 3,910', soubor:'pdf/SO_101/101_06.08_PROPUSTEK_RAM_2x2_m_3_910_C.pdf', typ:'06.08'},
+  {nazev:'101 06.09 PROPUSTEK DN 1200 mm 4,260', soubor:'pdf/SO_101/101_06.09_PROPUSTEK_DN_1200_mm_4_260_C.pdf', typ:'06.09'},
+  {nazev:'101 06.10 PROPUSTEK DN 1200 mm 4,410', soubor:'pdf/SO_101/101_06.10_PROPUSTEK_DN_1200_mm_4_410_C.pdf', typ:'06.10'},
+  {nazev:'101 06.11 PROPUSTEK DN 1200 mm 5,790', soubor:'pdf/SO_101/101_06.11_PROPUSTEK_DN_1200_mm_5_790_C.pdf', typ:'06.11'},
+  {nazev:'101 06.12 PROPUSTEK DN 1200 mm 5,890', soubor:'pdf/SO_101/101_06.12_PROPUSTEK_DN_1200_mm_5_890_C.pdf', typ:'06.12'},
+  {nazev:'101 06.13 PROPUSTEK DN 1200 mm 5,970', soubor:'pdf/SO_101/101_06.13_PROPUSTEK_DN_1200_mm_5_970_C.pdf', typ:'06.13'},
+  {nazev:'101 06.14 PROPUSTEK RAM 2x2 m 6,500', soubor:'pdf/SO_101/101_06.14_PROPUSTEK_RAM_2x2_m_6_500_C.pdf', typ:'06.14'},
+  {nazev:'101 06.15 PROPUSTEK DN 1200 mm 7,090', soubor:'pdf/SO_101/101_06.15_PROPUSTEK_DN_1200_mm_7_090_C.pdf', typ:'06.15'},
+  {nazev:'101 07 Sanační opatření', soubor:'pdf/SO_101/101_07_Sanacni_opatreni_C.pdf', typ:'07'}
+  ],
+  '111': [
+  {nazev:'111 00 Desky', soubor:'pdf/SO_111/111_00_Desky_C.pdf', typ:'00'},
+  {nazev:'111 00 Seznam priloh', soubor:'pdf/SO_111/111_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'111 01 Technicka zprava', soubor:'pdf/SO_111/111_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'111 02 Situace', soubor:'pdf/SO_111/111_02_Situace_C.pdf', typ:'02'},
+  {nazev:'111 03 Podélné profily', soubor:'pdf/SO_111/111_03_Podelne_profily_C.pdf', typ:'03'},
+  {nazev:'111 04 Vzorove pricne rezy DOD 24', soubor:'pdf/SO_111/111_04_Vzorove_pricne_rezy_DOD_24.pdf', typ:'04'},
+  {nazev:'111 05-1 Pricne rezy Vetev 1', soubor:'pdf/SO_111/111_05-1_Pricne_rezy_Vetev_1_C.pdf', typ:'05'},
+  {nazev:'111 05-2 Pricne rezy Vetev 2', soubor:'pdf/SO_111/111_05-2_Pricne_rezy_Vetev_2_C.pdf', typ:'05'},
+  {nazev:'111 05-3.1 Pricne rezy Vetev 3', soubor:'pdf/SO_111/111_05-3.1_Pricne_rezy_Vetev_3_C.pdf', typ:'05'},
+  {nazev:'111 05-3.2 Pricne rezy Vetev 3', soubor:'pdf/SO_111/111_05-3.2_Pricne_rezy_Vetev_3_C.pdf', typ:'05'},
+  {nazev:'111 05-4 Pricne rezy Vetev 4', soubor:'pdf/SO_111/111_05-4_Pricne_rezy_Vetev_4_C.pdf', typ:'05'},
+  {nazev:'111 06 PROPUSTEK DN 800 mm 0,470', soubor:'pdf/SO_111/111_06_PROPUSTEK_DN_800_mm_0_470_C.pdf', typ:'06'}
+  ],
+  '112': [
+  {nazev:'112 00 Desky', soubor:'pdf/SO_112/112_00_Desky_C.pdf', typ:'00'},
+  {nazev:'112 00 Seznam příloh', soubor:'pdf/SO_112/112_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'112 01 Technická zpráva', soubor:'pdf/SO_112/112_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'112 02 Situace', soubor:'pdf/SO_112/112_02_Situace_C.pdf', typ:'02'},
+  {nazev:'112 03 Podélné profily', soubor:'pdf/SO_112/112_03_Podelne_profily_C.pdf', typ:'03'},
+  {nazev:'112 04 Vzorové příčné řezy', soubor:'pdf/SO_112/112_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'112 05-1 Příčné řezy, větev č 1', soubor:'pdf/SO_112/112_05-1_Pricne_rezy_vetev_c_1_C.pdf', typ:'05'},
+  {nazev:'112 05-2 Příčné řezy, větev č 2', soubor:'pdf/SO_112/112_05-2_Pricne_rezy_vetev_c_2_C.pdf', typ:'05'},
+  {nazev:'112 05-3 Příčné řezy, větev č.3', soubor:'pdf/SO_112/112_05-3_Pricne_rezy_vetev_c.3_C.pdf', typ:'05'},
+  {nazev:'112 05-4 Příčné řezy, větev č 4', soubor:'pdf/SO_112/112_05-4_Pricne_rezy_vetev_c_4_C.pdf', typ:'05'}
+  ],
+  '121': [
+  {nazev:'121 00 Desky', soubor:'pdf/SO_121/121_00_Desky_C.pdf', typ:'00'},
+  {nazev:'121 00 Seznam priloh', soubor:'pdf/SO_121/121_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'121 01 Technická zpráva', soubor:'pdf/SO_121/121_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'121 02 Situace', soubor:'pdf/SO_121/121_02_Situace_C.pdf', typ:'02'},
+  {nazev:'121 03 Podélný profil', soubor:'pdf/SO_121/121_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'121 04 Vzorové příčné řezy DOD.38', soubor:'pdf/SO_121/121_04_Vzorove_pricne_rezy_DOD.38.pdf', typ:'04'},
+  {nazev:'121 05-1 Pricne rezy km 0,000 - km 0,280', soubor:'pdf/SO_121/121_05-1_Pricne_rezy_km_0_000_-_km_0_280_C.pdf', typ:'05'},
+  {nazev:'121 05-2 Pricne rezy km 0,300 - km 0,480', soubor:'pdf/SO_121/121_05-2_Pricne_rezy_km_0_300_-_km_0_480_C.pdf', typ:'05'},
+  {nazev:'121 05-3 Pricne rezy km 0,500 - km 0,640', soubor:'pdf/SO_121/121_05-3_Pricne_rezy_km_0_500_-_km_0_640_C.pdf', typ:'05'},
+  {nazev:'121 07 Dopravní značení', soubor:'pdf/SO_121/121_07_Dopravni_znaceni_C.pdf', typ:'07'},
+  {nazev:'121 08 Vegetacni upravy', soubor:'pdf/SO_121/121_08_Vegetacni_upravy_C.pdf', typ:'08'}
+  ],
+  '122': [
+  {nazev:'122 00 Desky', soubor:'pdf/SO_122/122_00_Desky_C.pdf', typ:'00'},
+  {nazev:'122 00 Seznam priloh', soubor:'pdf/SO_122/122_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'122 01 Technická zpráva', soubor:'pdf/SO_122/122_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'122 02 Situace', soubor:'pdf/SO_122/122_02_Situace_C.pdf', typ:'02'},
+  {nazev:'122 03 Podélný profil', soubor:'pdf/SO_122/122_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'122 04 Vzorové příčné řezy', soubor:'pdf/SO_122/122_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'122 05 Příčné řezy', soubor:'pdf/SO_122/122_05_Pricne_rezy_C.pdf', typ:'05'},
+  {nazev:'122 07 Dopravní značení', soubor:'pdf/SO_122/122_07_Dopravni_znaceni_C.pdf', typ:'07'},
+  {nazev:'122 08 Vegetacni upravy', soubor:'pdf/SO_122/122_08_Vegetacni_upravy_C.pdf', typ:'08'}
+  ],
+  '123': [
+  {nazev:'123 00 Desky', soubor:'pdf/SO_123/123_00_Desky_C.pdf', typ:'00'},
+  {nazev:'123 00 Seznam priloh', soubor:'pdf/SO_123/123_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'123 01 Technická zpráva', soubor:'pdf/SO_123/123_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'123 02 Situace', soubor:'pdf/SO_123/123_02_Situace_C.pdf', typ:'02'},
+  {nazev:'123 03 Podélný profil', soubor:'pdf/SO_123/123_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'123 04 Vzorove pricne rezy DOD 24', soubor:'pdf/SO_123/123_04_Vzorove_pricne_rezy_DOD_24.pdf', typ:'04'},
+  {nazev:'123 05 Příčné řezy', soubor:'pdf/SO_123/123_05_Pricne_rezy_C.pdf', typ:'05'},
+  {nazev:'123 07 Dopravní značení', soubor:'pdf/SO_123/123_07_Dopravni_znaceni_C.pdf', typ:'07'}
+  ],
+  '124': [
+  {nazev:'124 00 Desky', soubor:'pdf/SO_124/124_00_Desky_C.pdf', typ:'00'},
+  {nazev:'124 00 Seznam příloh', soubor:'pdf/SO_124/124_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'124 01 Technická zpráva', soubor:'pdf/SO_124/124_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'124 02 Situace', soubor:'pdf/SO_124/124_02_Situace_C.pdf', typ:'02'},
+  {nazev:'124 03 Podélný profil', soubor:'pdf/SO_124/124_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'124 04 Vzorové příčné řezy', soubor:'pdf/SO_124/124_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'124 05-1 Příčné řezy km 0,040 - 0,200', soubor:'pdf/SO_124/124_05-1_Pricne_rezy_km_0_040_-_0_200_C.pdf', typ:'05'},
+  {nazev:'124 05-2 Příčné řezy km 0,220 - 0,380', soubor:'pdf/SO_124/124_05-2_Pricne_rezy_km_0_220_-_0_380_C.pdf', typ:'05'},
+  {nazev:'124 05-3 Příčné řezy km 0,400 - 0,520', soubor:'pdf/SO_124/124_05-3_Pricne_rezy_km_0_400_-_0_520_C.pdf', typ:'05'},
+  {nazev:'124 06 PROPUSTEK DN 400 mm 0,070', soubor:'pdf/SO_124/124_06_PROPUSTEK_DN_400_mm_0_070_C.pdf', typ:'06'},
+  {nazev:'124 07 Dopravní značení', soubor:'pdf/SO_124/124_07_Dopravni_znaceni_C.pdf', typ:'07'}
+  ],
+  '125': [
+  {nazev:'125 00 Desky', soubor:'pdf/SO_125/125_00_Desky_C.pdf', typ:'00'},
+  {nazev:'125 00 Seznam příloh', soubor:'pdf/SO_125/125_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'125 01 Technická zpráva', soubor:'pdf/SO_125/125_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'125 02 Situace', soubor:'pdf/SO_125/125_02_Situace_C.pdf', typ:'02'},
+  {nazev:'125 03 Podélný profil', soubor:'pdf/SO_125/125_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'125 04 Vzorove pricne rezy DOD 24', soubor:'pdf/SO_125/125_04_Vzorove_pricne_rezy_DOD_24.pdf', typ:'04'},
+  {nazev:'125 05-1 Příčné řezy OK', soubor:'pdf/SO_125/125_05-1_Pricne_rezy_OK_C.pdf', typ:'05'},
+  {nazev:'125 05-2 Pricne rezy 125.1', soubor:'pdf/SO_125/125_05-2_Pricne_rezy_125.1_C.pdf', typ:'05'},
+  {nazev:'125 05-3 Pricne rezy 125.2', soubor:'pdf/SO_125/125_05-3_Pricne_rezy_125.2_C.pdf', typ:'05'},
+  {nazev:'125 06.01 PROPUSTEK DN 800 km 0,040 VĚTEV 2', soubor:'pdf/SO_125/125_06.01_PROPUSTEK_DN_800_km_0_040_VETEV_2_C.pdf', typ:'06.01'},
+  {nazev:'125 06.02 PROPUSTEK DN 800 km 0,039 Sjezd 1', soubor:'pdf/SO_125/125_06.02_PROPUSTEK_DN_800_km_0_039_Sjezd_1_C.pdf', typ:'06.02'},
+  {nazev:'125 06.03 PROPUSTEK DN 800 km 0,038 Sjezd 2', soubor:'pdf/SO_125/125_06.03_PROPUSTEK_DN_800_km_0_038_Sjezd_2_C.pdf', typ:'06.03'},
+  {nazev:'125 07 Dopravní značení', soubor:'pdf/SO_125/125_07_Dopravni_znaceni_C.pdf', typ:'07'},
+  {nazev:'125 08 Vegetacni upravy', soubor:'pdf/SO_125/125_08_Vegetacni_upravy_C.pdf', typ:'08'}
+  ],
+  '126': [
+  {nazev:'126 00 Desky', soubor:'pdf/SO_126/126_00_Desky_C.pdf', typ:'00'},
+  {nazev:'126 00 Seznam příloh', soubor:'pdf/SO_126/126_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'126 01 Technická zpráva', soubor:'pdf/SO_126/126_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'126 02 Situace', soubor:'pdf/SO_126/126_02_Situace_C.pdf', typ:'02'},
+  {nazev:'126 03 Podélné profily', soubor:'pdf/SO_126/126_03_Podelne_profily_C.pdf', typ:'03'},
+  {nazev:'126 04 Vzorové příčné řezy', soubor:'pdf/SO_126/126_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'126 05.1 Příčné řezy km 0,020 - 0,180', soubor:'pdf/SO_126/126_05.1_Pricne_rezy_km_0_020_-_0_180_C.pdf', typ:'05.1'},
+  {nazev:'126 05.2 Příčné řezy OK vpravo', soubor:'pdf/SO_126/126_05.2_Pricne_rezy_OK_vpravo_C.pdf', typ:'05.2'},
+  {nazev:'126 05.3 Příčné řezy OK vlevo', soubor:'pdf/SO_126/126_05.3_Pricne_rezy_OK_vlevo_C.pdf', typ:'05.3'},
+  {nazev:'126 07 Dopravní značení', soubor:'pdf/SO_126/126_07_Dopravni_znaceni_C.pdf', typ:'07'},
+  {nazev:'126 08 Vegetacni upravy', soubor:'pdf/SO_126/126_08_Vegetacni_upravy_C.pdf', typ:'08'}
+  ],
+  '127': [
+  {nazev:'127 00 Desky', soubor:'pdf/SO_127/127_00_Desky_C.pdf', typ:'00'},
+  {nazev:'127 00 Seznam příloh', soubor:'pdf/SO_127/127_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'127 01 Technická zpráva', soubor:'pdf/SO_127/127_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'127 02 Situace', soubor:'pdf/SO_127/127_02_Situace_C.pdf', typ:'02'},
+  {nazev:'127 03 Podélné profily', soubor:'pdf/SO_127/127_03_Podelne_profily_C.pdf', typ:'03'},
+  {nazev:'127 04 Vzorové příčné řezy', soubor:'pdf/SO_127/127_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'127 05-1 Příčné řezy km 0,040 - 0,200', soubor:'pdf/SO_127/127_05-1_Pricne_rezy_km_0_040_-_0_200_C.pdf', typ:'05'},
+  {nazev:'127 05-2 Příčné řezy km 0,220 - 0,380', soubor:'pdf/SO_127/127_05-2_Pricne_rezy_km_0_220_-_0_380_C.pdf', typ:'05'},
+  {nazev:'127 05-3 Příčné řezy km 0,400 - 0,500', soubor:'pdf/SO_127/127_05-3_Pricne_rezy_km_0_400_-_0_500_C.pdf', typ:'05'},
+  {nazev:'127 07 Dopravní značení', soubor:'pdf/SO_127/127_07_Dopravni_znaceni_C.pdf', typ:'07'},
+  {nazev:'127 08 Vegetacni upravy', soubor:'pdf/SO_127/127_08_Vegetacni_upravy_C.pdf', typ:'08'}
+  ],
+  '128': [
+  {nazev:'128 00 Desky', soubor:'pdf/SO_128/128_00_Desky_C.pdf', typ:'00'},
+  {nazev:'128 00 Seznam příloh', soubor:'pdf/SO_128/128_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'128 01 Technická zpráva', soubor:'pdf/SO_128/128_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'128 02 Situace', soubor:'pdf/SO_128/128_02_Situace_C.pdf', typ:'02'},
+  {nazev:'128 03 Podélný profil', soubor:'pdf/SO_128/128_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'128 04 Vzorový příčný řez', soubor:'pdf/SO_128/128_04_Vzorovy_pricny_rez_C.pdf', typ:'04'},
+  {nazev:'128 05 Příčné řezy', soubor:'pdf/SO_128/128_05_Pricne_rezy_C.pdf', typ:'05'},
+  {nazev:'128 07 Dopravní značení', soubor:'pdf/SO_128/128_07_Dopravni_znaceni_C.pdf', typ:'07'}
+  ],
+  '130': [
+  {nazev:'130 00 Desky', soubor:'pdf/SO_130/130_00_Desky_C.pdf', typ:'00'},
+  {nazev:'130 00 Seznam příloh', soubor:'pdf/SO_130/130_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'130 01 Technická zpráva', soubor:'pdf/SO_130/130_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'130 02 Situace', soubor:'pdf/SO_130/130_02_Situace_C.pdf', typ:'02'},
+  {nazev:'130 03 Podélný profil', soubor:'pdf/SO_130/130_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'130 04 Vzorový příčný řez', soubor:'pdf/SO_130/130_04_Vzorovy_pricny_rez_C.pdf', typ:'04'},
+  {nazev:'130 05 Příčné řezy', soubor:'pdf/SO_130/130_05_Pricne_rezy_C.pdf', typ:'05'},
+  {nazev:'130 06 PROPUSTEK DN 800 mm 0,100', soubor:'pdf/SO_130/130_06_PROPUSTEK_DN_800_mm_0_100_C.pdf', typ:'06'}
+  ],
+  '140': [
+  {nazev:'140 00 Desky', soubor:'pdf/SO_140/140_00_Desky_C.pdf', typ:'00'},
+  {nazev:'140 00 Seznam priloh', soubor:'pdf/SO_140/140_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'140 01 Technicka zprava', soubor:'pdf/SO_140/140_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'140 02 Situace', soubor:'pdf/SO_140/140_02_Situace_C.pdf', typ:'02'},
+  {nazev:'140 03 Podelny profil', soubor:'pdf/SO_140/140_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'140 04 Vzorove pricne rezy', soubor:'pdf/SO_140/140_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'140 05 PR km 0,000-0,040', soubor:'pdf/SO_140/140_05_PR_km_0_000-0_040_C.pdf', typ:'05'}
+  ],
+  '141': [
+  {nazev:'141 00 Desky', soubor:'pdf/SO_141/141_00_Desky_C.pdf', typ:'00'},
+  {nazev:'141 00 Seznam priloh', soubor:'pdf/SO_141/141_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'141 01 Technicka zprava', soubor:'pdf/SO_141/141_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'141 02 Situace', soubor:'pdf/SO_141/141_02_Situace_C.pdf', typ:'02'},
+  {nazev:'141 03 Podelny profil', soubor:'pdf/SO_141/141_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'141 04 Vzorove pricne rezy', soubor:'pdf/SO_141/141_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'141 05 PR km 0,000-0,140', soubor:'pdf/SO_141/141_05_PR_km_0_000-0_140_C.pdf', typ:'05'}
+  ],
+  '142': [
+  {nazev:'142 00 Desky', soubor:'pdf/SO_142/142_00_Desky_C.pdf', typ:'00'},
+  {nazev:'142 00 Seznam priloh', soubor:'pdf/SO_142/142_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'142 01 Technicka zprava', soubor:'pdf/SO_142/142_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'142 02 Situace', soubor:'pdf/SO_142/142_02_Situace_C.pdf', typ:'02'},
+  {nazev:'142 03 Podelny profil', soubor:'pdf/SO_142/142_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'142 04 Vzorove pricne rezy', soubor:'pdf/SO_142/142_04_Vzorove_pricne_rezy_C.pdf', typ:'04'}
+  ],
+  '143': [
+  {nazev:'143 00 Desky', soubor:'pdf/SO_143/143_00_Desky_C.pdf', typ:'00'},
+  {nazev:'143 00 Seznam priloh', soubor:'pdf/SO_143/143_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'143 01 Technicka zprava', soubor:'pdf/SO_143/143_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'143 02 Situace', soubor:'pdf/SO_143/143_02_Situace_C.pdf', typ:'02'},
+  {nazev:'143 03 Podelny profil', soubor:'pdf/SO_143/143_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'143 04 Vzorove pricne rezy', soubor:'pdf/SO_143/143_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'143 05 PR km 0,060-0,300', soubor:'pdf/SO_143/143_05_PR_km_0_060-0_300_C.pdf', typ:'05'}
+  ],
+  '144': [
+  {nazev:'144 00 Desky', soubor:'pdf/SO_144/144_00_Desky_C.pdf', typ:'00'},
+  {nazev:'144 00 Seznam priloh', soubor:'pdf/SO_144/144_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'144 01 Technicka zprava', soubor:'pdf/SO_144/144_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'144 02 Situace', soubor:'pdf/SO_144/144_02_Situace_C.pdf', typ:'02'},
+  {nazev:'144 03 Podelny profil', soubor:'pdf/SO_144/144_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'144 04 Vzorove pricne rezy', soubor:'pdf/SO_144/144_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'144 05 PR km 0,020-0,060', soubor:'pdf/SO_144/144_05_PR_km_0_020-0_060_C.pdf', typ:'05'},
+  {nazev:'144 06 Propustek', soubor:'pdf/SO_144/144_06_Propustek_C.pdf', typ:'06'}
+  ],
+  '145': [
+  {nazev:'145 00 Desky', soubor:'pdf/SO_145/145_00_Desky_C.pdf', typ:'00'},
+  {nazev:'145 00 Seznam priloh', soubor:'pdf/SO_145/145_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'145 01 Technicka zprava', soubor:'pdf/SO_145/145_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'145 02 Situace', soubor:'pdf/SO_145/145_02_Situace_C.pdf', typ:'02'},
+  {nazev:'145 03 Podelny profil', soubor:'pdf/SO_145/145_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'145 04 Vzorove pricne rezy', soubor:'pdf/SO_145/145_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'145 05 PR km 0,020-0,060', soubor:'pdf/SO_145/145_05_PR_km_0_020-0_060_C.pdf', typ:'05'},
+  {nazev:'145 06 Propustek', soubor:'pdf/SO_145/145_06_Propustek_C.pdf', typ:'06'}
+  ],
+  '146': [
+  {nazev:'146 00 Desky', soubor:'pdf/SO_146/146_00_Desky_C.pdf', typ:'00'},
+  {nazev:'146 00 Seznam priloh', soubor:'pdf/SO_146/146_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'146 01 Technicka zprava', soubor:'pdf/SO_146/146_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'146 02 Situace', soubor:'pdf/SO_146/146_02_Situace_C.pdf', typ:'02'},
+  {nazev:'146 03 Podelny profil', soubor:'pdf/SO_146/146_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'146 04 Vzorove pricne rezy', soubor:'pdf/SO_146/146_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'146 05 PR km 0,020-0,060', soubor:'pdf/SO_146/146_05_PR_km_0_020-0_060_C.pdf', typ:'05'},
+  {nazev:'146 06 Propustek', soubor:'pdf/SO_146/146_06_Propustek_C.pdf', typ:'06'}
+  ],
+  '147': [
+  {nazev:'147 00 Desky', soubor:'pdf/SO_147/147_00_Desky_C.pdf', typ:'00'},
+  {nazev:'147 00 Seznam priloh', soubor:'pdf/SO_147/147_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'147 01 Technicka zprava', soubor:'pdf/SO_147/147_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'147 02 Situace', soubor:'pdf/SO_147/147_02_Situace_C.pdf', typ:'02'},
+  {nazev:'147 03 Podelny profil', soubor:'pdf/SO_147/147_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'147 04 Vzorove pricne rezy', soubor:'pdf/SO_147/147_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'147 05 PR km 0,020-0,060', soubor:'pdf/SO_147/147_05_PR_km_0_020-0_060_C.pdf', typ:'05'},
+  {nazev:'147 06 Propustek', soubor:'pdf/SO_147/147_06_Propustek_C.pdf', typ:'06'}
+  ],
+  '148': [
+  {nazev:'148 00 Desky', soubor:'pdf/SO_148/148_00_Desky_C.pdf', typ:'00'},
+  {nazev:'148 00 Seznam priloh', soubor:'pdf/SO_148/148_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'148 01 Technicka zprava', soubor:'pdf/SO_148/148_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'148 02 Situace', soubor:'pdf/SO_148/148_02_Situace_C.pdf', typ:'02'},
+  {nazev:'148 03 Podelny profil', soubor:'pdf/SO_148/148_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'148 04 Vzorove pricne rezy', soubor:'pdf/SO_148/148_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'148 05 PR km 0,020-0,100', soubor:'pdf/SO_148/148_05_PR_km_0_020-0_100_C.pdf', typ:'05'}
+  ],
+  '150': [
+  {nazev:'150 00 Desky', soubor:'pdf/SO_150/150_00_Desky_C.pdf', typ:'00'},
+  {nazev:'150 00 Seznam příloh', soubor:'pdf/SO_150/150_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'150 01 Technická zpráva', soubor:'pdf/SO_150/150_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'150 02.1 Situace SO 150.1', soubor:'pdf/SO_150/150_02.1_Situace_SO_150.1_C.pdf', typ:'02.1'},
+  {nazev:'150 02.2 Situace SO 150.2', soubor:'pdf/SO_150/150_02.2_Situace_SO_150.2_C.pdf', typ:'02.2'},
+  {nazev:'150 02.3 Situace SO150.3', soubor:'pdf/SO_150/150_02.3_Situace_SO150.3_C.pdf', typ:'02.3'},
+  {nazev:'150 03.1 Podélný profil SO 150.1', soubor:'pdf/SO_150/150_03.1_Podelny_profil_SO_150.1_C.pdf', typ:'03.1'},
+  {nazev:'150 03.2 Podélný profil SO 150.2', soubor:'pdf/SO_150/150_03.2_Podelny_profil_SO_150.2_C.pdf', typ:'03.2'},
+  {nazev:'150 04 Vzorové příčné řezy', soubor:'pdf/SO_150/150_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'150 05.1 Příčné řezy SO 150.1', soubor:'pdf/SO_150/150_05.1_Pricne_rezy_SO_150.1_C.pdf', typ:'05.1'},
+  {nazev:'150 05.2 Příčné řezy SO 150.2', soubor:'pdf/SO_150/150_05.2_Pricne_rezy_SO_150.2_C.pdf', typ:'05.2'},
+  {nazev:'150 3.3 Podélný profil SO 150.3', soubor:'pdf/SO_150/150_3.3_Podelny_profil_SO_150.3_C.pdf', typ:'3.3'},
+  {nazev:'150 5.3 Příčné řezy SO 150.3', soubor:'pdf/SO_150/150_5.3_Pricne_rezy_SO_150.3_C.pdf', typ:'5.3'}
+  ],
+  '151': [
+  {nazev:'151 00 Desky', soubor:'pdf/SO_151/151_00_Desky_C.pdf', typ:'00'},
+  {nazev:'151 00 Seznam příloh', soubor:'pdf/SO_151/151_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'151 01 Technická zpráva', soubor:'pdf/SO_151/151_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'151 02.1 Situace SO 151.1', soubor:'pdf/SO_151/151_02.1_Situace_SO_151.1_C.pdf', typ:'02.1'},
+  {nazev:'151 02.2 Situace SO 151.2', soubor:'pdf/SO_151/151_02.2_Situace_SO_151.2_C.pdf', typ:'02.2'},
+  {nazev:'151 02.3 Situace SO 151.3', soubor:'pdf/SO_151/151_02.3_Situace_SO_151.3_C.pdf', typ:'02.3'},
+  {nazev:'151 02.4 Situace SO 151.4', soubor:'pdf/SO_151/151_02.4_Situace_SO_151.4_C.pdf', typ:'02.4'},
+  {nazev:'151 02.5 Situace SO 151.5', soubor:'pdf/SO_151/151_02.5_Situace_SO_151.5_C.pdf', typ:'02.5'},
+  {nazev:'151 03.1 Podélný profil SO 151.1', soubor:'pdf/SO_151/151_03.1_Podelny_profil_SO_151.1_C.pdf', typ:'03.1'},
+  {nazev:'151 03.3 Podélný profil SO 151.3', soubor:'pdf/SO_151/151_03.3_Podelny_profil_SO_151.3_C.pdf', typ:'03.3'},
+  {nazev:'151 03.4 Podélný profil SO 151.4', soubor:'pdf/SO_151/151_03.4_Podelny_profil_SO_151.4_C.pdf', typ:'03.4'},
+  {nazev:'151 04 Vzorové příčné řezy', soubor:'pdf/SO_151/151_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'151 05.1 Příčné řezy SO 151.1', soubor:'pdf/SO_151/151_05.1_Pricne_rezy_SO_151.1_C.pdf', typ:'05.1'},
+  {nazev:'151 05.2.1 Příčné řezy SO 151.2 km 0,020-0,360', soubor:'pdf/SO_151/151_05.2.1_Pricne_rezy_SO_151.2_km_0_020-0_360_C.pdf', typ:'05.2'},
+  {nazev:'151 05.2.2 Příčné řezy SO 151.2 km 0,380-0,440', soubor:'pdf/SO_151/151_05.2.2_Pricne_rezy_SO_151.2_km_0_380-0_440_C.pdf', typ:'05.2'},
+  {nazev:'151 05.3 Příčné řezy SO 151.3', soubor:'pdf/SO_151/151_05.3_Pricne_rezy_SO_151.3_C.pdf', typ:'05.3'},
+  {nazev:'151 05.4 Příčné řezy SO 151.4', soubor:'pdf/SO_151/151_05.4_Pricne_rezy_SO_151.4_C.pdf', typ:'05.4'},
+  {nazev:'151 05.5.1 Příčné řezy SO 151.5 km 0,340-0,740', soubor:'pdf/SO_151/151_05.5.1_Pricne_rezy_SO_151.5_km_0_340-0_740_C.pdf', typ:'05.5'},
+  {nazev:'151 05.5.2 Příčné řezy SO 151.5 km 0,760-1,140', soubor:'pdf/SO_151/151_05.5.2_Pricne_rezy_SO_151.5_km_0_760-1_140_C.pdf', typ:'05.5'},
+  {nazev:'151 3.2 Podélný profil SO 151.2', soubor:'pdf/SO_151/151_3.2_Podelny_profil_SO_151.2_C.pdf', typ:'3.2'},
+  {nazev:'151 3.5 Podélný profil SO 151.5', soubor:'pdf/SO_151/151_3.5_Podelny_profil_SO_151.5_C.pdf', typ:'3.5'}
+  ],
+  '152': [
+  {nazev:'152 00 Desky', soubor:'pdf/SO_152/152_00_Desky_C.pdf', typ:'00'},
+  {nazev:'152 00 Seznam příloh', soubor:'pdf/SO_152/152_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'152 01 Technická zpráva', soubor:'pdf/SO_152/152_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'152 02.1 Situace SO 152.1', soubor:'pdf/SO_152/152_02.1_Situace_SO_152.1_C.pdf', typ:'02.1'},
+  {nazev:'152 02.2.1 Situace SO 152.2 km 0,000 - 1,200', soubor:'pdf/SO_152/152_02.2.1_Situace_SO_152.2_km_0_000_-_1_200_C.pdf', typ:'02.2'},
+  {nazev:'152 02.2.2 Situace SO 152.2 km 1,200 - 2,101', soubor:'pdf/SO_152/152_02.2.2_Situace_SO_152.2_km_1_200_-_2_101_C.pdf', typ:'02.2'},
+  {nazev:'152 03.1 Podelný profil SO 152.1', soubor:'pdf/SO_152/152_03.1_Podelny_profil_SO_152.1_C.pdf', typ:'03.1'},
+  {nazev:'152 03.2.1 Podélný profil SO 152.2 km 0,000 - 1,200', soubor:'pdf/SO_152/152_03.2.1_Podelny_profil_SO_152.2_km_0_000_-_1_200_C.pdf', typ:'03.2'},
+  {nazev:'152 03.2.2 Podélný profil SO 152.2 km 1,200 - 2,101', soubor:'pdf/SO_152/152_03.2.2_Podelny_profil_SO_152.2_km_1_200_-_2_101_C.pdf', typ:'03.2'},
+  {nazev:'152 04 Vzorové příčné řezy', soubor:'pdf/SO_152/152_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'152 05.1 Pricne rezy SO 152.1', soubor:'pdf/SO_152/152_05.1_Pricne_rezy_SO_152.1_C.pdf', typ:'05.1'},
+  {nazev:'152 05.2.1 Příčné řezy SO 152.2 km 0,020 - 0,420', soubor:'pdf/SO_152/152_05.2.1_Pricne_rezy_SO_152.2_km_0_020_-_0_420_C.pdf', typ:'05.2'},
+  {nazev:'152 05.2.2 Příčné řezy SO 152.2 km 0,440 - 0,840', soubor:'pdf/SO_152/152_05.2.2_Pricne_rezy_SO_152.2_km_0_440_-_0_840_C.pdf', typ:'05.2'},
+  {nazev:'152 05.2.3 Příčné řezy SO 152.2 km 0,860 - 1,260', soubor:'pdf/SO_152/152_05.2.3_Pricne_rezy_SO_152.2_km_0_860_-_1_260_C.pdf', typ:'05.2'},
+  {nazev:'152 05.2.4 Příčné řezy SO 152.2 km 1,280 - 1,680', soubor:'pdf/SO_152/152_05.2.4_Pricne_rezy_SO_152.2_km_1_280_-_1_680_C.pdf', typ:'05.2'},
+  {nazev:'152 05.2.5 Příčné řezy SO 152.2 km 1,700 - 2,100', soubor:'pdf/SO_152/152_05.2.5_Pricne_rezy_SO_152.2_km_1_700_-_2_100_C.pdf', typ:'05.2'}
+  ],
+  '153': [
+  {nazev:'153 00 Desky', soubor:'pdf/SO_153/153_00_Desky_C.pdf', typ:'00'},
+  {nazev:'153 00 Seznam příloh', soubor:'pdf/SO_153/153_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'153 01 Technická zpráva', soubor:'pdf/SO_153/153_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'153 02.1 Situace SO 153.1', soubor:'pdf/SO_153/153_02.1_Situace_SO_153.1_C.pdf', typ:'02.1'},
+  {nazev:'153 02.2 Situace SO 153.2', soubor:'pdf/SO_153/153_02.2_Situace_SO_153.2_C.pdf', typ:'02.2'},
+  {nazev:'153 02.3 Situace SO 153.3', soubor:'pdf/SO_153/153_02.3_Situace_SO_153.3_C.pdf', typ:'02.3'},
+  {nazev:'153 03.1 Podélný profil SO 153.1', soubor:'pdf/SO_153/153_03.1_Podelny_profil_SO_153.1_C.pdf', typ:'03.1'},
+  {nazev:'153 03.2 Podélný profil SO 153.2', soubor:'pdf/SO_153/153_03.2_Podelny_profil_SO_153.2_C.pdf', typ:'03.2'},
+  {nazev:'153 03.3 Podélný profil SO 153.3', soubor:'pdf/SO_153/153_03.3_Podelny_profil_SO_153.3_C.pdf', typ:'03.3'},
+  {nazev:'153 04 Vzorové příčné řezy', soubor:'pdf/SO_153/153_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'153 05.1.1 Příčné řezy SO 153.1 - km 0,020 - 0,480', soubor:'pdf/SO_153/153_05.1.1_Pricne_rezy_SO_153.1_-_km_0_020_-_0_480_C.pdf', typ:'05.1'},
+  {nazev:'153 05.1.2 Příčné řezy SO 153.1 - km 0,500 - 0,960', soubor:'pdf/SO_153/153_05.1.2_Pricne_rezy_SO_153.1_-_km_0_500_-_0_960_C.pdf', typ:'05.1'},
+  {nazev:'153 05.2.1 Příčné řezy SO 153.2 km 0,020-0,420', soubor:'pdf/SO_153/153_05.2.1_Pricne_rezy_SO_153.2_km_0_020-0_420_C.pdf', typ:'05.2'},
+  {nazev:'153 05.2.2 Příčné řezy SO 153.2 km 0,440-0,620', soubor:'pdf/SO_153/153_05.2.2_Pricne_rezy_SO_153.2_km_0_440-0_620_C.pdf', typ:'05.2'},
+  {nazev:'153 05.3 Příčné řezy SO 153.3', soubor:'pdf/SO_153/153_05.3_Pricne_rezy_SO_153.3_C.pdf', typ:'05.3'}
+  ],
+  '154': [
+  {nazev:'154 00 Desky', soubor:'pdf/SO_154/154_00_Desky_C.pdf', typ:'00'},
+  {nazev:'154 00 Seznam příloh', soubor:'pdf/SO_154/154_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'154 01 Technická zpráva', soubor:'pdf/SO_154/154_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'154 02 Situace', soubor:'pdf/SO_154/154_02_Situace_C.pdf', typ:'02'},
+  {nazev:'154 03 Podélný profil', soubor:'pdf/SO_154/154_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'154 04 Vzorové příčné řezy', soubor:'pdf/SO_154/154_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'154 05 Příčné řezy', soubor:'pdf/SO_154/154_05_Pricne_rezy_C.pdf', typ:'05'}
+  ],
+  '171': [
+  {nazev:'171 00 Desky', soubor:'pdf/SO_171/171_00_Desky_C.pdf', typ:'00'},
+  {nazev:'171 00 Seznam priloh', soubor:'pdf/SO_171/171_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'171 01 Technicka zprava', soubor:'pdf/SO_171/171_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'171 02 Situace', soubor:'pdf/SO_171/171_02_Situace_C.pdf', typ:'02'},
+  {nazev:'171 03 Podelny profil', soubor:'pdf/SO_171/171_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'171 04 Vzorovy pricny rez', soubor:'pdf/SO_171/171_04_Vzorovy_pricny_rez_C.pdf', typ:'04'},
+  {nazev:'171 05 Pricne rezy', soubor:'pdf/SO_171/171_05_Pricne_rezy_C.pdf', typ:'05'}
+  ],
+  '180': [
+  {nazev:'180 Přechodné dopravní značení', soubor:'pdf/SO_180/180_Prechodne_dopravni_znaceni_C.pdf', typ:''}
+  ],
+  '190': [
+  {nazev:'190 00 Desky', soubor:'pdf/SO_190/190_00_Desky_C.pdf', typ:'00'},
+  {nazev:'190 00 Seznam příloh', soubor:'pdf/SO_190/190_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'190 01 Technická zpráva', soubor:'pdf/SO_190/190_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'190 02.0 Situace', soubor:'pdf/SO_190/190_02.0_Situace_C.pdf', typ:'02.0'},
+  {nazev:'190 02.1 Situace', soubor:'pdf/SO_190/190_02.1_Situace_C.pdf', typ:'02.1'},
+  {nazev:'190 02.2 Situace', soubor:'pdf/SO_190/190_02.2_Situace_C.pdf', typ:'02.2'},
+  {nazev:'190 02.3 Situace', soubor:'pdf/SO_190/190_02.3_Situace_C.pdf', typ:'02.3'},
+  {nazev:'190 02.4 Situace', soubor:'pdf/SO_190/190_02.4_Situace_C.pdf', typ:'02.4'},
+  {nazev:'190 02.5 Situace', soubor:'pdf/SO_190/190_02.5_Situace_C.pdf', typ:'02.5'},
+  {nazev:'190 02.6 Situace', soubor:'pdf/SO_190/190_02.6_Situace_C.pdf', typ:'02.6'},
+  {nazev:'190 03 Velkoplošné dopravní značky', soubor:'pdf/SO_190/190_03_Velkoplosne_dopravni_znacky_C.pdf', typ:'03'},
+  {nazev:'190 04 Portaly DOD 21', soubor:'pdf/SO_190/190_04_Portaly_DOD_21.pdf', typ:'04'}
+  ],
+  '201': [
+  {nazev:'201 000 Desky', soubor:'pdf/SO_201/201_000_Desky_C.pdf', typ:'000'},
+  {nazev:'201 000 Seznam priloh', soubor:'pdf/SO_201/201_000_Seznam_priloh_C.pdf', typ:'000'},
+  {nazev:'201 101 Technicka zprava', soubor:'pdf/SO_201/201_101_Technicka_zprava_C.pdf', typ:'101'},
+  {nazev:'201 101 Technicka zprava pr1 IGP', soubor:'pdf/SO_201/201_101_Technicka_zprava_pr1_IGP_C.pdf', typ:'101'},
+  {nazev:'201 102 Pud pod rez vzor pricny rez', soubor:'pdf/SO_201/201_102_Pud_pod_rez_vzor_pricny_rez_C.pdf', typ:'102'},
+  {nazev:'201 103 Technicke spec a pozn 1(2) DI34', soubor:'pdf/SO_201/201_103_Technicke_spec_a_pozn_1_2_C_DI34.pdf', typ:'103'},
+  {nazev:'201 104 Technicke spec a pozn 2(2)', soubor:'pdf/SO_201/201_104_Technicke_spec_a_pozn_2_2_C.pdf', typ:'104'},
+  {nazev:'201 201 Pricne rezy v miste podper', soubor:'pdf/SO_201/201_201_Pricne_rezy_v_miste_podper_C.pdf', typ:'201'},
+  {nazev:'201 202 Hlub zal tvar oper O1 O3', soubor:'pdf/SO_201/201_202_Hlub_zal_tvar_oper_O1_O3_C.pdf', typ:'202'},
+  {nazev:'201 203 Hlub zal tvar pilire P2', soubor:'pdf/SO_201/201_203_Hlub_zal_tvar_pilire_P2_C.pdf', typ:'203'},
+  {nazev:'201 204 Tvar NK vytyceni', soubor:'pdf/SO_201/201_204_Tvar_NK_vytyceni_C.pdf', typ:'204'},
+  {nazev:'201 205 Tvar rims sch odv pr oblasti', soubor:'pdf/SO_201/201_205_Tvar_rims_sch_odv_pr_oblasti_C.pdf', typ:'205'},
+  {nazev:'201 206 Upr pod mostem sluz schodiste', soubor:'pdf/SO_201/201_206_Upr_pod_mostem_sluz_schodiste_C.pdf', typ:'206'},
+  {nazev:'201 207 Gabionova Kridla', soubor:'pdf/SO_201/201_207_Gabionova_Kridla_C.pdf', typ:'207'},
+  {nazev:'201 301 Schemat vykresy vyztuze 1(2)', soubor:'pdf/SO_201/201_301_Schemat_vykresy_vyztuze_1_2_C.pdf', typ:'301'},
+  {nazev:'201 302 Schemat vykresy vyztuze 2(2)', soubor:'pdf/SO_201/201_302_Schemat_vykresy_vyztuze_2_2_C.pdf', typ:'302'},
+  {nazev:'201 401 Prehledna situace', soubor:'pdf/SO_201/201_401_Prehledna_situace_C.pdf', typ:'401'}
+  ],
+  '202': [
+  {nazev:'202 000 Desky', soubor:'pdf/SO_202/202_000_Desky_C.pdf', typ:'000'},
+  {nazev:'202 000 Seznam priloh', soubor:'pdf/SO_202/202_000_Seznam_priloh_C.pdf', typ:'000'},
+  {nazev:'202 101 Technicka zprava', soubor:'pdf/SO_202/202_101_Technicka_zprava_C.pdf', typ:'101'},
+  {nazev:'202 101 Technicka zprava pr1 IGP С', soubor:'pdf/SO_202/202_101_Technicka_zprava_pr1_IGP.pdf', typ:'101'},
+  {nazev:'202 102 Pud pod rez vzor pricny rez', soubor:'pdf/SO_202/202_102_Pud_pod_rez_vzor_pricny_rez_C.pdf', typ:'102'},
+  {nazev:'202 103 Technicke spec a pozn', soubor:'pdf/SO_202/202_103_Technicke_spec_a_pozn_C.pdf', typ:'103'},
+  {nazev:'202 201 Tvar NK 1(2) schema odvodneni', soubor:'pdf/SO_202/202_201_Tvar_NK_1_2_schema_odvodneni_C.pdf', typ:'201'},
+  {nazev:'202 202 Tvar NK 2(2)', soubor:'pdf/SO_202/202_202_Tvar_NK_2_2_C.pdf', typ:'202'},
+  {nazev:'202 203 Schema vytyceni', soubor:'pdf/SO_202/202_203_Schema_vytyceni_C.pdf', typ:'203'},
+  {nazev:'202 204 Prechodove oblasti tvar rims', soubor:'pdf/SO_202/202_204_Prechodove_oblasti_tvar_rims_C.pdf', typ:'204'},
+  {nazev:'202 205 Upr pod mostem sluz schodiste', soubor:'pdf/SO_202/202_205_Upr_pod_mostem_sluz_schodiste_C.pdf', typ:'205'},
+  {nazev:'202 301 Schemat vykresy vyztuze', soubor:'pdf/SO_202/202_301_Schemat_vykresy_vyztuze_C.pdf', typ:'301'},
+  {nazev:'202 401 Prehledna situace', soubor:'pdf/SO_202/202_401_Prehledna_situace_C.pdf', typ:'401'}
+  ],
+  '203': [
+  {nazev:'203 000 Desky', soubor:'pdf/SO_203/203_000_Desky_C.pdf', typ:'000'},
+  {nazev:'203 000 Seznam priloh', soubor:'pdf/SO_203/203_000_Seznam_priloh_C.pdf', typ:'000'},
+  {nazev:'203 101 Technicka zprava', soubor:'pdf/SO_203/203_101_Technicka_zprava_C.pdf', typ:'101'},
+  {nazev:'203 101 Technicka zprava pr1 IGP', soubor:'pdf/SO_203/203_101_Technicka_zprava_pr1_IGP_C.pdf', typ:'101'},
+  {nazev:'203 102 Pudorys pod rez vzor pricny rez', soubor:'pdf/SO_203/203_102_Pudorys_pod_rez_vzor_pricny_rez_C.pdf', typ:'102'},
+  {nazev:'203 103 Technicke spec a pozn 1 2', soubor:'pdf/SO_203/203_103_Technicke_spec_a_pozn_1_2_C.pdf', typ:'103'},
+  {nazev:'203 104 Technicke spec a pozn 2 2', soubor:'pdf/SO_203/203_104_Technicke_spec_a_pozn_2_2_C.pdf', typ:'104'},
+  {nazev:'203 201 Tvar NK cast I', soubor:'pdf/SO_203/203_201_Tvar_NK_cast_I_C.pdf', typ:'201'},
+  {nazev:'203 202 Tvar NK cast II', soubor:'pdf/SO_203/203_202_Tvar_NK_cast_II_C.pdf', typ:'202'},
+  {nazev:'203 203 Tvar rims sch vytyceni prech obl', soubor:'pdf/SO_203/203_203_Tvar_rims_sch_vytyceni_prech_obl_C.pdf', typ:'203'},
+  {nazev:'203 204 Upr pod mostem sluz schodiste', soubor:'pdf/SO_203/203_204_Upr_pod_mostem_sluz_schodiste_C.pdf', typ:'204'},
+  {nazev:'203 205 Gabionova kridla', soubor:'pdf/SO_203/203_205_Gabionova_kridla_C.pdf', typ:'205'},
+  {nazev:'203 301 Schematicke vykresy vyztuze', soubor:'pdf/SO_203/203_301_Schematicke_vykresy_vyztuze_C.pdf', typ:'301'},
+  {nazev:'203 401 Prehledna situace', soubor:'pdf/SO_203/203_401_Prehledna_situace_C.pdf', typ:'401'}
+  ],
+  '204': [
+  {nazev:'204 000 Desky', soubor:'pdf/SO_204/204_000_Desky_C.pdf', typ:'000'},
+  {nazev:'204 000 Seznam priloh', soubor:'pdf/SO_204/204_000_Seznam_priloh_C.pdf', typ:'000'},
+  {nazev:'204 101 Technicka zprava', soubor:'pdf/SO_204/204_101_Technicka_zprava_C.pdf', typ:'101'},
+  {nazev:'204 101 Technicka zprava pr1 IGP', soubor:'pdf/SO_204/204_101_Technicka_zprava_pr1_IGP_C.pdf', typ:'101'},
+  {nazev:'204 102 Pudorys pod rez vzor pricny rez', soubor:'pdf/SO_204/204_102_Pudorys_pod_rez_vzor_pricny_rez_C.pdf', typ:'102'},
+  {nazev:'204 103 Technicke spec a pozn 1 2', soubor:'pdf/SO_204/204_103_Technicke_spec_a_pozn_1_2_C.pdf', typ:'103'},
+  {nazev:'204 104 Technicke spec a pozn 2 2', soubor:'pdf/SO_204/204_104_Technicke_spec_a_pozn_2_2_C.pdf', typ:'104'},
+  {nazev:'204 201 Tvar NK cast I', soubor:'pdf/SO_204/204_201_Tvar_NK_cast_I_C.pdf', typ:'201'},
+  {nazev:'204 202 Tvar NK cast II', soubor:'pdf/SO_204/204_202_Tvar_NK_cast_II_C.pdf', typ:'202'},
+  {nazev:'204 203 Tvar rimsy sch vytyceni prech obl', soubor:'pdf/SO_204/204_203_Tvar_rimsy_sch_vytyceni_prech_obl_C.pdf', typ:'203'},
+  {nazev:'204 204 Upr pod mostem sluz schodiste', soubor:'pdf/SO_204/204_204_Upr_pod_mostem_sluz_schodiste_C.pdf', typ:'204'},
+  {nazev:'204 205 Gabionova kridla', soubor:'pdf/SO_204/204_205_Gabionova_kridla_C.pdf', typ:'205'},
+  {nazev:'204 301 Schematicke vykresy vyztuze', soubor:'pdf/SO_204/204_301_Schematicke_vykresy_vyztuze_C.pdf', typ:'301'},
+  {nazev:'204 401 Prehledna situace', soubor:'pdf/SO_204/204_401_Prehledna_situace_C.pdf', typ:'401'}
+  ],
+  '205': [
+  {nazev:'205 000 Desky', soubor:'pdf/SO_205/205_000_Desky_C.pdf', typ:'000'},
+  {nazev:'205 000 Seznam priloh', soubor:'pdf/SO_205/205_000_Seznam_priloh_C.pdf', typ:'000'},
+  {nazev:'205 101 Technicka zprava', soubor:'pdf/SO_205/205_101_Technicka_zprava_C.pdf', typ:'101'},
+  {nazev:'205 101 Technicka zprava pr1 IGP', soubor:'pdf/SO_205/205_101_Technicka_zprava_pr1_IGP_C.pdf', typ:'101'},
+  {nazev:'205 102 Pudorys pod rez vzor pric rez', soubor:'pdf/SO_205/205_102_Pudorys_pod_rez_vzor_pric_rez_C.pdf', typ:'102'},
+  {nazev:'205 103 Technicke spec a pozn 1 2 DI6', soubor:'pdf/SO_205/205_103_Technicke_spec_a_pozn_1_2_C_DI6.pdf', typ:'103'},
+  {nazev:'205 104 Technicke spec a pozn 2 2', soubor:'pdf/SO_205/205_104_Technicke_spec_a_pozn_2_2_C.pdf', typ:'104'},
+  {nazev:'205 201 Pr rezy tvar zaklu SS vytyc', soubor:'pdf/SO_205/205_201_Pr_rezy_tvar_zaklu_SS_vytyc_C.pdf', typ:'201'},
+  {nazev:'205 202 Tvar NK pr oblasti', soubor:'pdf/SO_205/205_202_Tvar_NK_pr_oblasti_C.pdf', typ:'202'},
+  {nazev:'205 203 Tvar pricniku', soubor:'pdf/SO_205/205_203_Tvar_pricniku_C.pdf', typ:'203'},
+  {nazev:'205 204 Tvar rimsy sch odvodneni', soubor:'pdf/SO_205/205_204_Tvar_rimsy_sch_odvodneni_C.pdf', typ:'204'},
+  {nazev:'205 205 Upr pod mostem sluz schodiste', soubor:'pdf/SO_205/205_205_Upr_pod_mostem_sluz_schodiste_C.pdf', typ:'205'},
+  {nazev:'205 301 Schematicke vykresy vyztuze', soubor:'pdf/SO_205/205_301_Schematicke_vykresy_vyztuze_C.pdf', typ:'301'},
+  {nazev:'205 401 Prehledna situace', soubor:'pdf/SO_205/205_401_Prehledna_situace_C.pdf', typ:'401'}
+  ],
+  '206': [
+  {nazev:'206 000 Desky', soubor:'pdf/SO_206/206_000_Desky_C.pdf', typ:'000'},
+  {nazev:'206 000 Seznam priloh', soubor:'pdf/SO_206/206_000_Seznam_priloh_C.pdf', typ:'000'},
+  {nazev:'206 101 Technicka zprava', soubor:'pdf/SO_206/206_101_Technicka_zprava_C.pdf', typ:'101'},
+  {nazev:'206 101 Technicka zprava pr1 IGP', soubor:'pdf/SO_206/206_101_Technicka_zprava_pr1_IGP_C.pdf', typ:'101'},
+  {nazev:'206 102 Pudorys pod rez vzor pric rez', soubor:'pdf/SO_206/206_102_Pudorys_pod_rez_vzor_pric_rez_C.pdf', typ:'102'},
+  {nazev:'206 103 Technicke spec a pozn 1 2 DI6', soubor:'pdf/SO_206/206_103_Technicke_spec_a_pozn_1_2_C_DI6.pdf', typ:'103'},
+  {nazev:'206 104 Technicke spec a pozn 2 2', soubor:'pdf/SO_206/206_104_Technicke_spec_a_pozn_2_2_C.pdf', typ:'104'},
+  {nazev:'206 201 Pr rezy tvar zaklu SS vytyc', soubor:'pdf/SO_206/206_201_Pr_rezy_tvar_zaklu_SS_vytyc_C.pdf', typ:'201'},
+  {nazev:'206 202 Tvar NK pr oblasti', soubor:'pdf/SO_206/206_202_Tvar_NK_pr_oblasti_C.pdf', typ:'202'},
+  {nazev:'206 203 Tvar pricniku', soubor:'pdf/SO_206/206_203_Tvar_pricniku_C.pdf', typ:'203'},
+  {nazev:'206 204 Tvar rimsy sch odvodneni', soubor:'pdf/SO_206/206_204_Tvar_rimsy_sch_odvodneni_C.pdf', typ:'204'},
+  {nazev:'206 205 Upr pod mostem sluz schodiste', soubor:'pdf/SO_206/206_205_Upr_pod_mostem_sluz_schodiste_C.pdf', typ:'205'},
+  {nazev:'206 301 Schematicke vykresy vyztuze', soubor:'pdf/SO_206/206_301_Schematicke_vykresy_vyztuze_C.pdf', typ:'301'},
+  {nazev:'206 401 Prehledna situace', soubor:'pdf/SO_206/206_401_Prehledna_situace_C.pdf', typ:'401'}
+  ],
+  '207': [
+  {nazev:'207 000 Desky', soubor:'pdf/SO_207/207_000_Desky_C.pdf', typ:'000'},
+  {nazev:'207 000 Seznam priloh С', soubor:'pdf/SO_207/207_000_Seznam_priloh.pdf', typ:'000'},
+  {nazev:'207 101 Technicka zprava', soubor:'pdf/SO_207/207_101_Technicka_zprava_C.pdf', typ:'101'},
+  {nazev:'207 101 Technicka zprava pr1 IGP С', soubor:'pdf/SO_207/207_101_Technicka_zprava_pr1_IGP.pdf', typ:'101'},
+  {nazev:'207 102 Pud pod rez vzor pricny rez', soubor:'pdf/SO_207/207_102_Pud_pod_rez_vzor_pricny_rez_C.pdf', typ:'102'},
+  {nazev:'207 103 Technicke spec a pozn', soubor:'pdf/SO_207/207_103_Technicke_spec_a_pozn_C.pdf', typ:'103'},
+  {nazev:'207 201 Tvar NK 1(2) schema odvodneni', soubor:'pdf/SO_207/207_201_Tvar_NK_1_2_schema_odvodneni_C.pdf', typ:'201'},
+  {nazev:'207 202 Tvar NK 2(2)', soubor:'pdf/SO_207/207_202_Tvar_NK_2_2_C.pdf', typ:'202'},
+  {nazev:'207 203 Schema vytyceni', soubor:'pdf/SO_207/207_203_Schema_vytyceni_C.pdf', typ:'203'},
+  {nazev:'207 204 Prechodove oblasti tvar rims KC', soubor:'pdf/SO_207/207_204_Prechodove_oblasti_tvar_rims_KC.pdf', typ:'204'},
+  {nazev:'207 205 Upr pod mostem sluz schodiste', soubor:'pdf/SO_207/207_205_Upr_pod_mostem_sluz_schodiste_C.pdf', typ:'205'},
+  {nazev:'207 301 Schemat vykresy vyztuze', soubor:'pdf/SO_207/207_301_Schemat_vykresy_vyztuze_C.pdf', typ:'301'},
+  {nazev:'207 401 Prehledna situace', soubor:'pdf/SO_207/207_401_Prehledna_situace_C.pdf', typ:'401'},
+  {nazev:'207 501 Demolice stavajiciho mostu С', soubor:'pdf/SO_207/207_501_Demolice_stavajiciho_mostu.pdf', typ:'501'}
+  ],
+  '221': [
+  {nazev:'221 000 Desky', soubor:'pdf/SO_221/221_000_Desky_C.pdf', typ:'000'},
+  {nazev:'221 000 Seznam priloh', soubor:'pdf/SO_221/221_000_Seznam_priloh_C.pdf', typ:'000'},
+  {nazev:'221 101 Technicka zprava', soubor:'pdf/SO_221/221_101_Technicka_zprava_C.pdf', typ:'101'},
+  {nazev:'221 101 Technicka zprava pr1 IGP', soubor:'pdf/SO_221/221_101_Technicka_zprava_pr1_IGP_C.pdf', typ:'101'},
+  {nazev:'221 102 Pud pod rez vzor pricny rez', soubor:'pdf/SO_221/221_102_Pud_pod_rez_vzor_pricny_rez_C.pdf', typ:'102'},
+  {nazev:'221 103 Technicke spec a pozn 1(2)', soubor:'pdf/SO_221/221_103_Technicke_spec_a_pozn_1_2_C.pdf', typ:'103'},
+  {nazev:'221 104 Technicke spec a pozn 2(2)', soubor:'pdf/SO_221/221_104_Technicke_spec_a_pozn_2_2_C.pdf', typ:'104'},
+  {nazev:'221 201 Pricne rezy v miste podper', soubor:'pdf/SO_221/221_201_Pricne_rezy_v_miste_podper_C.pdf', typ:'201'},
+  {nazev:'221 202 Hlub zal tvar opery O1', soubor:'pdf/SO_221/221_202_Hlub_zal_tvar_opery_O1_C.pdf', typ:'202'},
+  {nazev:'221 203 Hlub zal tvar opery O4', soubor:'pdf/SO_221/221_203_Hlub_zal_tvar_opery_O4_C.pdf', typ:'203'},
+  {nazev:'221 204 Hlub zal tvar piliru P2 P3', soubor:'pdf/SO_221/221_204_Hlub_zal_tvar_piliru_P2_P3_C.pdf', typ:'204'},
+  {nazev:'221 205 Tvar NK', soubor:'pdf/SO_221/221_205_Tvar_NK_C.pdf', typ:'205'},
+  {nazev:'221 206 Schema predpinaci vyztuze', soubor:'pdf/SO_221/221_206_Schema_predpinaci_vyztuze_C.pdf', typ:'206'},
+  {nazev:'221 207 Vytyceni pr oblasti', soubor:'pdf/SO_221/221_207_Vytyceni_pr_oblasti_C.pdf', typ:'207'},
+  {nazev:'221 208 Sch odv most zavery sch loz', soubor:'pdf/SO_221/221_208_Sch_odv_most_zavery_sch_loz_C.pdf', typ:'208'},
+  {nazev:'221 209 Tvar rims', soubor:'pdf/SO_221/221_209_Tvar_rims_C.pdf', typ:'209'},
+  {nazev:'221 210 Upr pod mostem sluz schodiste', soubor:'pdf/SO_221/221_210_Upr_pod_mostem_sluz_schodiste_C.pdf', typ:'210'},
+  {nazev:'221 301 Schemat vykresy vyztuze 1(2)', soubor:'pdf/SO_221/221_301_Schemat_vykresy_vyztuze_1_2_C.pdf', typ:'301'},
+  {nazev:'221 302 Schemat vykresy vyztuze 2(2)', soubor:'pdf/SO_221/221_302_Schemat_vykresy_vyztuze_2_2_C.pdf', typ:'302'},
+  {nazev:'221 401 Prehledna situace', soubor:'pdf/SO_221/221_401_Prehledna_situace_C.pdf', typ:'401'}
+  ],
+  '222': [
+  {nazev:'222 000 Desky', soubor:'pdf/SO_222/222_000_Desky_C.pdf', typ:'000'},
+  {nazev:'222 000 Seznam priloh', soubor:'pdf/SO_222/222_000_Seznam_priloh_C.pdf', typ:'000'},
+  {nazev:'222 101 Technicka zprava', soubor:'pdf/SO_222/222_101_Technicka_zprava_C.pdf', typ:'101'},
+  {nazev:'222 101 Technicka zprava pr1 IGP', soubor:'pdf/SO_222/222_101_Technicka_zprava_pr1_IGP_C.pdf', typ:'101'},
+  {nazev:'222 102 Pud pod rez vzor pricny rez', soubor:'pdf/SO_222/222_102_Pud_pod_rez_vzor_pricny_rez_C.pdf', typ:'102'},
+  {nazev:'222 103 Technicke spec a pozn 1(2)', soubor:'pdf/SO_222/222_103_Technicke_spec_a_pozn_1_2_C.pdf', typ:'103'},
+  {nazev:'222 104 Technicke spec a pozn 2(2)', soubor:'pdf/SO_222/222_104_Technicke_spec_a_pozn_2_2_C.pdf', typ:'104'},
+  {nazev:'222 201 Hlub zal tvar spodni stavby', soubor:'pdf/SO_222/222_201_Hlub_zal_tvar_spodni_stavby_C.pdf', typ:'201'},
+  {nazev:'222 202 Tvar NK', soubor:'pdf/SO_222/222_202_Tvar_NK_C.pdf', typ:'202'},
+  {nazev:'222 203 Pr oblasti schema predp vyzt', soubor:'pdf/SO_222/222_203_Pr_oblasti_schema_predp_vyzt_C.pdf', typ:'203'},
+  {nazev:'222 204 Tvar rims vytyceni', soubor:'pdf/SO_222/222_204_Tvar_rims_vytyceni_C.pdf', typ:'204'},
+  {nazev:'222 205 Sch odv most zavery sch loz', soubor:'pdf/SO_222/222_205_Sch_odv_most_zavery_sch_loz_C.pdf', typ:'205'},
+  {nazev:'222 206 Upr pod mostem sluz schodiste', soubor:'pdf/SO_222/222_206_Upr_pod_mostem_sluz_schodiste_C.pdf', typ:'206'},
+  {nazev:'222 301 Schemat vykresy vyztuze', soubor:'pdf/SO_222/222_301_Schemat_vykresy_vyztuze_C.pdf', typ:'301'},
+  {nazev:'222 401 Prehledna situace', soubor:'pdf/SO_222/222_401_Prehledna_situace_C.pdf', typ:'401'}
+  ],
+  '223': [
+  {nazev:'223 000 Desky', soubor:'pdf/SO_223/223_000_Desky_C.pdf', typ:'000'},
+  {nazev:'223 000 Seznam priloh', soubor:'pdf/SO_223/223_000_Seznam_priloh_C.pdf', typ:'000'},
+  {nazev:'223 101 Technicka zprava', soubor:'pdf/SO_223/223_101_Technicka_zprava_C.pdf', typ:'101'},
+  {nazev:'223 101 Technicka zprava pr1 IGP', soubor:'pdf/SO_223/223_101_Technicka_zprava_pr1_IGP_C.pdf', typ:'101'},
+  {nazev:'223 102 Pud pod rez vzor pricny rez', soubor:'pdf/SO_223/223_102_Pud_pod_rez_vzor_pricny_rez_C.pdf', typ:'102'},
+  {nazev:'223 103 Technicke spec a pozn 1(2)', soubor:'pdf/SO_223/223_103_Technicke_spec_a_pozn_1_2_C.pdf', typ:'103'},
+  {nazev:'223 104 Technicke spec a pozn 2(2)', soubor:'pdf/SO_223/223_104_Technicke_spec_a_pozn_2_2_C.pdf', typ:'104'},
+  {nazev:'223 201 Pricne rezy v miste podper', soubor:'pdf/SO_223/223_201_Pricne_rezy_v_miste_podper_C.pdf', typ:'201'},
+  {nazev:'223 202 Hlub zal tvar op O1 4 tvar NK', soubor:'pdf/SO_223/223_202_Hlub_zal_tvar_op_O1_4_tvar_NK_C.pdf', typ:'202'},
+  {nazev:'223 203 Tvar piliru P2 P3', soubor:'pdf/SO_223/223_203_Tvar_piliru_P2_P3_C.pdf', typ:'203'},
+  {nazev:'223 204 Tvar ríms sch odv pr obl vytyc', soubor:'pdf/SO_223/223_204_Tvar_rims_sch_odv_pr_obl_vytyc_C.pdf', typ:'204'},
+  {nazev:'223 205 Upr pod mostem sluz schodiste', soubor:'pdf/SO_223/223_205_Upr_pod_mostem_sluz_schodiste_C.pdf', typ:'205'},
+  {nazev:'223 301 Schemat vykresy vyztuze 1(2)', soubor:'pdf/SO_223/223_301_Schemat_vykresy_vyztuze_1_2_C.pdf', typ:'301'},
+  {nazev:'223 302 Schemat vykresy vyztuze 2(2)', soubor:'pdf/SO_223/223_302_Schemat_vykresy_vyztuze_2_2_C.pdf', typ:'302'},
+  {nazev:'223 401 Prehledna situace', soubor:'pdf/SO_223/223_401_Prehledna_situace_C.pdf', typ:'401'}
+  ],
+  '230': [
+  {nazev:'230 000 Desky', soubor:'pdf/SO_230/230_000_Desky_C.pdf', typ:'000'},
+  {nazev:'230 000 Seznam priloh', soubor:'pdf/SO_230/230_000_Seznam_priloh_C.pdf', typ:'000'},
+  {nazev:'230 101 Technicka zprava', soubor:'pdf/SO_230/230_101_Technicka_zprava_C.pdf', typ:'101'},
+  {nazev:'230 101 Technicka zprava pr1 IGP pouze elektr', soubor:'pdf/SO_230/230_101_Technicka_zprava_pr1_IGP_pouze_elektr.pdf', typ:'101'},
+  {nazev:'230 102 Pud pod rez vzor pricny rez', soubor:'pdf/SO_230/230_102_Pud_pod_rez_vzor_pricny_rez_C.pdf', typ:'102'},
+  {nazev:'230 103 Technicke spec a pozn', soubor:'pdf/SO_230/230_103_Technicke_spec_a_pozn_C.pdf', typ:'103'},
+  {nazev:'230 201 Pr rezy hlub zal 1(2) tvar SS', soubor:'pdf/SO_230/230_201_Pr_rezy_hlub_zal_1_2_tvar_SS_C.pdf', typ:'201'},
+  {nazev:'230 202 Pr rezy hlub zal 2(2) tvar NK', soubor:'pdf/SO_230/230_202_Pr_rezy_hlub_zal_2_2_tvar_NK_C.pdf', typ:'202'},
+  {nazev:'230 203 Tvar rims schema odvodneni', soubor:'pdf/SO_230/230_203_Tvar_rims_schema_odvodneni_C.pdf', typ:'203'},
+  {nazev:'230 204 Prechodove oblasti vytyceni', soubor:'pdf/SO_230/230_204_Prechodove_oblasti_vytyceni_C.pdf', typ:'204'},
+  {nazev:'230 205 Upr pod mostem sluz schodiste', soubor:'pdf/SO_230/230_205_Upr_pod_mostem_sluz_schodiste_C.pdf', typ:'205'},
+  {nazev:'230 301 Schemat vykresy vyztuze', soubor:'pdf/SO_230/230_301_Schemat_vykresy_vyztuze_C.pdf', typ:'301'},
+  {nazev:'230 401 Prehledna situace', soubor:'pdf/SO_230/230_401_Prehledna_situace_C.pdf', typ:'401'}
+  ],
+  '301': [
+  {nazev:'301 00 Desky', soubor:'pdf/SO_301/301_00_Desky_C.pdf', typ:'00'},
+  {nazev:'301 00 Seznam priloh', soubor:'pdf/SO_301/301_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'301 01 Technicka zprava', soubor:'pdf/SO_301/301_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'301 02.10 Situace c 10', soubor:'pdf/SO_301/301_02.10_Situace_c_10_C.pdf', typ:'02.10'},
+  {nazev:'301 02.1 Situace c 1', soubor:'pdf/SO_301/301_02.1_Situace_c_1_C.pdf', typ:'02.1'},
+  {nazev:'301 02.2 Situace c 2', soubor:'pdf/SO_301/301_02.2_Situace_c_2_C.pdf', typ:'02.2'},
+  {nazev:'301 02.3 Situace c 3', soubor:'pdf/SO_301/301_02.3_Situace_c_3_C.pdf', typ:'02.3'},
+  {nazev:'301 02.4 Situace c 4', soubor:'pdf/SO_301/301_02.4_Situace_c_4_C.pdf', typ:'02.4'},
+  {nazev:'301 02.5 Situace c 5', soubor:'pdf/SO_301/301_02.5_Situace_c_5_C.pdf', typ:'02.5'},
+  {nazev:'301 02.6 Situace c 6', soubor:'pdf/SO_301/301_02.6_Situace_c_6_C.pdf', typ:'02.6'},
+  {nazev:'301 02.7 Situace c 7', soubor:'pdf/SO_301/301_02.7_Situace_c_7_C.pdf', typ:'02.7'},
+  {nazev:'301 02.8 Situace c 8', soubor:'pdf/SO_301/301_02.8_Situace_c_8_C.pdf', typ:'02.8'},
+  {nazev:'301 02.9 Situace c 9', soubor:'pdf/SO_301/301_02.9_Situace_c_9_C.pdf', typ:'02.9'},
+  {nazev:'301 03.10 Podelny profil c 10', soubor:'pdf/SO_301/301_03.10_Podelny_profil_c_10_C.pdf', typ:'03.10'},
+  {nazev:'301 03.1 Podelny profil c 1', soubor:'pdf/SO_301/301_03.1_Podelny_profil_c_1_C.pdf', typ:'03.1'},
+  {nazev:'301 03.2 Podelny profil c 2', soubor:'pdf/SO_301/301_03.2_Podelny_profil_c_2_C.pdf', typ:'03.2'},
+  {nazev:'301 03.3 Podelny profil c 3', soubor:'pdf/SO_301/301_03.3_Podelny_profil_c_3_C.pdf', typ:'03.3'},
+  {nazev:'301 03.4 Podelny profil c 4', soubor:'pdf/SO_301/301_03.4_Podelny_profil_c_4_C.pdf', typ:'03.4'},
+  {nazev:'301 03.5 Podelny profil c 5', soubor:'pdf/SO_301/301_03.5_Podelny_profil_c_5_C.pdf', typ:'03.5'},
+  {nazev:'301 03.6 Podelny profil c 6', soubor:'pdf/SO_301/301_03.6_Podelny_profil_c_6_C.pdf', typ:'03.6'},
+  {nazev:'301 03.7 Podelny profil c 7', soubor:'pdf/SO_301/301_03.7_Podelny_profil_c_7_C.pdf', typ:'03.7'},
+  {nazev:'301 03.8 Podelny profil c 8', soubor:'pdf/SO_301/301_03.8_Podelny_profil_c_8_C.pdf', typ:'03.8'},
+  {nazev:'301 03.9 Podelny profil c 9', soubor:'pdf/SO_301/301_03.9_Podelny_profil_c_9_C.pdf', typ:'03.9'},
+  {nazev:'301 04 Ulozeni potrubi', soubor:'pdf/SO_301/301_04_Ulozeni_potrubi_C.pdf', typ:'04'},
+  {nazev:'301 05 Sachty spadiste', soubor:'pdf/SO_301/301_05_Sachty_spadiste_C.pdf', typ:'05'},
+  {nazev:'301 06 Ulicni vpusti', soubor:'pdf/SO_301/301_06_Ulicni_vpusti_C.pdf', typ:'06'},
+  {nazev:'301 07 Lapace splavenin', soubor:'pdf/SO_301/301_07_Lapace_splavenin_C.pdf', typ:'07'},
+  {nazev:'301 08.10 Vyustni objekt c 10', soubor:'pdf/SO_301/301_08.10_Vyustni_objekt_c_10_C.pdf', typ:'08.10'},
+  {nazev:'301 08.1 Vyustni objekt c 1', soubor:'pdf/SO_301/301_08.1_Vyustni_objekt_c_1_C.pdf', typ:'08.1'},
+  {nazev:'301 08.2 Vyustni objekt c 2', soubor:'pdf/SO_301/301_08.2_Vyustni_objekt_c_2_C.pdf', typ:'08.2'},
+  {nazev:'301 08.3 Vyustni objekt c 3', soubor:'pdf/SO_301/301_08.3_Vyustni_objekt_c_3_C.pdf', typ:'08.3'},
+  {nazev:'301 08.4 Vyustni objekt c 4', soubor:'pdf/SO_301/301_08.4_Vyustni_objekt_c_4_C.pdf', typ:'08.4'},
+  {nazev:'301 08.5 Vyustni objekt c 5', soubor:'pdf/SO_301/301_08.5_Vyustni_objekt_c_5_C.pdf', typ:'08.5'},
+  {nazev:'301 08.6 Vyustni objekt c 6', soubor:'pdf/SO_301/301_08.6_Vyustni_objekt_c_6_C.pdf', typ:'08.6'},
+  {nazev:'301 08.7 Vyustni objekt c 7', soubor:'pdf/SO_301/301_08.7_Vyustni_objekt_c_7_C.pdf', typ:'08.7'},
+  {nazev:'301 08.8 Vyustni objekt c 8', soubor:'pdf/SO_301/301_08.8_Vyustni_objekt_c_8_C.pdf', typ:'08.8'},
+  {nazev:'301 08.9 Vyustni objekt c 9', soubor:'pdf/SO_301/301_08.9_Vyustni_objekt_c_9_C.pdf', typ:'08.9'},
+  {nazev:'301 09 Spojna sachta', soubor:'pdf/SO_301/301_09_Spojna_sachta_C.pdf', typ:'09'}
+  ],
+  '311': [
+  {nazev:'311 00 Desky', soubor:'pdf/SO_311/311_00_Desky_C.pdf', typ:'00'},
+  {nazev:'311 00 Seznam priloh', soubor:'pdf/SO_311/311_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'311 01 Technicka zprava', soubor:'pdf/SO_311/311_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'311 02 Situace', soubor:'pdf/SO_311/311_02_Situace_C.pdf', typ:'02'},
+  {nazev:'311 03.1 Dispozicni vykres nornou stenou c 1', soubor:'pdf/SO_311/311_03.1_Dispozicni_vykres_nornou_stenou_c_1_C.pdf', typ:'03.1'},
+  {nazev:'311 03.2 Dispozicni vykres nornou stenou c 2', soubor:'pdf/SO_311/311_03.2_Dispozicni_vykres_nornou_stenou_c_2_C.pdf', typ:'03.2'}
+  ],
+  '312': [
+  {nazev:'312 00 Desky', soubor:'pdf/SO_312/312_00_Desky_C.pdf', typ:'00'},
+  {nazev:'312 00 Seznam priloh', soubor:'pdf/SO_312/312_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'312 01 Technicka zprava', soubor:'pdf/SO_312/312_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'312 02 Situace', soubor:'pdf/SO_312/312_02_Situace_C.pdf', typ:'02'},
+  {nazev:'312 03 Dispozicni vykres nornou stenou', soubor:'pdf/SO_312/312_03_Dispozicni_vykres_nornou_stenou_C.pdf', typ:'03'},
+  {nazev:'312 03 Podelne profily', soubor:'pdf/SO_312/312_03_Podelne_profily_C.pdf', typ:'03'},
+  {nazev:'312 04 Ulozeni potrubi', soubor:'pdf/SO_312/312_04_Ulozeni_potrubi_C.pdf', typ:'04'},
+  {nazev:'312 05 Sachty spadiste', soubor:'pdf/SO_312/312_05_Sachty_spadiste_C.pdf', typ:'05'},
+  {nazev:'312 06 Lapace splavenin', soubor:'pdf/SO_312/312_06_Lapace_splavenin_C.pdf', typ:'06'},
+  {nazev:'312 08 Vyustni objekt', soubor:'pdf/SO_312/312_08_Vyustni_objekt_C.pdf', typ:'08'}
+  ],
+  '320': [
+  {nazev:'320 00 Desky', soubor:'pdf/SO_320/320_00_Desky_C.pdf', typ:'00'},
+  {nazev:'320 00 Seznam priloh', soubor:'pdf/SO_320/320_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'320 01 Technicka zprava', soubor:'pdf/SO_320/320_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'320 02 Situace', soubor:'pdf/SO_320/320_02_Situace_C.pdf', typ:'02'},
+  {nazev:'320 03 Podelny profil', soubor:'pdf/SO_320/320_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'320 04 Vzorove pricne rezy', soubor:'pdf/SO_320/320_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'320 05 Pricne rezy', soubor:'pdf/SO_320/320_05_Pricne_rezy_C.pdf', typ:'05'}
+  ],
+  '321': [
+  {nazev:'321 00 Desky', soubor:'pdf/SO_321/321_00_Desky_C.pdf', typ:'00'},
+  {nazev:'321 00 Seznam priloh', soubor:'pdf/SO_321/321_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'321 01 Technicka zprava', soubor:'pdf/SO_321/321_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'321 02 Situace', soubor:'pdf/SO_321/321_02_Situace_C.pdf', typ:'02'},
+  {nazev:'321 03 Podelny profil', soubor:'pdf/SO_321/321_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'321 04 Vzorove pricne rezy', soubor:'pdf/SO_321/321_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'321 05 Pricne rezy', soubor:'pdf/SO_321/321_05_Pricne_rezy_C.pdf', typ:'05'}
+  ],
+  '322': [
+  {nazev:'322 00 Desky', soubor:'pdf/SO_322/322_00_Desky_C.pdf', typ:'00'},
+  {nazev:'322 00 Seznam priloh', soubor:'pdf/SO_322/322_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'322 01 Technicka zprava', soubor:'pdf/SO_322/322_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'322 02 Situace', soubor:'pdf/SO_322/322_02_Situace_C.pdf', typ:'02'},
+  {nazev:'322 03 Podelny profil', soubor:'pdf/SO_322/322_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'322 04 Vzorove pricne rezy', soubor:'pdf/SO_322/322_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'322 05 Pricne rezy', soubor:'pdf/SO_322/322_05_Pricne_rezy_C.pdf', typ:'05'}
+  ],
+  '323': [
+  {nazev:'323 00 Desky', soubor:'pdf/SO_323/323_00_Desky_C.pdf', typ:'00'},
+  {nazev:'323 00 Seznam priloh', soubor:'pdf/SO_323/323_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'323 01 Technicka zprava', soubor:'pdf/SO_323/323_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'323 02 Situace', soubor:'pdf/SO_323/323_02_Situace_C.pdf', typ:'02'},
+  {nazev:'323 03 Podelny profil', soubor:'pdf/SO_323/323_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'323 04 Vzorove pricne rezy', soubor:'pdf/SO_323/323_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'323 05 Pricne rezy', soubor:'pdf/SO_323/323_05_Pricne_rezy_C.pdf', typ:'05'}
+  ],
+  '324': [
+  {nazev:'324 00 Desky', soubor:'pdf/SO_324/324_00_Desky_C.pdf', typ:'00'},
+  {nazev:'324 00 Seznam priloh', soubor:'pdf/SO_324/324_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'324 01 Technicka zprava', soubor:'pdf/SO_324/324_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'324 02 Situace', soubor:'pdf/SO_324/324_02_Situace_C.pdf', typ:'02'},
+  {nazev:'324 03 Podelny profil', soubor:'pdf/SO_324/324_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'324 04 Vzorove pricne rezy', soubor:'pdf/SO_324/324_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'324 05 Pricne rezy', soubor:'pdf/SO_324/324_05_Pricne_rezy_C.pdf', typ:'05'}
+  ],
+  '325': [
+  {nazev:'325 00 Desky', soubor:'pdf/SO_325/325_00_Desky_C.pdf', typ:'00'},
+  {nazev:'325 00 Seznam priloh', soubor:'pdf/SO_325/325_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'325 01 Technicka zprava', soubor:'pdf/SO_325/325_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'325 02.1 Situace c 1', soubor:'pdf/SO_325/325_02.1_Situace_c_1_C.pdf', typ:'02.1'},
+  {nazev:'325 02.2 Situace c 2', soubor:'pdf/SO_325/325_02.2_Situace_c_2_C.pdf', typ:'02.2'},
+  {nazev:'325 03 Podelny profil', soubor:'pdf/SO_325/325_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'325 04 Vzorove pricne rezy', soubor:'pdf/SO_325/325_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'325 05 Pricne rezy', soubor:'pdf/SO_325/325_05_Pricne_rezy_C.pdf', typ:'05'}
+  ],
+  '326': [
+  {nazev:'326 00 Desky', soubor:'pdf/SO_326/326_00_Desky_C.pdf', typ:'00'},
+  {nazev:'326 00 Seznam priloh', soubor:'pdf/SO_326/326_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'326 01 Technicka zprava', soubor:'pdf/SO_326/326_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'326 02 Situace', soubor:'pdf/SO_326/326_02_Situace_C.pdf', typ:'02'},
+  {nazev:'326 03 Podelny profil', soubor:'pdf/SO_326/326_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'326 04 Vzorove pricne rezy', soubor:'pdf/SO_326/326_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'326 05 Pricne rezy', soubor:'pdf/SO_326/326_05_Pricne_rezy_C.pdf', typ:'05'}
+  ],
+  '327': [
+  {nazev:'327 00 Desky', soubor:'pdf/SO_327/327_00_Desky_C.pdf', typ:'00'},
+  {nazev:'327 00 Seznam priloh', soubor:'pdf/SO_327/327_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'327 01 Technicka zprava', soubor:'pdf/SO_327/327_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'327 02 Situace', soubor:'pdf/SO_327/327_02_Situace_C.pdf', typ:'02'},
+  {nazev:'327 03 Podelne profily', soubor:'pdf/SO_327/327_03_Podelne_profily_C.pdf', typ:'03'},
+  {nazev:'327 04 Ulozeni potrubi', soubor:'pdf/SO_327/327_04_Ulozeni_potrubi_C.pdf', typ:'04'},
+  {nazev:'327 05 Vstupni sachty', soubor:'pdf/SO_327/327_05_Vstupni_sachty_C.pdf', typ:'05'},
+  {nazev:'327 06 Lapac splavenin', soubor:'pdf/SO_327/327_06_Lapac_splavenin_C.pdf', typ:'06'},
+  {nazev:'327 07 Vzorovy pricny rez', soubor:'pdf/SO_327/327_07_Vzorovy_pricny_rez_C.pdf', typ:'07'}
+  ],
+  '328': [
+  {nazev:'328 00 Desky', soubor:'pdf/SO_328/328_00_Desky_C.pdf', typ:'00'},
+  {nazev:'328 00 Seznam priloh', soubor:'pdf/SO_328/328_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'328 01 Technicka zprava', soubor:'pdf/SO_328/328_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'328 02 Situace', soubor:'pdf/SO_328/328_02_Situace_C.pdf', typ:'02'}
+  ],
+  '329': [
+  {nazev:'329 00 Desky', soubor:'pdf/SO_329/329_00_Desky_C.pdf', typ:'00'},
+  {nazev:'329 00 Seznam priloh', soubor:'pdf/SO_329/329_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'329 01 Technicka zprava', soubor:'pdf/SO_329/329_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'329 02 Situace', soubor:'pdf/SO_329/329_02_Situace_C.pdf', typ:'02'},
+  {nazev:'329 03 Podelny profil', soubor:'pdf/SO_329/329_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'329 04 Vzorove pricne rezy', soubor:'pdf/SO_329/329_04_Vzorove_pricne_rezy_C.pdf', typ:'04'},
+  {nazev:'329 05 Pricne rezy', soubor:'pdf/SO_329/329_05_Pricne_rezy_C.pdf', typ:'05'}
+  ],
+  '341': [
+  {nazev:'341 00 Desky', soubor:'pdf/SO_341/341_00_Desky_C.pdf', typ:'00'},
+  {nazev:'341 00 Seznam priloh', soubor:'pdf/SO_341/341_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'341 01 1 Technicka zprava', soubor:'pdf/SO_341/341_01_1_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'341 02 Situace', soubor:'pdf/SO_341/341_02_Situace_C.pdf', typ:'02'},
+  {nazev:'341 03 Podelny profil', soubor:'pdf/SO_341/341_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'341 04 Ulozeni potrubi', soubor:'pdf/SO_341/341_04_Ulozeni_potrubi_C.pdf', typ:'04'},
+  {nazev:'341 05 Kladecsky plan', soubor:'pdf/SO_341/341_05_Kladecsky_plan_C.pdf', typ:'05'},
+  {nazev:'341 06.1 Armaturni sachta', soubor:'pdf/SO_341/341_06.1_Armaturni_sachta_C.pdf', typ:'06.1'},
+  {nazev:'341 06.2 Armaturni Sachta AS1 Vykres tvaru', soubor:'pdf/SO_341/341_06.2_Armaturni_Sachta_AS1_Vykres_tvaru_C.pdf', typ:'06.2'},
+  {nazev:'341 06.3 Armaturni Sachta AS1 Vykres vyztuze', soubor:'pdf/SO_341/341_06.3_Armaturni_Sachta_AS1_Vykres_vyztuze_C.pdf', typ:'06.3'}
+  ],
+  '342': [
+  {nazev:'342 00 Desky', soubor:'pdf/SO_342/342_00_Desky_C.pdf', typ:'00'},
+  {nazev:'342 00 Seznam priloh', soubor:'pdf/SO_342/342_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'342 01 1 Technicka zprava', soubor:'pdf/SO_342/342_01_1_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'342 02 Situace', soubor:'pdf/SO_342/342_02_Situace_C.pdf', typ:'02'},
+  {nazev:'342 03 Podelny profil', soubor:'pdf/SO_342/342_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'342 04 Ulozeni potrubi', soubor:'pdf/SO_342/342_04_Ulozeni_potrubi_C.pdf', typ:'04'},
+  {nazev:'342 05 Kladecsky plan', soubor:'pdf/SO_342/342_05_Kladecsky_plan_C.pdf', typ:'05'},
+  {nazev:'342 06.1 Armaturni sachty', soubor:'pdf/SO_342/342_06.1_Armaturni_sachty_C.pdf', typ:'06.1'},
+  {nazev:'342 06.2 Armaturni Sachty AS1 Vykres tvaru', soubor:'pdf/SO_342/342_06.2_Armaturni_Sachty_AS1_Vykres_tvaru_C.pdf', typ:'06.2'},
+  {nazev:'342 06.2 Armaturni Sachty AS2 Vykres tvaru', soubor:'pdf/SO_342/342_06.2_Armaturni_Sachty_AS2_Vykres_tvaru_C.pdf', typ:'06.2'},
+  {nazev:'342 06.2 Armaturni Sachty AS3 Vykres tvaru', soubor:'pdf/SO_342/342_06.2_Armaturni_Sachty_AS3_Vykres_tvaru_C.pdf', typ:'06.2'},
+  {nazev:'342 06.3 Armaturni Sachty AS1 Vykres vyztuze', soubor:'pdf/SO_342/342_06.3_Armaturni_Sachty_AS1_Vykres_vyztuze_C.pdf', typ:'06.3'},
+  {nazev:'342 06.3 Armaturni Sachty AS2 Vykres vyztuze', soubor:'pdf/SO_342/342_06.3_Armaturni_Sachty_AS2_Vykres_vyztuze_C.pdf', typ:'06.3'},
+  {nazev:'342 06.3 Armaturni Sachty AS3 Vykres vyztuze', soubor:'pdf/SO_342/342_06.3_Armaturni_Sachty_AS3_Vykres_vyztuze_C.pdf', typ:'06.3'}
+  ],
+  '343': [
+  {nazev:'343 00 Desky', soubor:'pdf/SO_343/343_00_Desky_C.pdf', typ:'00'},
+  {nazev:'343 00 Seznam priloh', soubor:'pdf/SO_343/343_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'343 01 1 Technicka zprava', soubor:'pdf/SO_343/343_01_1_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'343 02 Situace', soubor:'pdf/SO_343/343_02_Situace_C.pdf', typ:'02'},
+  {nazev:'343 03 Podelny profil', soubor:'pdf/SO_343/343_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'343 04 Ulozeni potrubi', soubor:'pdf/SO_343/343_04_Ulozeni_potrubi_C.pdf', typ:'04'},
+  {nazev:'343 05 Kladecsky plan', soubor:'pdf/SO_343/343_05_Kladecsky_plan_C.pdf', typ:'05'},
+  {nazev:'343 06.1 Armaturni sachta', soubor:'pdf/SO_343/343_06.1_Armaturni_sachta_C.pdf', typ:'06.1'},
+  {nazev:'343 06.2 Armaturni Sachty AS1 Vykres tvaru', soubor:'pdf/SO_343/343_06.2_Armaturni_Sachty_AS1_Vykres_tvaru_C.pdf', typ:'06.2'},
+  {nazev:'343 06.3 Armaturni Sachty AS1 Vykres vyztuze', soubor:'pdf/SO_343/343_06.3_Armaturni_Sachty_AS1_Vykres_vyztuze_C.pdf', typ:'06.3'}
+  ],
+  '344': [
+  {nazev:'344 00 Desky', soubor:'pdf/SO_344/344_00_Desky_C.pdf', typ:'00'},
+  {nazev:'344 00 Seznam priloh', soubor:'pdf/SO_344/344_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'344 01 1 Technicka zprava', soubor:'pdf/SO_344/344_01_1_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'344 02 Situace', soubor:'pdf/SO_344/344_02_Situace_C.pdf', typ:'02'},
+  {nazev:'344 03 Podelny profil', soubor:'pdf/SO_344/344_03_Podelny_profil_C.pdf', typ:'03'},
+  {nazev:'344 04 Ulozeni potrubi', soubor:'pdf/SO_344/344_04_Ulozeni_potrubi_C.pdf', typ:'04'},
+  {nazev:'344 05 Kladecsky plan', soubor:'pdf/SO_344/344_05_Kladecsky_plan_C.pdf', typ:'05'},
+  {nazev:'344 06.1 Armaturni sachta', soubor:'pdf/SO_344/344_06.1_Armaturni_sachta_C.pdf', typ:'06.1'},
+  {nazev:'344 06.2 Armaturni Sachty AS1 Vykres tvaru', soubor:'pdf/SO_344/344_06.2_Armaturni_Sachty_AS1_Vykres_tvaru_C.pdf', typ:'06.2'},
+  {nazev:'344 06.3 Armaturni Sachty AS2 Vykres tvaru', soubor:'pdf/SO_344/344_06.3_Armaturni_Sachty_AS2_Vykres_tvaru_C.pdf', typ:'06.3'},
+  {nazev:'344 06.4 Armaturni Sachty AS3 Vykres tvaru', soubor:'pdf/SO_344/344_06.4_Armaturni_Sachty_AS3_Vykres_tvaru_C.pdf', typ:'06.4'},
+  {nazev:'344 06.5 Armaturni Sachty AS1 Vykres vyztuze', soubor:'pdf/SO_344/344_06.5_Armaturni_Sachty_AS1_Vykres_vyztuze_C.pdf', typ:'06.5'},
+  {nazev:'344 06.6 Armaturni Sachty AS2 Vykres vyztuze', soubor:'pdf/SO_344/344_06.6_Armaturni_Sachty_AS2_Vykres_vyztuze_C.pdf', typ:'06.6'},
+  {nazev:'344 06.7 Armaturni Sachty AS3 Vykres vyztuze', soubor:'pdf/SO_344/344_06.7_Armaturni_Sachty_AS3_Vykres_vyztuze_C.pdf', typ:'06.7'}
+  ],
+  '360': [
+  {nazev:'360 00 Desky', soubor:'pdf/SO_360/360_00_Desky_C.pdf', typ:'00'},
+  {nazev:'360 00 Seznam priloh', soubor:'pdf/SO_360/360_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'360 01 Technicka zprava', soubor:'pdf/SO_360/360_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'360 02 Vzorovy pricny rez retencni nadrzi', soubor:'pdf/SO_360/360_02_Vzorovy_pricny_rez_retencni_nadrzi_C.pdf', typ:'02'}
+  ],
+  '360.1': [
+  {nazev:'360.1 00 Desky', soubor:'pdf/SO_360.1/360.1_00_Desky_C.pdf', typ:'00'},
+  {nazev:'360.1 00 Seznam priloh', soubor:'pdf/SO_360.1/360.1_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'360.1 01 Situace', soubor:'pdf/SO_360.1/360.1_01_Situace_C.pdf', typ:'01'},
+  {nazev:'360.1 02 Dispozicni vykres OLK', soubor:'pdf/SO_360.1/360.1_02_Dispozicni_vykres_OLK_C.pdf', typ:'02'},
+  {nazev:'360.1 03 Podelny profil hrazi retencni nadrze', soubor:'pdf/SO_360.1/360.1_03_Podelny_profil_hrazi_retencni_nadrze_C.pdf', typ:'03'},
+  {nazev:'360.1 04 1 Podelny rez retencni nadrzi', soubor:'pdf/SO_360.1/360.1_04_1_Podelny_rez_retencni_nadrzi_C.pdf', typ:'04'},
+  {nazev:'360.1 04 2 Pricny rez retencni nadrzi', soubor:'pdf/SO_360.1/360.1_04_2_Pricny_rez_retencni_nadrzi_C.pdf', typ:'04'},
+  {nazev:'360.1 04 3 Podelny rez sjezdem do nadrze', soubor:'pdf/SO_360.1/360.1_04_3_Podelny_rez_sjezdem_do_nadrze_C.pdf', typ:'04'},
+  {nazev:'360.1 05 Sdruzeny funkcni objekt', soubor:'pdf/SO_360.1/360.1_05_Sdruzeny_funkcni_objekt_C.pdf', typ:'05'}
+  ],
+  '360.10': [
+  {nazev:'360.10 00 Desky', soubor:'pdf/SO_360.10/360.10_00_Desky_C.pdf', typ:'00'},
+  {nazev:'360.10 00 Seznam priloh PDPS', soubor:'pdf/SO_360.10/360.10_00_Seznam_priloh_PDPS.pdf', typ:'00'},
+  {nazev:'360.10 01 Situace', soubor:'pdf/SO_360.10/360.10_01_Situace_C.pdf', typ:'01'},
+  {nazev:'360.10 02 Dispozicni vykres OLK', soubor:'pdf/SO_360.10/360.10_02_Dispozicni_vykres_OLK_C.pdf', typ:'02'},
+  {nazev:'360.10 03 Podelny profil hrazi retencni nadrze', soubor:'pdf/SO_360.10/360.10_03_Podelny_profil_hrazi_retencni_nadrze_C.pdf', typ:'03'},
+  {nazev:'360.10 04 1 Podelny rez retencni nadrzi', soubor:'pdf/SO_360.10/360.10_04_1_Podelny_rez_retencni_nadrzi_C.pdf', typ:'04'},
+  {nazev:'360.10 04 2 Pricny rez retencni nadrzi', soubor:'pdf/SO_360.10/360.10_04_2_Pricny_rez_retencni_nadrzi_C.pdf', typ:'04'},
+  {nazev:'360.10 04 3 Podelny rez sjezdem', soubor:'pdf/SO_360.10/360.10_04_3_Podelny_rez_sjezdem_C.pdf', typ:'04'},
+  {nazev:'360.10 05 Sdruzeny funkcni objekt', soubor:'pdf/SO_360.10/360.10_05_Sdruzeny_funkcni_objekt_C.pdf', typ:'05'}
+  ],
+  '360.2': [
+  {nazev:'360.2 00 Desky', soubor:'pdf/SO_360.2/360.2_00_Desky_C.pdf', typ:'00'},
+  {nazev:'360.2 00 Seznam priloh', soubor:'pdf/SO_360.2/360.2_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'360.2 01 Situace', soubor:'pdf/SO_360.2/360.2_01_Situace_C.pdf', typ:'01'},
+  {nazev:'360.2 02 Dispozicni vykres OLK', soubor:'pdf/SO_360.2/360.2_02_Dispozicni_vykres_OLK_C.pdf', typ:'02'},
+  {nazev:'360.2 03 Podelny profil hrazi retencni nadrze', soubor:'pdf/SO_360.2/360.2_03_Podelny_profil_hrazi_retencni_nadrze_C.pdf', typ:'03'},
+  {nazev:'360.2 04 1 Podelny rez retencni nadrzi', soubor:'pdf/SO_360.2/360.2_04_1_Podelny_rez_retencni_nadrzi_C.pdf', typ:'04'},
+  {nazev:'360.2 04 2 Pricny rez retencni nadrzi', soubor:'pdf/SO_360.2/360.2_04_2_Pricny_rez_retencni_nadrzi_C.pdf', typ:'04'},
+  {nazev:'360.2 04 3 Podelny rez sjezdem do nadrze', soubor:'pdf/SO_360.2/360.2_04_3_Podelny_rez_sjezdem_do_nadrze_C.pdf', typ:'04'},
+  {nazev:'360.2 05 Sdruzeny funkcni objekt', soubor:'pdf/SO_360.2/360.2_05_Sdruzeny_funkcni_objekt_C.pdf', typ:'05'}
+  ],
+  '360.3': [
+  {nazev:'360.3 00 Desky', soubor:'pdf/SO_360.3/360.3_00_Desky_C.pdf', typ:'00'},
+  {nazev:'360.3 00 Seznam priloh', soubor:'pdf/SO_360.3/360.3_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'360.3 01 Situace', soubor:'pdf/SO_360.3/360.3_01_Situace_C.pdf', typ:'01'},
+  {nazev:'360.3 02 Dispozicni vykres OLK a RN', soubor:'pdf/SO_360.3/360.3_02_Dispozicni_vykres_OLK_a_RN_C.pdf', typ:'02'}
+  ],
+  '360.4': [
+  {nazev:'360.4 00 Desky', soubor:'pdf/SO_360.4/360.4_00_Desky_C.pdf', typ:'00'},
+  {nazev:'360.4 00 Seznam priloh', soubor:'pdf/SO_360.4/360.4_00_Seznam_priloh.pdf', typ:'00'},
+  {nazev:'360.4 01 Situace', soubor:'pdf/SO_360.4/360.4_01_Situace_C.pdf', typ:'01'},
+  {nazev:'360.4 02 Dispozicni vykres OLK', soubor:'pdf/SO_360.4/360.4_02_Dispozicni_vykres_OLK_C.pdf', typ:'02'},
+  {nazev:'360.4 03 Podelny profil hrazi retencni nadrze', soubor:'pdf/SO_360.4/360.4_03_Podelny_profil_hrazi_retencni_nadrze_C.pdf', typ:'03'},
+  {nazev:'360.4 04 1 Podelny rez retencni nadrzi', soubor:'pdf/SO_360.4/360.4_04_1_Podelny_rez_retencni_nadrzi_C.pdf', typ:'04'},
+  {nazev:'360.4 04 2 Pricny rez retencni nadrzi', soubor:'pdf/SO_360.4/360.4_04_2_Pricny_rez_retencni_nadrzi_C.pdf', typ:'04'},
+  {nazev:'360.4 04 3 Podelny rez sjezdem do nadrze', soubor:'pdf/SO_360.4/360.4_04_3_Podelny_rez_sjezdem_do_nadrze_C.pdf', typ:'04'},
+  {nazev:'360.4 05 Sdruzeny funkcni objekt', soubor:'pdf/SO_360.4/360.4_05_Sdruzeny_funkcni_objekt_C.pdf', typ:'05'}
+  ],
+  '360.5': [
+  {nazev:'360.5 00 Desky', soubor:'pdf/SO_360.5/360.5_00_Desky_C.pdf', typ:'00'},
+  {nazev:'360.5 00 Seznam priloh', soubor:'pdf/SO_360.5/360.5_00_Seznam_priloh.pdf', typ:'00'},
+  {nazev:'360.5 01 Situace', soubor:'pdf/SO_360.5/360.5_01_Situace_C.pdf', typ:'01'},
+  {nazev:'360.5 02 Dispozicni vykres OLK', soubor:'pdf/SO_360.5/360.5_02_Dispozicni_vykres_OLK_C.pdf', typ:'02'},
+  {nazev:'360.5 03 Podelny profil hrazi retencni nadrze', soubor:'pdf/SO_360.5/360.5_03_Podelny_profil_hrazi_retencni_nadrze_C.pdf', typ:'03'},
+  {nazev:'360.5 04 1 Podelny rez retencni nadrzi', soubor:'pdf/SO_360.5/360.5_04_1_Podelny_rez_retencni_nadrzi_C.pdf', typ:'04'},
+  {nazev:'360.5 04 2 Pricny rez retencni nadrzi', soubor:'pdf/SO_360.5/360.5_04_2_Pricny_rez_retencni_nadrzi_C.pdf', typ:'04'},
+  {nazev:'360.5 04 3 Podelny rez sjezdem do nadrze', soubor:'pdf/SO_360.5/360.5_04_3_Podelny_rez_sjezdem_do_nadrze_C.pdf', typ:'04'},
+  {nazev:'360.5 05 Sdruzeny funkcni objekt', soubor:'pdf/SO_360.5/360.5_05_Sdruzeny_funkcni_objekt_C.pdf', typ:'05'}
+  ],
+  '360.6': [
+  {nazev:'360.6 00 Desky', soubor:'pdf/SO_360.6/360.6_00_Desky_C.pdf', typ:'00'},
+  {nazev:'360.6 00 Seznam priloh PDPS', soubor:'pdf/SO_360.6/360.6_00_Seznam_priloh_PDPS.pdf', typ:'00'},
+  {nazev:'360.6 01 Situace', soubor:'pdf/SO_360.6/360.6_01_Situace_C.pdf', typ:'01'},
+  {nazev:'360.6 02 Dispozicni vykres OLK', soubor:'pdf/SO_360.6/360.6_02_Dispozicni_vykres_OLK_C.pdf', typ:'02'},
+  {nazev:'360.6 03 Podelny profil hrazi retencni nadrze', soubor:'pdf/SO_360.6/360.6_03_Podelny_profil_hrazi_retencni_nadrze_C.pdf', typ:'03'},
+  {nazev:'360.6 04 1 Podelny rez retencni nadrzi', soubor:'pdf/SO_360.6/360.6_04_1_Podelny_rez_retencni_nadrzi_C.pdf', typ:'04'},
+  {nazev:'360.6 04 2 Pricny rez retencni nadrzi', soubor:'pdf/SO_360.6/360.6_04_2_Pricny_rez_retencni_nadrzi_C.pdf', typ:'04'},
+  {nazev:'360.6 04 3 Podelny rez sjezdem do nadrze', soubor:'pdf/SO_360.6/360.6_04_3_Podelny_rez_sjezdem_do_nadrze_C.pdf', typ:'04'},
+  {nazev:'360.6 05 Sdruzeny funkcni objekt', soubor:'pdf/SO_360.6/360.6_05_Sdruzeny_funkcni_objekt_C.pdf', typ:'05'}
+  ],
+  '360.7': [
+  {nazev:'360.7 00 Desky', soubor:'pdf/SO_360.7/360.7_00_Desky_C.pdf', typ:'00'},
+  {nazev:'360.7 00 Seznam priloh PDPS', soubor:'pdf/SO_360.7/360.7_00_Seznam_priloh_PDPS.pdf', typ:'00'},
+  {nazev:'360.7 01 Situace', soubor:'pdf/SO_360.7/360.7_01_Situace_C.pdf', typ:'01'},
+  {nazev:'360.7 02 Dispozicni vykres OLK', soubor:'pdf/SO_360.7/360.7_02_Dispozicni_vykres_OLK_C.pdf', typ:'02'},
+  {nazev:'360.7 03 Podelny profil hrazi retencni nadrze', soubor:'pdf/SO_360.7/360.7_03_Podelny_profil_hrazi_retencni_nadrze_C.pdf', typ:'03'},
+  {nazev:'360.7 04 1 Podelny rez retencni nadrzi', soubor:'pdf/SO_360.7/360.7_04_1_Podelny_rez_retencni_nadrzi_C.pdf', typ:'04'},
+  {nazev:'360.7 04 2 Pricny rez retencni nadrzi', soubor:'pdf/SO_360.7/360.7_04_2_Pricny_rez_retencni_nadrzi_C.pdf', typ:'04'},
+  {nazev:'360.7 04 3 Podelny rez sjezdem', soubor:'pdf/SO_360.7/360.7_04_3_Podelny_rez_sjezdem_C.pdf', typ:'04'},
+  {nazev:'360.7 05 Sdruzeny funkcni objekt', soubor:'pdf/SO_360.7/360.7_05_Sdruzeny_funkcni_objekt_C.pdf', typ:'05'}
+  ],
+  '360.8': [
+  {nazev:'360.8 00 Desky', soubor:'pdf/SO_360.8/360.8_00_Desky_C.pdf', typ:'00'},
+  {nazev:'360.8 00 Seznam priloh PDPS', soubor:'pdf/SO_360.8/360.8_00_Seznam_priloh_PDPS.pdf', typ:'00'},
+  {nazev:'360.8 01 Situace', soubor:'pdf/SO_360.8/360.8_01_Situace_C.pdf', typ:'01'},
+  {nazev:'360.8 02 Dispozicni vykres OLK', soubor:'pdf/SO_360.8/360.8_02_Dispozicni_vykres_OLK_C.pdf', typ:'02'},
+  {nazev:'360.8 03 Podelny profil hrazi retencni nadrze', soubor:'pdf/SO_360.8/360.8_03_Podelny_profil_hrazi_retencni_nadrze_C.pdf', typ:'03'},
+  {nazev:'360.8 04 1 Podelny rez retencni nadrzi', soubor:'pdf/SO_360.8/360.8_04_1_Podelny_rez_retencni_nadrzi_C.pdf', typ:'04'},
+  {nazev:'360.8 04 2 Pricny rez retencni nadrzi', soubor:'pdf/SO_360.8/360.8_04_2_Pricny_rez_retencni_nadrzi_C.pdf', typ:'04'},
+  {nazev:'360.8 04 3 Podelny rez sjezdem', soubor:'pdf/SO_360.8/360.8_04_3_Podelny_rez_sjezdem_C.pdf', typ:'04'},
+  {nazev:'360.8 05 Sdruzeny funkcni objekt', soubor:'pdf/SO_360.8/360.8_05_Sdruzeny_funkcni_objekt_C.pdf', typ:'05'}
+  ],
+  '360.9': [
+  {nazev:'360.9 00 Desky', soubor:'pdf/SO_360.9/360.9_00_Desky_C.pdf', typ:'00'},
+  {nazev:'360.9 00 Seznam priloh PDPS', soubor:'pdf/SO_360.9/360.9_00_Seznam_priloh_PDPS.pdf', typ:'00'},
+  {nazev:'360.9 01 Situace', soubor:'pdf/SO_360.9/360.9_01_Situace_C.pdf', typ:'01'},
+  {nazev:'360.9 02 Dispozicni vykres OLK', soubor:'pdf/SO_360.9/360.9_02_Dispozicni_vykres_OLK_C.pdf', typ:'02'},
+  {nazev:'360.9 03 Podelny profil hrazi retencni nadrze', soubor:'pdf/SO_360.9/360.9_03_Podelny_profil_hrazi_retencni_nadrze_C.pdf', typ:'03'},
+  {nazev:'360.9 04 1 Podelny rez retencni nadrzi', soubor:'pdf/SO_360.9/360.9_04_1_Podelny_rez_retencni_nadrzi_C.pdf', typ:'04'},
+  {nazev:'360.9 04 2 Pricny rez retencni nadrzi', soubor:'pdf/SO_360.9/360.9_04_2_Pricny_rez_retencni_nadrzi_C.pdf', typ:'04'},
+  {nazev:'360.9 04 3 Podelny rez sjezdem', soubor:'pdf/SO_360.9/360.9_04_3_Podelny_rez_sjezdem_C.pdf', typ:'04'},
+  {nazev:'360.9 05 Sdruzeny funkcni objekt', soubor:'pdf/SO_360.9/360.9_05_Sdruzeny_funkcni_objekt_C.pdf', typ:'05'}
+  ],
+  '380': [
+  {nazev:'380 00 Desky', soubor:'pdf/SO_380/380_00_Desky_C.pdf', typ:'00'},
+  {nazev:'380 00 Seznam priloh', soubor:'pdf/SO_380/380_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'380 01 Technicka zprava', soubor:'pdf/SO_380/380_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'380 02.10 Situace c 10', soubor:'pdf/SO_380/380_02.10_Situace_c_10_C.pdf', typ:'02.10'},
+  {nazev:'380 02.11 Situace c 11', soubor:'pdf/SO_380/380_02.11_Situace_c_11_C.pdf', typ:'02.11'},
+  {nazev:'380 02.12 Situace c 12', soubor:'pdf/SO_380/380_02.12_Situace_c_12_C.pdf', typ:'02.12'},
+  {nazev:'380 02.13 Situace c 13', soubor:'pdf/SO_380/380_02.13_Situace_c_13_C.pdf', typ:'02.13'},
+  {nazev:'380 02.14 Situace c 14', soubor:'pdf/SO_380/380_02.14_Situace_c_14_C.pdf', typ:'02.14'},
+  {nazev:'380 02.15 Situace c 15', soubor:'pdf/SO_380/380_02.15_Situace_c_15_C.pdf', typ:'02.15'},
+  {nazev:'380 02.1 Situace c 1', soubor:'pdf/SO_380/380_02.1_Situace_c_1_C.pdf', typ:'02.1'},
+  {nazev:'380 02.2 Situace c 2', soubor:'pdf/SO_380/380_02.2_Situace_c_2_C.pdf', typ:'02.2'},
+  {nazev:'380 02.3 Situace c 3', soubor:'pdf/SO_380/380_02.3_Situace_c_3_C.pdf', typ:'02.3'},
+  {nazev:'380 02.4 Situace c 4', soubor:'pdf/SO_380/380_02.4_Situace_c_4_C.pdf', typ:'02.4'},
+  {nazev:'380 02.5 Situace c 5', soubor:'pdf/SO_380/380_02.5_Situace_c_5_C.pdf', typ:'02.5'},
+  {nazev:'380 02.6 Situace c 6', soubor:'pdf/SO_380/380_02.6_Situace_c_6_C.pdf', typ:'02.6'},
+  {nazev:'380 02.7 Situace c 7', soubor:'pdf/SO_380/380_02.7_Situace_c_7_C.pdf', typ:'02.7'},
+  {nazev:'380 02.8 Situace c 8', soubor:'pdf/SO_380/380_02.8_Situace_c_8_C.pdf', typ:'02.8'},
+  {nazev:'380 02.9 Situace c 9', soubor:'pdf/SO_380/380_02.9_Situace_c_9_C.pdf', typ:'02.9'},
+  {nazev:'380 03.10 Podelny profil c 10 Vetev J J1 J2', soubor:'pdf/SO_380/380_03.10_Podelny_profil_c_10_Vetev_J_J1_J2_C.pdf', typ:'03.10'},
+  {nazev:'380 03.11 Podelny profil c 11 Vetev KC KC1 KC2 KC3', soubor:'pdf/SO_380/380_03.11_Podelny_profil_c_11_Vetev_KC_KC1_KC2_KC3_C.pdf', typ:'03.11'},
+  {nazev:'380 03.12 Podelny profil c 12 Vetev L L1', soubor:'pdf/SO_380/380_03.12_Podelny_profil_c_12_Vetev_L_L1_C.pdf', typ:'03.12'},
+  {nazev:'380 03.13 Podelny profil c 13 Vetev M M1 M2', soubor:'pdf/SO_380/380_03.13_Podelny_profil_c_13_Vetev_M_M1_M2_C.pdf', typ:'03.13'},
+  {nazev:'380 03.14 Podelny profil c 14 Vetev N', soubor:'pdf/SO_380/380_03.14_Podelny_profil_c_14_Vetev_N_C.pdf', typ:'03.14'},
+  {nazev:'380 03.15 Podelny profil c 15 Vetev O', soubor:'pdf/SO_380/380_03.15_Podelny_profil_c_15_Vetev_O_C.pdf', typ:'03.15'},
+  {nazev:'380 03.16 Podelny profil c 16 Vetev P P1', soubor:'pdf/SO_380/380_03.16_Podelny_profil_c_16_Vetev_P_P1_C.pdf', typ:'03.16'},
+  {nazev:'380 03.17 Podelny profil c 17 Vetev Q', soubor:'pdf/SO_380/380_03.17_Podelny_profil_c_17_Vetev_Q_C.pdf', typ:'03.17'},
+  {nazev:'380 03.18 Podelny profil c 18 Vetev R', soubor:'pdf/SO_380/380_03.18_Podelny_profil_c_18_Vetev_R_C.pdf', typ:'03.18'},
+  {nazev:'380 03.19 Podelny profil c 19 Vetev S S1', soubor:'pdf/SO_380/380_03.19_Podelny_profil_c_19_Vetev_S_S1_C.pdf', typ:'03.19'},
+  {nazev:'380 03.1 Podelny profil c 1 Vetev A', soubor:'pdf/SO_380/380_03.1_Podelny_profil_c_1_Vetev_A_C.pdf', typ:'03.1'},
+  {nazev:'380 03.20 Podelny profil c 20 Vetev T', soubor:'pdf/SO_380/380_03.20_Podelny_profil_c_20_Vetev_T_C.pdf', typ:'03.20'},
+  {nazev:'380 03.21 Podelny profil c 21 Vetev U U1 U2', soubor:'pdf/SO_380/380_03.21_Podelny_profil_c_21_Vetev_U_U1_U2_C.pdf', typ:'03.21'},
+  {nazev:'380 03.22 Podelny profil c 22 Vetev V V1', soubor:'pdf/SO_380/380_03.22_Podelny_profil_c_22_Vetev_V_V1_C.pdf', typ:'03.22'},
+  {nazev:'380 03.23 Podelny profil c 23 Vetev W', soubor:'pdf/SO_380/380_03.23_Podelny_profil_c_23_Vetev_W_C.pdf', typ:'03.23'},
+  {nazev:'380 03.24 Podelny profil c 24 Vetev X', soubor:'pdf/SO_380/380_03.24_Podelny_profil_c_24_Vetev_X_C.pdf', typ:'03.24'},
+  {nazev:'380 03.25 Podelny profil c 25 Vetev Y', soubor:'pdf/SO_380/380_03.25_Podelny_profil_c_25_Vetev_Y_C.pdf', typ:'03.25'},
+  {nazev:'380 03.26 Podelny profil c 26 Vetev Z', soubor:'pdf/SO_380/380_03.26_Podelny_profil_c_26_Vetev_Z_C.pdf', typ:'03.26'},
+  {nazev:'380 03.2 Podelny profil c 2 Vetev B B1', soubor:'pdf/SO_380/380_03.2_Podelny_profil_c_2_Vetev_B_B1_C.pdf', typ:'03.2'},
+  {nazev:'380 03.3 Podelny profil c 3 Vetev C1', soubor:'pdf/SO_380/380_03.3_Podelny_profil_c_3_Vetev_C_C1_C.pdf', typ:'03.3'},
+  {nazev:'380 03.4 Podelny profil c 4 Vetev D D1', soubor:'pdf/SO_380/380_03.4_Podelny_profil_c_4_Vetev_D_D1_C.pdf', typ:'03.4'},
+  {nazev:'380 03.5 Podelny profil c 5 Vetev E E1', soubor:'pdf/SO_380/380_03.5_Podelny_profil_c_5_Vetev_E_E1_C.pdf', typ:'03.5'},
+  {nazev:'380 03.6 Podelny profil c 6 Vetev F', soubor:'pdf/SO_380/380_03.6_Podelny_profil_c_6_Vetev_F_C.pdf', typ:'03.6'},
+  {nazev:'380 03.7 Podelny profil c 7 Vetev G', soubor:'pdf/SO_380/380_03.7_Podelny_profil_c_7_Vetev_G_C.pdf', typ:'03.7'},
+  {nazev:'380 03.8 Podelny profil c 8 Vetev H H1 H2', soubor:'pdf/SO_380/380_03.8_Podelny_profil_c_8_Vetev_H_H1_H2_C.pdf', typ:'03.8'},
+  {nazev:'380 03.9 Podelny profil c 9 Vetev I I1 I2', soubor:'pdf/SO_380/380_03.9_Podelny_profil_c_9_Vetev_I_I1_I2_C.pdf', typ:'03.9'},
+  {nazev:'380 04 Vzorovy vyustni objekt', soubor:'pdf/SO_380/380_04_Vzorovy_vyustni_objekt_C.pdf', typ:'04'},
+  {nazev:'380 05 Ulozeni potrubi', soubor:'pdf/SO_380/380_05_Ulozeni_potrubi_C.pdf', typ:'05'},
+  {nazev:'380 06 Drenazni sachty', soubor:'pdf/SO_380/380_06_Drenazni_sachty_C.pdf', typ:'06'}
+  ],
+  '390.1': [
+  {nazev:'390.1 00 Desky', soubor:'pdf/SO_390.1/390.1_00_Desky_C.pdf', typ:'00'},
+  {nazev:'390.1 00 Seznam priloh', soubor:'pdf/SO_390.1/390.1_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'390.1 01 Technicka zprava', soubor:'pdf/SO_390.1/390.1_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'390.1 02 Situace', soubor:'pdf/SO_390.1/390.1_02_Situace_C.pdf', typ:'02'},
+  {nazev:'390.1 03 Vzorovy rez jimacim objektem', soubor:'pdf/SO_390.1/390.1_03_Vzorovy_rez_jimacim_objektem_C.pdf', typ:'03'},
+  {nazev:'390.1 04 Podelny profil vodovodni pripojkou', soubor:'pdf/SO_390.1/390.1_04_Podelny_profil_vodovodni_pripojkou_C.pdf', typ:'04'},
+  {nazev:'390.1 05 Ulozeni potrubi', soubor:'pdf/SO_390.1/390.1_05_Ulozeni_potrubi_C.pdf', typ:'05'},
+  {nazev:'390.1 06 Vzorova vodovodni pripojka napojeni skladba', soubor:'pdf/SO_390.1/390.1_06_Vzorova_vodovodni_pripojka_napojeni_skladba_C.pdf', typ:'06'},
+  {nazev:'390.1 07 Vodomerna sachta', soubor:'pdf/SO_390.1/390.1_07_Vodomerna_sachta_C.pdf', typ:'07'}
+  ],
+  '433': [
+  {nazev:'433 00 DESKY', soubor:'pdf/SO_433/433_00_DESKY_C.pdf', typ:'00'},
+  {nazev:'433 00 SEZNAM DOKUMENTACE', soubor:'pdf/SO_433/433_00_SEZNAM_DOKUMENTACE_C.pdf', typ:'00'},
+  {nazev:'433 01 TECHNICKA ZPRAVA', soubor:'pdf/SO_433/433_01_TECHNICKA_ZPRAVA_C.pdf', typ:'01'},
+  {nazev:'433 02 PREHLEDOVA SITUACE', soubor:'pdf/SO_433/433_02_PREHLEDOVA_SITUACE_C.pdf', typ:'02'},
+  {nazev:'433 03 SITUACE C1', soubor:'pdf/SO_433/433_03_SITUACE_C1_C.pdf', typ:'03'},
+  {nazev:'433 04 SITUACE C2', soubor:'pdf/SO_433/433_04_SITUACE_C2_C.pdf', typ:'04'},
+  {nazev:'433 05 SCHEMA VO', soubor:'pdf/SO_433/433_05_SCHEMA_VO_C.pdf', typ:'05'},
+  {nazev:'433 06 VZOROVE REZY VEDENI VO', soubor:'pdf/SO_433/433_06_VZOROVE_REZY_VEDENI_VO_C.pdf', typ:'06'},
+  {nazev:'433 07 STOZAROVE ZAKLADY', soubor:'pdf/SO_433/433_07_STOZAROVE_ZAKLADY_C.pdf', typ:'07'}
+  ],
+  '434': [
+  {nazev:'434 00a rozpiska objektu', soubor:'pdf/SO_434/434_00a_rozpiska_objektu_C.pdf', typ:'00'},
+  {nazev:'434 00b seznam priloh', soubor:'pdf/SO_434/434_00b_seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'434 01 TZ', soubor:'pdf/SO_434/434_01_TZ_C.pdf', typ:'01'},
+  {nazev:'434 02 Situace', soubor:'pdf/SO_434/434_02_Situace_C.pdf', typ:'02'},
+  {nazev:'434 03 Příčné řezy', soubor:'pdf/SO_434/434_03_Pricne_rezy_C.pdf', typ:'03'},
+  {nazev:'434 04 Schéma napájení pro ASD', soubor:'pdf/SO_434/434_04_Schema_napajeni_pro_ASD_C.pdf', typ:'04'}
+  ],
+  '496': [
+  {nazev:'496 00a Rozpiska objektu', soubor:'pdf/SO_496/496_00a_Rozpiska_objektu_C.pdf', typ:'00'},
+  {nazev:'496 00b Seznam priloh', soubor:'pdf/SO_496/496_00b_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'496 01 TZ', soubor:'pdf/SO_496/496_01_TZ_C.pdf', typ:'01'},
+  {nazev:'496 02 Situace', soubor:'pdf/SO_496/496_02_Situace_C.pdf', typ:'02'},
+  {nazev:'496 03 Rozvaděč ASD', soubor:'pdf/SO_496/496_03_Rozvadec_ASD_C.pdf', typ:'03'},
+  {nazev:'496 04 Vzorové umístění rozvaděče ASD', soubor:'pdf/SO_496/496_04_Vzorove_umisteni_rozvadece_ASD_C.pdf', typ:'04'}
+  ],
+  '520': [
+  {nazev:'520 00 Rozpiska Desky', soubor:'pdf/SO_520/520_00_Rozpiska_Desky_C.pdf', typ:'00'},
+  {nazev:'520 00 Seznam příloh', soubor:'pdf/SO_520/520_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'520 01 Technická zpráva', soubor:'pdf/SO_520/520_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'520 02 Zákres do katastrální mapy', soubor:'pdf/SO_520/520_02_Zakres_do_katastralni_mapy_C.pdf', typ:'02'},
+  {nazev:'520 03 Situace', soubor:'pdf/SO_520/520_03_Situace_C.pdf', typ:'03'},
+  {nazev:'520 04 Podélný profil', soubor:'pdf/SO_520/520_04_Podelny_profil_C.pdf', typ:'04'},
+  {nazev:'520 05 Schéma propojovacích prací', soubor:'pdf/SO_520/520_05_Schema_propojovacich_praci_C.pdf', typ:'05'},
+  {nazev:'520 06 Vzorové příčné řezy výkopem', soubor:'pdf/SO_520/520_06_Vzorove_pricne_rezy_vykopem_C.pdf', typ:'06'},
+  {nazev:'520 07 Detail OS', soubor:'pdf/SO_520/520_07_Detail_OS_C.pdf', typ:'07'}
+  ],
+  '760': [
+  {nazev:'760 000 Desky', soubor:'pdf/SO_760/760_000_Desky_C.pdf', typ:'000'},
+  {nazev:'760 000 Seznam priloh', soubor:'pdf/SO_760/760_000_Seznam_priloh_C.pdf', typ:'000'},
+  {nazev:'760 001 Technicka zprava', soubor:'pdf/SO_760/760_001_Technicka_zprava_C.pdf', typ:'001'},
+  {nazev:'760 002 Technicke spec a poz', soubor:'pdf/SO_760/760_002_Technicke_spec_a_poz_C.pdf', typ:'002'},
+  {nazev:'760 003 Pud Vzor pric rez Sch vyz pil', soubor:'pdf/SO_760/760_003_Pud_Vzor_pric_rez_Sch_vyz_pil_C.pdf', typ:'003'},
+  {nazev:'760 004 Podelny rez', soubor:'pdf/SO_760/760_004_Podelny_rez_C.pdf', typ:'004'}
+  ],
+  '761': [
+  {nazev:'761 000 Desky', soubor:'pdf/SO_761/761_000_Desky_C.pdf', typ:'000'},
+  {nazev:'761 000 Seznam priloh', soubor:'pdf/SO_761/761_000_Seznam_priloh_C.pdf', typ:'000'},
+  {nazev:'761 001 Technicka zprava', soubor:'pdf/SO_761/761_001_Technicka_zprava_C.pdf', typ:'001'},
+  {nazev:'761 002 Technicke spec a pozn', soubor:'pdf/SO_761/761_002_Technicke_spec_a_pozn_C.pdf', typ:'002'},
+  {nazev:'761 003 Pudorys Vzorovy pricny rez', soubor:'pdf/SO_761/761_003_Pudorys_Vzorovy_pricny_rez_C.pdf', typ:'003'},
+  {nazev:'761 004 Pod rez Unik vych Sch vyz pil', soubor:'pdf/SO_761/761_004_Pod_rez_Unik_vych_Sch_vyz_pil_C.pdf', typ:'004'}
+  ],
+  '801': [
+  {nazev:'801 00 Desky', soubor:'pdf/SO_801/801_00_Desky_C.pdf', typ:'00'},
+  {nazev:'801 00 Seznam priloh', soubor:'pdf/SO_801/801_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'801 01 Technicka zprava', soubor:'pdf/SO_801/801_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'801 02 Situace km0,0-1,2', soubor:'pdf/SO_801/801_02_Situace_km0_0-1_2_C.pdf', typ:'02'},
+  {nazev:'801 03 Situace km1,2-2,2', soubor:'pdf/SO_801/801_03_Situace_km1_2-2_2_C.pdf', typ:'03'},
+  {nazev:'801 04 Situace km2,2-3,2', soubor:'pdf/SO_801/801_04_Situace_km2_2-3_2_C.pdf', typ:'04'},
+  {nazev:'801 05 Situace km3,2-4,3', soubor:'pdf/SO_801/801_05_Situace_km3_2-4_3_C.pdf', typ:'05'},
+  {nazev:'801 06 Situace km4,3-5,3', soubor:'pdf/SO_801/801_06_Situace_km4_3-5_3_C.pdf', typ:'06'},
+  {nazev:'801 07 Situace SO125', soubor:'pdf/SO_801/801_07_Situace_SO125_C.pdf', typ:'07'},
+  {nazev:'801 08 Situace km5,3-6,4', soubor:'pdf/SO_801/801_08_Situace_km5_3-6_4_C.pdf', typ:'08'},
+  {nazev:'801 09 Situace km6,4-7,5', soubor:'pdf/SO_801/801_09_Situace_km6_4-7_5_C.pdf', typ:'09'},
+  {nazev:'801 10 Situace km7,5-KU', soubor:'pdf/SO_801/801_10_Situace_km7_5-KU_C.pdf', typ:'10'}
+  ],
+  '801.1': [
+  {nazev:'801.1 00 Technicka zprava', soubor:'pdf/SO_801.1/801.1_00_Technicka_zprava_C.pdf', typ:'00'}
+  ],
+  '830': [
+  {nazev:'830 00 Desky', soubor:'pdf/SO_830/830_00_Desky_C.pdf', typ:'00'},
+  {nazev:'830 00 Seznam priloh', soubor:'pdf/SO_830/830_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'830 01 Technicka zprava upr1', soubor:'pdf/SO_830/830_01_Technicka_zprava_C_upr1.pdf', typ:'01'},
+  {nazev:'830 02 Situace km0,0-2,0', soubor:'pdf/SO_830/830_02_Situace_km0_0-2_0_C.pdf', typ:'02'},
+  {nazev:'830 03 Situace km2,0-2,3', soubor:'pdf/SO_830/830_03_Situace_km2_0-2_3_C.pdf', typ:'03'},
+  {nazev:'830 04 Situace km2,3-4,5', soubor:'pdf/SO_830/830_04_Situace_km2_3-4_5_C.pdf', typ:'04'},
+  {nazev:'830 05 Situace km4,5-6,5', soubor:'pdf/SO_830/830_05_Situace_km4_5-6_5_C.pdf', typ:'05'},
+  {nazev:'830 06 Situace km6,5-KU', soubor:'pdf/SO_830/830_06_Situace_km6_5-KU_C.pdf', typ:'06'}
+  ],
+  '860': [
+  {nazev:'860 00 Desky', soubor:'pdf/SO_860/860_00_Desky_C.pdf', typ:'00'},
+  {nazev:'860 00 Seznam priloh', soubor:'pdf/SO_860/860_00_Seznam_priloh_C.pdf', typ:'00'},
+  {nazev:'860 01 Technicka zprava', soubor:'pdf/SO_860/860_01_Technicka_zprava_C.pdf', typ:'01'},
+  {nazev:'860 02 1 Situace c1', soubor:'pdf/SO_860/860_02_1_Situace_c1_C.pdf', typ:'02'},
+  {nazev:'860 02 2 Situace c2', soubor:'pdf/SO_860/860_02_2_Situace_c2_C.pdf', typ:'02'},
+  {nazev:'860 02 3 Situace c3', soubor:'pdf/SO_860/860_02_3_Situace_c3_C.pdf', typ:'02'},
+  {nazev:'860 03 Vzorove pricne rezy', soubor:'pdf/SO_860/860_03_Vzorove_pricne_rezy_C.pdf', typ:'03'}
+  ],
+};
+
+// ── Otevření kompletní sady výkresů jednoho SO (z PDPS/D) ───────────
+function openSOVykresy(soId){
+  if(typeof SO_VYKRESY==='undefined' || !SO_VYKRESY[soId] || !SO_VYKRESY[soId].length){
+    if(typeof showToast==='function') showToast('Pro SO '+soId+' nejsou výkresy', 1800);
+    return;
+  }
+  var pages = SO_VYKRESY[soId].map(function(v){
+    return {soubor:v.soubor, nazev:v.nazev, typ:(v.typ||'📄')};
+  });
+  openDocPanel(pages, null, 0);
+}
+// Z id objektu (SO_OSY / DOPLNKY_SO) odvodí klíč do SO_VYKRESY (číslo SO).
+function soVykresyKey(id){
+  if(!id || typeof SO_VYKRESY==='undefined') return null;
+  var s = String(id).replace(/^SO\s+/i,'').replace(/\s+osa.*$/i,'').trim();
+  if(SO_VYKRESY[s]) return s;
+  var base = s.split('.')[0];
+  if(SO_VYKRESY[base]) return base;
+  return null;
+}
+
+
 
 
 // Globální stav výkresového panelu
@@ -1829,6 +2898,12 @@ function onStaniceniClick(realKm) {
   findDocsForKm(DOCS_VPR, realKm).forEach(function(d, i) {
     pages.push({soubor:d.soubor, nazev:d.nazev, typ:'✂️ Vzor. řezy'+(i?' '+(i+1):'')});
   });
+  // Pracovní (podrobné) řezy – z DOCS_PRR (po km, SO 101)
+  if(typeof DOCS_PRR !== 'undefined') {
+    findDocsForKm(DOCS_PRR, realKm).forEach(function(d, i) {
+      pages.push({soubor:d.soubor, nazev:d.nazev, typ:'✂️ Prac. řezy'+(i?' '+(i+1):'')});
+    });
+  }
   // Char. řezy – z DOCS_CHPR (jeden pro celé SO 101)
   if(typeof DOCS_CHPR !== 'undefined') {
     findDocsForKm(DOCS_CHPR, realKm).forEach(function(d) {
@@ -4050,8 +5125,12 @@ function buildDoplnky() {
            'padding:3px 6px;border-radius:8px;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5);'+
            'white-space:nowrap;position:absolute;transform:translate(-50%,-50%);">'+num+'</div>'});
     var m = L.marker(p,{icon:icon, interactive:true, zIndexOffset:180});
-    m.bindPopup('<div style="font-size:13px;min-width:160px;"><b>'+o.id+'</b><br>'+escapeHtml(o.nazev.replace(o.id+' – ',''))+
-      '<br><button onclick="onStaniceniClick('+o.km+')" style="margin-top:6px;background:#0f3460;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;">📐 Výkresy (km '+fmtKm(o.km)+')</button></div>');
+    var vk = soVykresyKey(o.id);
+    var btns = '<button onclick="onStaniceniClick('+o.km+')" style="margin-top:6px;background:#0f3460;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;">📐 Trasa (km '+fmtKm(o.km)+')</button>';
+    if(vk){
+      btns += '<br><button onclick="openSOVykresy(\''+vk+'\')" style="margin-top:6px;background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;">📂 Výkresy '+o.id+'</button>';
+    }
+    m.bindPopup('<div style="font-size:13px;min-width:160px;"><b>'+o.id+'</b><br>'+escapeHtml(o.nazev.replace(o.id+' – ',''))+'<br>'+btns+'</div>');
     m.addTo(doplnkyLayer);
   });
 }
@@ -4093,8 +5172,10 @@ function buildSOLinie() {
     so._cum = soOsyCum(so.geom);
     var total = so._cum[so._cum.length-1];
     var pl = L.polyline(so.geom, {color:c, weight:w, opacity:0.9, dashArray: so.grp==='pristup'?'4 4':null});
+    var vk2 = soVykresyKey(so.id);
+    var vkBtn = vk2 ? '<br><button onclick="openSOVykresy(\''+vk2+'\')" style="margin-top:6px;background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;">📂 Výkresy SO '+vk2+'</button>' : '';
     pl.bindPopup('<div style="font-size:13px;"><b>'+so.id+'</b><br>'+escapeHtml(so.nazev)+
-      '<br><span style="color:#666;font-size:11px;">staničení '+fmtKm(so.km0)+' – '+fmtKm(so.kmKU)+'</span></div>');
+      '<br><span style="color:#666;font-size:11px;">staničení '+fmtKm(so.km0)+' – '+fmtKm(so.kmKU)+'</span>'+vkBtn+'</div>');
     pl.addTo(grp);
     // km štítky podél osy — po 0,1 km vnitřního staničení
     var startH = Math.ceil(so.km0*10 - 1e-6);   // první štítek (jednotky 0,1 km)
