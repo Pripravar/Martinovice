@@ -2176,7 +2176,9 @@ function centerGPS() {
 
 function resetMapView() {
   if(!map) return;
-  map.setView([49.917, 14.580], 14);
+  if(typeof GPX_POINTS !== 'undefined' && GPX_POINTS.length) {
+    map.fitBounds(L.latLngBounds(GPX_POINTS.map(function(p){return[p[0],p[1]];})),{padding:[40,40]});
+  }
 }
 function toggleLayers(){document.getElementById('layers-panel').classList.toggle('open');}
 function closeLayersPanel(){document.getElementById('layers-panel').classList.remove('open');}
