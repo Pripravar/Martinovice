@@ -6248,6 +6248,39 @@ function applyGalleryFilters(items){
   });
 }
 
+// Seřadí kopii položek podle volby v #gallery-sort (datum / staničení / objekt).
+function sortGalleryItems(items){
+  var sel = document.getElementById('gallery-sort');
+  var mode = (sel && sel.value) || 'date_desc';
+  var arr = items.slice();
+  function kmOf(it){ var k = parseKmStr(it.km); return k === null ? Infinity : k; }
+  function dateOf(it){ return photoCreationDate(it).getTime(); }
+  if(mode === 'km_asc' || mode === 'km_desc'){
+    var dir = mode === 'km_desc' ? -1 : 1;
+    arr.sort(function(a,b){
+      var ka = kmOf(a), kb = kmOf(b);
+      if(ka !== kb){
+        if(ka === Infinity) return 1;   // bez km vždy na konec
+        if(kb === Infinity) return -1;
+        return (ka - kb) * dir;
+      }
+      return dateOf(b) - dateOf(a);
+    });
+  } else if(mode === 'so'){
+    arr.sort(function(a,b){
+      var sa = a.so || '￿', sb = b.so || '￿';  // Nezařazené na konec
+      var c = sa.localeCompare(sb, 'cs', {numeric:true});
+      if(c) return c;
+      return kmOf(a) - kmOf(b) || dateOf(b) - dateOf(a);
+    });
+  } else if(mode === 'date_asc'){
+    arr.sort(function(a,b){ return dateOf(a) - dateOf(b); });
+  } else { // date_desc (výchozí)
+    arr.sort(function(a,b){ return dateOf(b) - dateOf(a); });
+  }
+  return arr;
+}
+
 function fillGalleryAuthorOptions(items){
   var sel = document.getElementById('gfilt-author');
   if(!sel) return;
@@ -6365,9 +6398,8 @@ function renderGallery() {
     db.ref('standalone_photos').orderByChild('ts').once('value', function(snap) {
       var items = [];
       snap.forEach(function(ch) { var v = ch.val(); v.fbKey = ch.key; items.push(v); });
-      items.reverse();
       fillGalleryAuthorOptions(items);
-      var filtered = applyGalleryFilters(items);
+      var filtered = sortGalleryItems(applyGalleryFilters(items));
       galleryCurrentItems = filtered;
       if(cnt) cnt.textContent = filtered.length + ' / ' + items.length;
       if(filtered.length === 0) {
@@ -6385,9 +6417,8 @@ function renderGallery() {
         items.push({ url: url, km: km, author: note.author, noteId: note.id, time: note.time });
       });
     });
-    items.reverse();
     fillGalleryAuthorOptions(items);
-    var filtered = applyGalleryFilters(items);
+    var filtered = sortGalleryItems(applyGalleryFilters(items));
     galleryCurrentItems = filtered;
     if(cnt) cnt.textContent = filtered.length + ' / ' + items.length;
     if(filtered.length === 0) {
@@ -9933,7 +9964,19 @@ function copyDiaryExport(){
     <div class="gallery-tab" id="gtab-1" onclick="switchGalleryTab(1)">&#128204; Z poznámek</div>
   </div>
   <div id="gallery-filter-bar" style="display:none;background:var(--panel);padding:10px 12px;border-bottom:1px solid var(--border);flex-shrink:0;">
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+    <div style="display:flex;gap:8px;align-items:flex-end;">
+      <div style="flex:1;">
+        <div style="font-size:10px;color:var(--text2);text-transform:uppercase;margin-bottom:2px;">↕️ Řadit podle</div>
+        <select id="gallery-sort" onchange="renderGallery()" style="width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 8px;font-size:13px;">
+          <option value="date_desc">📅 Datum pořízení (nejnovější)</option>
+          <option value="date_asc">📅 Datum pořízení (nejstarší)</option>
+          <option value="km_asc">📏 Staničení (km vzestupně)</option>
+          <option value="km_desc">📏 Staničení (km sestupně)</option>
+          <option value="so">📁 Objekt (SO)</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:8px;">
       <div style="flex:1;min-width:120px;">
         <div style="font-size:10px;color:var(--text2);text-transform:uppercase;margin-bottom:2px;">📏 KM od</div>
         <input type="number" id="gfilt-km-od" step="0.001" min="0" placeholder="např. 1.5" oninput="renderGallery()" style="width:100%;background:var(--panel2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 8px;font-size:13px;">
