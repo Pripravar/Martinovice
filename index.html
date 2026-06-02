@@ -7599,9 +7599,27 @@ function setSOForDay(id, kind, val){
   diarySaveDay();
 }
 
-// Vrátí všechna SO známá v projektu (z KZP seedu, profilů osob/strojů a historii v deníku).
-function getAllProjectSOs(){
+// Kompletní katalog SO ze statických dat aplikace (nezávisí na tom, zda už SO někdo použil).
+// Zdroj: SO_VYKRESY (nejúplnější – každé SO s výkresy) + bodové DOPLNKY_SO + boční osy SO_OSY.
+function getCatalogSOs(){
   var set = new Set();
+  if(typeof SO_VYKRESY === 'object' && SO_VYKRESY){
+    Object.keys(SO_VYKRESY).forEach(function(k){
+      // jen číselné klíče ('101','360.1'); vynech výkresové ref. typu '01-01','05-01'
+      if(/^\d+(?:\.\d+)?$/.test(k)) set.add('SO ' + k);
+    });
+  }
+  if(typeof DOPLNKY_SO !== 'undefined' && Array.isArray(DOPLNKY_SO))
+    DOPLNKY_SO.forEach(function(o){ if(o && o.id) set.add(o.id); });
+  if(typeof SO_OSY !== 'undefined' && Array.isArray(SO_OSY))
+    SO_OSY.forEach(function(o){ if(o && o.id) set.add(typeof soCanonId === 'function' ? soCanonId(o.id) : o.id); });
+  return set;
+}
+
+// Vrátí všechna SO známá v projektu: kompletní katalog (SO_VYKRESY/DOPLNKY_SO/SO_OSY)
+// + dynamické zdroje (KZP seed, profily osob/strojů, historie v deníku).
+function getAllProjectSOs(){
+  var set = getCatalogSOs();
   // Z KZP
   if(window.kzpSeed) window.kzpSeed.forEach(function(k){ if(k.so) set.add(k.so); });
   if(window.allKzp) Object.keys(window.allKzp).forEach(function(id){ var k = window.allKzp[id]; if(k && k.so) set.add(k.so); });
@@ -7615,7 +7633,7 @@ function getAllProjectSOs(){
     if(d && d.so_osoby)  Object.keys(d.so_osoby) .forEach(function(k){ var v = d.so_osoby[k];  if(v) set.add(v); });
     if(d && d.so_stroje) Object.keys(d.so_stroje).forEach(function(k){ var v = d.so_stroje[k]; if(v) set.add(v); });
   });
-  return Array.from(set).sort();
+  return Array.from(set).sort(function(a,b){ return String(a).localeCompare(String(b), 'cs', {numeric:true}); });
 }
 
 // Inline select: po změně se uloží SO pro otevřený den (od dnešního dne dál).
