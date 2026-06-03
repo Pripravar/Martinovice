@@ -1036,6 +1036,7 @@ document.addEventListener('touchend', function(e){
       <input type="tel" id="phone-input" class="auth-input" placeholder="+420 600 123 456" autocomplete="tel">
       <button id="btn-send-sms" class="auth-google" onclick="sendSmsCode()">📨 Odeslat SMS kód</button>
       <button class="auth-back" onclick="showMainView()">↩ Zpět</button>
+      <div id="recaptcha-container"></div>
     </div>
 
     <!-- Pohled 3: zadání SMS kódu -->
@@ -6690,18 +6691,28 @@ window._phoneVerifier   = null;
 window._phoneConfirm    = null;
 
 function _ensureRecaptcha() {
-  if(window._phoneVerifier) return window._phoneVerifier;
+  // Vrací Promise<RecaptchaVerifier>. Neviditelná reCAPTCHA musí být
+  // navázaná na SAMOSTATNÝ kontejner (ne na akční tlačítko ve skrytém panelu)
+  // a musí být dorenderovaná (render() vrací widgetId) DŘÍV než zavoláme
+  // signInWithPhoneNumber — jinak Firebase tiše selže / SMS nedorazí.
+  if(window._phoneVerifier && window._recaptchaReady) {
+    return Promise.resolve(window._phoneVerifier);
+  }
   try {
-    // Invisible reCAPTCHA navázaná na tlačítko "Odeslat SMS kód"
-    window._phoneVerifier = new firebase.auth.RecaptchaVerifier('btn-send-sms', {
-      size: 'invisible',
-      callback: function(){ /* reCAPTCHA vyřešena - signInWithPhoneNumber pokračuje */ }
+    if(!window._phoneVerifier) {
+      window._phoneVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+        size: 'invisible',
+        callback: function(){ /* reCAPTCHA vyřešena - signInWithPhoneNumber pokračuje */ }
+      });
+    }
+    return window._phoneVerifier.render().then(function(widgetId){
+      window._recaptchaReady = true;
+      return window._phoneVerifier;
     });
-    window._phoneVerifier.render();
   } catch(e) {
     console.error('reCAPTCHA init error:', e);
+    return Promise.reject(e);
   }
-  return window._phoneVerifier;
 }
 
 function normalizePhone(input) {
@@ -6723,12 +6734,11 @@ function sendSmsCode() {
     return;
   }
   showAuthError('⏳ Odesílám SMS…');
-  var verifier = _ensureRecaptcha();
-  if(!verifier) {
-    showAuthError('Chyba: reCAPTCHA se nepodařilo inicializovat.');
-    return;
-  }
-  fbAuth.signInWithPhoneNumber(phone, verifier)
+  _ensureRecaptcha()
+    .then(function(verifier){
+      if(!verifier) throw new Error('reCAPTCHA se nepodařilo inicializovat.');
+      return fbAuth.signInWithPhoneNumber(phone, verifier);
+    })
     .then(function(result){
       window._phoneConfirm = result;
       showAuthError('✓ SMS odeslána na ' + phone);
@@ -6737,11 +6747,33 @@ function sendSmsCode() {
     })
     .catch(function(err){
       console.error('SMS error:', err);
-      showAuthError('Chyba SMS: ' + (err.message || err.code));
+      showAuthError(_phoneErrorMsg(err));
       // Reset reCAPTCHA, jinak nelze poslat další pokus
       try { if(window._phoneVerifier && window._phoneVerifier.clear) window._phoneVerifier.clear(); } catch(e){}
-      window._phoneVerifier = null;
+      window._phoneVerifier  = null;
+      window._recaptchaReady = false;
     });
+}
+
+// Srozumitelné hlášky podle Firebase auth chybového kódu
+function _phoneErrorMsg(err) {
+  var code = (err && err.code) || '';
+  switch(code) {
+    case 'auth/operation-not-allowed':
+      return 'Přihlášení telefonem není zapnuté. Ve Firebase Console → Authentication → Sign-in method zapni poskytovatele „Phone".';
+    case 'auth/unauthorized-domain':
+      return 'Tato doména není povolená. Ve Firebase Console → Authentication → Settings → Authorized domains přidej pripravar.github.io.';
+    case 'auth/invalid-phone-number':
+      return 'Neplatné telefonní číslo. Zadej ve tvaru +420600123456.';
+    case 'auth/too-many-requests':
+      return 'Příliš mnoho pokusů. Zkus to za chvíli znovu.';
+    case 'auth/captcha-check-failed':
+      return 'Ověření reCAPTCHA selhalo. Obnov stránku a zkus to znovu.';
+    case 'auth/quota-exceeded':
+      return 'Vyčerpán denní limit SMS. Zkus to zítra, nebo navyš limit v Firebase.';
+    default:
+      return 'Chyba SMS: ' + (err.message || code || 'neznámá chyba');
+  }
 }
 
 function verifySmsCode() {
