@@ -6715,22 +6715,45 @@ function _ensureRecaptcha() {
   }
 }
 
+// Přijímá POUZE česká čísla (+420). Vrátí '+420XXXXXXXXX' nebo '' když není české.
 function normalizePhone(input) {
   if(!input) return '';
-  var s = input.trim().replace(/\s|-|\(|\)/g, '');
-  if(s.indexOf('+') === 0) return s;
-  if(s.indexOf('00') === 0) return '+' + s.slice(2);
-  if(s.indexOf('0') === 0 && s.length === 10) return '+420' + s.slice(1); // české "0xxx xxx xxx" je atypické, ale ošetříme
-  if(s.length === 9) return '+420' + s;          // 600123456
-  if(s.indexOf('420') === 0 && s.length === 12) return '+' + s;
-  return s; // necháme být - Firebase odmítne pokud je špatné
+  var s = input.trim().replace(/[\s\-()\/]/g, '');
+  if(s.indexOf('+420') === 0)       s = s.slice(4);
+  else if(s.indexOf('00420') === 0) s = s.slice(5);
+  else if(s.indexOf('420') === 0 && s.length === 12) s = s.slice(3);
+  else if(s.indexOf('+') === 0)     return '';            // jiná předvolba než +420 → nepovoleno
+  else if(s.indexOf('0') === 0 && s.length === 10) s = s.slice(1); // staré "0xxx xxx xxx"
+  if(!/^\d{9}$/.test(s)) return '';                       // české mobilní/pevné = 9 číslic
+  return '+420' + s;
+}
+
+// ── Denní limit přihlášení přes SMS (zdarma do limitu, bez Blaze) ──────
+// Per-zařízení počítadlo v localStorage. Firebase má navíc vlastní strop 10/den
+// na celý projekt zdarma — tohle drží spotřebu komfortně pod ním.
+var SMS_DAILY_LIMIT = 5;
+function _smsQuotaKey() { return 'smsLoginCount_' + new Date().toISOString().slice(0,10); }
+function _smsCountToday() { return parseInt(localStorage.getItem(_smsQuotaKey()) || '0', 10) || 0; }
+function _smsBumpCount() {
+  try {
+    var k = _smsQuotaKey();
+    localStorage.setItem(k, String(_smsCountToday() + 1));
+    // úklid klíčů z minulých dnů
+    Object.keys(localStorage).forEach(function(key){
+      if(key.indexOf('smsLoginCount_') === 0 && key !== k) localStorage.removeItem(key);
+    });
+  } catch(e) {}
 }
 
 function sendSmsCode() {
   var raw = document.getElementById('phone-input').value;
   var phone = normalizePhone(raw);
-  if(!phone || phone.length < 8) {
-    showAuthError('Zadej platné telefonní číslo (např. +420600123456)');
+  if(!phone) {
+    showAuthError('Zadej platné české číslo (+420), např. +420600123456');
+    return;
+  }
+  if(_smsCountToday() >= SMS_DAILY_LIMIT) {
+    showAuthError('Denní limit přihlášení přes telefon (' + SMS_DAILY_LIMIT + '×) byl vyčerpán. Zkus to prosím zítra.');
     return;
   }
   showAuthError('⏳ Odesílám SMS…');
@@ -6741,6 +6764,7 @@ function sendSmsCode() {
     })
     .then(function(result){
       window._phoneConfirm = result;
+      _smsBumpCount();
       showAuthError('✓ SMS odeslána na ' + phone);
       showCodeView();
       setTimeout(function(){ var i = document.getElementById('sms-code-input'); if(i) i.focus(); }, 200);
@@ -6770,7 +6794,7 @@ function _phoneErrorMsg(err) {
     case 'auth/captcha-check-failed':
       return 'Ověření reCAPTCHA selhalo. Obnov stránku a zkus to znovu.';
     case 'auth/quota-exceeded':
-      return 'Vyčerpán denní limit SMS. Zkus to zítra, nebo navyš limit v Firebase.';
+      return 'Denní limit přihlášení přes telefon byl vyčerpán. Zkus to prosím zítra.';
     default:
       return 'Chyba SMS: ' + (err.message || code || 'neznámá chyba');
   }
