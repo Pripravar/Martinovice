@@ -1087,6 +1087,7 @@ document.addEventListener('touchend', function(e){
   <button id="btn-notes-evidence" onclick="openNotesEvidence()" title="Evidence poznámek" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">📝</button>
   <button id="btn-place" onclick="startPlaceMode()" title="Přidat poznámku/úkol na mapu" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">📍➕</button>
   <button id="btn-zvs" onclick="toggleZvsLayer()" title="Vytyčovací body ZVS (číslo, Y/X, výška Z)" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">📐 ZVS</button>
+  <button id="btn-geo" onclick="openGeotechPanel()" title="Geotechnický průzkum – vrtné sondy, zprávy, výkresy" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">🪨</button>
   <button id="btn-reset-view" onclick="resetMapView()" title="Reset pohledu" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">⌂</button>
   <div id="user-badge" onclick="showUserMenu()" title="Uživatel"><img id="user-photo" src="" alt=""><span id="user-name">…</span></div>
   <button id="btn-layers" onclick="toggleLayers()">☰ Vrstvy</button>
@@ -1586,6 +1587,295 @@ var ZVS_BODY = [
   {c:5035, lat:50.4333077, lng:15.0456236, y:693638.84, x:1010777.90, z:223.419, km:7.910, popis:'hřeb v pilotě'},
   {c:5036, lat:50.4347216, lng:15.0478414, y:693462.44, x:1010642.08, z:227.098, km:8.140, popis:'hřeb v pilotě'},
 ];
+
+// GEOTECHNICKÝ PRŮZKUM (PoGTP – podrobný geotechnický průzkum) – vybrané PDF
+// Zdroj: podklady/Geotechnciký monitoring. Bez fotek/dwg, bez duplikovaného PredGTP.
+// Soubory zkopírovány do pdf/geotechnika/. Panel otevírá ikona 🪨 nahoře.
+var GEOTECH = {
+  zpravy: [
+    {n:'A00 Souhrnná zpráva (podrobný GTP)', s:'pdf/geotechnika/zpravy/A00_I_16_MB_Martinovice_podrGTP.pdf'},
+    {n:'A04 Laboratorní zkoušky', s:'pdf/geotechnika/zpravy/A04_laborky.pdf'},
+    {n:'A05 Polní zkoušky', s:'pdf/geotechnika/zpravy/A05_polni_zkousky.pdf'},
+    {n:'A06 Geofyzika', s:'pdf/geotechnika/zpravy/A06_Geofyzika.pdf'},
+    {n:'A07 Korozní průzkum', s:'pdf/geotechnika/zpravy/A07_Koroze.pdf'},
+    {n:'A08 Hydrogeologický průzkum', s:'pdf/geotechnika/zpravy/A08_HG_pruzkum.pdf'},
+    {n:'A09 Pedologie', s:'pdf/geotechnika/zpravy/A09_pedeologie.pdf'},
+    {n:'A10 Geotechnické výpočty', s:'pdf/geotechnika/zpravy/A10_GT_vypocty.pdf'},
+    {n:'A11 Měřická zpráva', s:'pdf/geotechnika/zpravy/A11_mericka_zprava.pdf'},
+    {n:'A01.1 Situace průzkumných prací – část 1', s:'pdf/geotechnika/zpravy/A011_situace_cast1.pdf'},
+    {n:'A01.1 Situace průzkumných prací – část 2', s:'pdf/geotechnika/zpravy/A011_situace_cast2.pdf'},
+    {n:'A12 Vrtné práce', s:'pdf/geotechnika/zpravy/A12_vrtne_prace.pdf'},
+    {n:'A02.1 SO 101 Podélný profil 1', s:'pdf/geotechnika/zpravy/A021_SO101_Podelnak1.pdf'},
+    {n:'A02.2 SO 101 Podélný profil 2', s:'pdf/geotechnika/zpravy/A022_SO101_Podelnak2.pdf'},
+    {n:'A02.3 SO 111 Podélné profily', s:'pdf/geotechnika/zpravy/A023_SO111_podelnaky.pdf'},
+    {n:'A02.4 SO 112 Podélné profily', s:'pdf/geotechnika/zpravy/A024_SO112_podelnaky.pdf'},
+    {n:'A02.5 SO 12x Podélné profily', s:'pdf/geotechnika/zpravy/A025_SO12X_podelnaky.pdf'},
+    {n:'A02.6 Příčné řezy', s:'pdf/geotechnika/zpravy/A026_Pricne_rezy.pdf'},
+    {n:'B Pasporty I/16', s:'pdf/geotechnika/zpravy/B_pasporty_I16.pdf'},
+    {n:'C Pasporty', s:'pdf/geotechnika/zpravy/C_pasporty.pdf'},
+    {n:'D01 SO201 – geotechnika mostu', s:'pdf/geotechnika/zpravy/D01_SO201.pdf'},
+    {n:'D02 SO202 – geotechnika mostu', s:'pdf/geotechnika/zpravy/D02_SO202.pdf'},
+    {n:'D03 SO203 – geotechnika mostu', s:'pdf/geotechnika/zpravy/D03_SO203.pdf'},
+    {n:'D04 SO204 – geotechnika mostu', s:'pdf/geotechnika/zpravy/D04_SO204.pdf'},
+    {n:'D05 SO205 – geotechnika mostu', s:'pdf/geotechnika/zpravy/D05_SO205.pdf'},
+    {n:'D06 SO206 – geotechnika mostu', s:'pdf/geotechnika/zpravy/D06_SO206.pdf'},
+    {n:'D07 SO207 – geotechnika mostu', s:'pdf/geotechnika/zpravy/D07_SO207.pdf'},
+    {n:'D08 SO221 – geotechnika mostu', s:'pdf/geotechnika/zpravy/D08_SO221.pdf'},
+    {n:'D09 SO222 – geotechnika mostu', s:'pdf/geotechnika/zpravy/D09_SO222.pdf'},
+    {n:'D10 SO223 – geotechnika mostu', s:'pdf/geotechnika/zpravy/D10_SO223.pdf'}
+  ],
+  sondy_podrobne: [
+    {n:'Vrt HJ129', s:'pdf/geotechnika/sondy_podrobne/HJ129.pdf'},
+    {n:'Vrt J101', s:'pdf/geotechnika/sondy_podrobne/J101.pdf'},
+    {n:'Vrt J103', s:'pdf/geotechnika/sondy_podrobne/J103.pdf'},
+    {n:'Vrt J104', s:'pdf/geotechnika/sondy_podrobne/J104.pdf'},
+    {n:'Vrt J105_1', s:'pdf/geotechnika/sondy_podrobne/J105_1.pdf'},
+    {n:'Vrt J105_2', s:'pdf/geotechnika/sondy_podrobne/J105_2.pdf'},
+    {n:'Vrt J109', s:'pdf/geotechnika/sondy_podrobne/J109.pdf'},
+    {n:'Vrt J110', s:'pdf/geotechnika/sondy_podrobne/J110.pdf'},
+    {n:'Vrt J111', s:'pdf/geotechnika/sondy_podrobne/J111.pdf'},
+    {n:'Vrt J112', s:'pdf/geotechnika/sondy_podrobne/J112.pdf'},
+    {n:'Vrt J113', s:'pdf/geotechnika/sondy_podrobne/J113.pdf'},
+    {n:'Vrt J114', s:'pdf/geotechnika/sondy_podrobne/J114.pdf'},
+    {n:'Vrt J115', s:'pdf/geotechnika/sondy_podrobne/J115.pdf'},
+    {n:'Vrt J116', s:'pdf/geotechnika/sondy_podrobne/J116.pdf'},
+    {n:'Vrt J117', s:'pdf/geotechnika/sondy_podrobne/J117.pdf'},
+    {n:'Vrt J118', s:'pdf/geotechnika/sondy_podrobne/J118.pdf'},
+    {n:'Vrt J119', s:'pdf/geotechnika/sondy_podrobne/J119.pdf'},
+    {n:'Vrt J120', s:'pdf/geotechnika/sondy_podrobne/J120.pdf'},
+    {n:'Vrt J121', s:'pdf/geotechnika/sondy_podrobne/J121.pdf'},
+    {n:'Vrt J122', s:'pdf/geotechnika/sondy_podrobne/J122.pdf'},
+    {n:'Vrt J123', s:'pdf/geotechnika/sondy_podrobne/J123.pdf'},
+    {n:'Vrt J124', s:'pdf/geotechnika/sondy_podrobne/J124.pdf'},
+    {n:'Vrt J125', s:'pdf/geotechnika/sondy_podrobne/J125.pdf'},
+    {n:'Vrt J126', s:'pdf/geotechnika/sondy_podrobne/J126.pdf'},
+    {n:'Vrt J127', s:'pdf/geotechnika/sondy_podrobne/J127.pdf'},
+    {n:'Vrt J128', s:'pdf/geotechnika/sondy_podrobne/J128.pdf'},
+    {n:'Vrt J130', s:'pdf/geotechnika/sondy_podrobne/J130.pdf'},
+    {n:'Vrt J131', s:'pdf/geotechnika/sondy_podrobne/J131.pdf'},
+    {n:'Vrt J132', s:'pdf/geotechnika/sondy_podrobne/J132.pdf'},
+    {n:'Vrt J133', s:'pdf/geotechnika/sondy_podrobne/J133.pdf'},
+    {n:'Vrt J136_1', s:'pdf/geotechnika/sondy_podrobne/J136_1.pdf'},
+    {n:'Vrt J136_2', s:'pdf/geotechnika/sondy_podrobne/J136_2.pdf'},
+    {n:'Vrt J138_1', s:'pdf/geotechnika/sondy_podrobne/J138_1.pdf'},
+    {n:'Vrt J138_2', s:'pdf/geotechnika/sondy_podrobne/J138_2.pdf'},
+    {n:'Vrt J140', s:'pdf/geotechnika/sondy_podrobne/J140.pdf'},
+    {n:'Vrt J141', s:'pdf/geotechnika/sondy_podrobne/J141.pdf'},
+    {n:'Vrt J142', s:'pdf/geotechnika/sondy_podrobne/J142.pdf'},
+    {n:'Vrt J145_1', s:'pdf/geotechnika/sondy_podrobne/J145_1.pdf'},
+    {n:'Vrt J145_2', s:'pdf/geotechnika/sondy_podrobne/J145_2.pdf'},
+    {n:'Vrt J147', s:'pdf/geotechnika/sondy_podrobne/J147.pdf'},
+    {n:'Vrt J148', s:'pdf/geotechnika/sondy_podrobne/J148.pdf'},
+    {n:'Vrt J149', s:'pdf/geotechnika/sondy_podrobne/J149.pdf'},
+    {n:'Vrt J150', s:'pdf/geotechnika/sondy_podrobne/J150.pdf'},
+    {n:'Vrt J151', s:'pdf/geotechnika/sondy_podrobne/J151.pdf'},
+    {n:'Vrt J152', s:'pdf/geotechnika/sondy_podrobne/J152.pdf'},
+    {n:'Vrt J153', s:'pdf/geotechnika/sondy_podrobne/J153.pdf'},
+    {n:'Vrt J154', s:'pdf/geotechnika/sondy_podrobne/J154.pdf'},
+    {n:'Vrt J155', s:'pdf/geotechnika/sondy_podrobne/J155.pdf'},
+    {n:'Vrt J156', s:'pdf/geotechnika/sondy_podrobne/J156.pdf'},
+    {n:'Vrt J158_1', s:'pdf/geotechnika/sondy_podrobne/J158_1.pdf'},
+    {n:'Vrt J158_2', s:'pdf/geotechnika/sondy_podrobne/J158_2.pdf'},
+    {n:'Vrt J160', s:'pdf/geotechnika/sondy_podrobne/J160.pdf'},
+    {n:'Vrt J163', s:'pdf/geotechnika/sondy_podrobne/J163.pdf'},
+    {n:'Vrt J164', s:'pdf/geotechnika/sondy_podrobne/J164.pdf'},
+    {n:'Vrt J165', s:'pdf/geotechnika/sondy_podrobne/J165.pdf'},
+    {n:'Vrt J166', s:'pdf/geotechnika/sondy_podrobne/J166.pdf'},
+    {n:'Vrt J167', s:'pdf/geotechnika/sondy_podrobne/J167.pdf'},
+    {n:'Vrt J168', s:'pdf/geotechnika/sondy_podrobne/J168.pdf'},
+    {n:'Vrt J169', s:'pdf/geotechnika/sondy_podrobne/J169.pdf'},
+    {n:'Vrt J170', s:'pdf/geotechnika/sondy_podrobne/J170.pdf'},
+    {n:'Vrt J171', s:'pdf/geotechnika/sondy_podrobne/J171.pdf'},
+    {n:'Vrt J174_1', s:'pdf/geotechnika/sondy_podrobne/J174_1.pdf'},
+    {n:'Vrt J174_2', s:'pdf/geotechnika/sondy_podrobne/J174_2.pdf'},
+    {n:'Vrt J177', s:'pdf/geotechnika/sondy_podrobne/J177.pdf'},
+    {n:'Vrt J178', s:'pdf/geotechnika/sondy_podrobne/J178.pdf'},
+    {n:'Vrt J179', s:'pdf/geotechnika/sondy_podrobne/J179.pdf'},
+    {n:'Vrt J180', s:'pdf/geotechnika/sondy_podrobne/J180.pdf'},
+    {n:'Vrt J181_1', s:'pdf/geotechnika/sondy_podrobne/J181_1.pdf'},
+    {n:'Vrt J181_2', s:'pdf/geotechnika/sondy_podrobne/J181_2.pdf'},
+    {n:'Vrt J184', s:'pdf/geotechnika/sondy_podrobne/J184.pdf'},
+    {n:'Vrt J185', s:'pdf/geotechnika/sondy_podrobne/J185.pdf'},
+    {n:'Vrt J186', s:'pdf/geotechnika/sondy_podrobne/J186.pdf'},
+    {n:'Vrt J187', s:'pdf/geotechnika/sondy_podrobne/J187.pdf'},
+    {n:'Vrt J188', s:'pdf/geotechnika/sondy_podrobne/J188.pdf'},
+    {n:'Vrt J189', s:'pdf/geotechnika/sondy_podrobne/J189.pdf'},
+    {n:'Vrt J190', s:'pdf/geotechnika/sondy_podrobne/J190.pdf'},
+    {n:'Vrt J191', s:'pdf/geotechnika/sondy_podrobne/J191.pdf'},
+    {n:'Vrt J192', s:'pdf/geotechnika/sondy_podrobne/J192.pdf'},
+    {n:'Vrt J193', s:'pdf/geotechnika/sondy_podrobne/J193.pdf'},
+    {n:'Vrt J194', s:'pdf/geotechnika/sondy_podrobne/J194.pdf'},
+    {n:'Vrt J196', s:'pdf/geotechnika/sondy_podrobne/J196.pdf'},
+    {n:'Vrt J197', s:'pdf/geotechnika/sondy_podrobne/J197.pdf'},
+    {n:'Vrt J200_1', s:'pdf/geotechnika/sondy_podrobne/J200_1.pdf'},
+    {n:'Vrt J200_2', s:'pdf/geotechnika/sondy_podrobne/J200_2.pdf'},
+    {n:'Vrt J203', s:'pdf/geotechnika/sondy_podrobne/J203.pdf'},
+    {n:'Vrt J204', s:'pdf/geotechnika/sondy_podrobne/J204.pdf'},
+    {n:'Vrt J205', s:'pdf/geotechnika/sondy_podrobne/J205.pdf'},
+    {n:'Vrt J206', s:'pdf/geotechnika/sondy_podrobne/J206.pdf'},
+    {n:'Vrt J207', s:'pdf/geotechnika/sondy_podrobne/J207.pdf'},
+    {n:'Vrt J208', s:'pdf/geotechnika/sondy_podrobne/J208.pdf'},
+    {n:'Vrt J212_1', s:'pdf/geotechnika/sondy_podrobne/J212_1.pdf'},
+    {n:'Vrt J212_2', s:'pdf/geotechnika/sondy_podrobne/J212_2.pdf'},
+    {n:'Vrt J214', s:'pdf/geotechnika/sondy_podrobne/J214.pdf'},
+    {n:'Vrt J215', s:'pdf/geotechnika/sondy_podrobne/J215.pdf'},
+    {n:'Vrt J216', s:'pdf/geotechnika/sondy_podrobne/J216.pdf'},
+    {n:'Vrt J217', s:'pdf/geotechnika/sondy_podrobne/J217.pdf'},
+    {n:'Vrt J218', s:'pdf/geotechnika/sondy_podrobne/J218.pdf'},
+    {n:'Vrt J221_1', s:'pdf/geotechnika/sondy_podrobne/J221_1.pdf'},
+    {n:'Vrt J221_2', s:'pdf/geotechnika/sondy_podrobne/J221_2.pdf'},
+    {n:'Vrt J223_1', s:'pdf/geotechnika/sondy_podrobne/J223_1.pdf'},
+    {n:'Vrt J223_2', s:'pdf/geotechnika/sondy_podrobne/J223_2.pdf'},
+    {n:'Vrt J225', s:'pdf/geotechnika/sondy_podrobne/J225.pdf'},
+    {n:'Vrt J226', s:'pdf/geotechnika/sondy_podrobne/J226.pdf'},
+    {n:'Vrt J227', s:'pdf/geotechnika/sondy_podrobne/J227.pdf'},
+    {n:'Vrt J228_1', s:'pdf/geotechnika/sondy_podrobne/J228_1.pdf'},
+    {n:'Vrt J228_2', s:'pdf/geotechnika/sondy_podrobne/J228_2.pdf'},
+    {n:'Vrt J230', s:'pdf/geotechnika/sondy_podrobne/J230.pdf'},
+    {n:'Vrt J231', s:'pdf/geotechnika/sondy_podrobne/J231.pdf'},
+    {n:'Vrt J232', s:'pdf/geotechnika/sondy_podrobne/J232.pdf'},
+    {n:'Vrt J233', s:'pdf/geotechnika/sondy_podrobne/J233.pdf'},
+    {n:'Vrt J234', s:'pdf/geotechnika/sondy_podrobne/J234.pdf'},
+    {n:'Vrt J235', s:'pdf/geotechnika/sondy_podrobne/J235.pdf'},
+    {n:'Vrt J236', s:'pdf/geotechnika/sondy_podrobne/J236.pdf'},
+    {n:'Vrt J237', s:'pdf/geotechnika/sondy_podrobne/J237.pdf'},
+    {n:'Vrt J238', s:'pdf/geotechnika/sondy_podrobne/J238.pdf'},
+    {n:'Vrt J239', s:'pdf/geotechnika/sondy_podrobne/J239.pdf'},
+    {n:'Vrt J240', s:'pdf/geotechnika/sondy_podrobne/J240.pdf'},
+    {n:'Vrt J241', s:'pdf/geotechnika/sondy_podrobne/J241.pdf'},
+    {n:'Vrt J242', s:'pdf/geotechnika/sondy_podrobne/J242.pdf'},
+    {n:'Vrt J243', s:'pdf/geotechnika/sondy_podrobne/J243.pdf'},
+    {n:'Vrt J244', s:'pdf/geotechnika/sondy_podrobne/J244.pdf'},
+    {n:'Vrt J245', s:'pdf/geotechnika/sondy_podrobne/J245.pdf'},
+    {n:'Vrt J246', s:'pdf/geotechnika/sondy_podrobne/J246.pdf'},
+    {n:'Vrt J247', s:'pdf/geotechnika/sondy_podrobne/J247.pdf'},
+    {n:'Vrt J248', s:'pdf/geotechnika/sondy_podrobne/J248.pdf'},
+    {n:'Vrt J249', s:'pdf/geotechnika/sondy_podrobne/J249.pdf'},
+    {n:'Vrt J250', s:'pdf/geotechnika/sondy_podrobne/J250.pdf'},
+    {n:'Vrt J251', s:'pdf/geotechnika/sondy_podrobne/J251.pdf'},
+    {n:'Vrt J252', s:'pdf/geotechnika/sondy_podrobne/J252.pdf'},
+    {n:'Vrt J253', s:'pdf/geotechnika/sondy_podrobne/J253.pdf'},
+    {n:'Vrt J254', s:'pdf/geotechnika/sondy_podrobne/J254.pdf'},
+    {n:'Vrt J255', s:'pdf/geotechnika/sondy_podrobne/J255.pdf'},
+    {n:'Vrt J256', s:'pdf/geotechnika/sondy_podrobne/J256.pdf'},
+    {n:'Vrt KS257', s:'pdf/geotechnika/sondy_podrobne/KS257.pdf'},
+    {n:'Vrt KS258', s:'pdf/geotechnika/sondy_podrobne/KS258.pdf'},
+    {n:'Vrt KS259', s:'pdf/geotechnika/sondy_podrobne/KS259.pdf'},
+    {n:'Vrt KS260', s:'pdf/geotechnika/sondy_podrobne/KS260.pdf'},
+    {n:'Vrt KS261', s:'pdf/geotechnika/sondy_podrobne/KS261.pdf'},
+    {n:'Vrt KS262', s:'pdf/geotechnika/sondy_podrobne/KS262.pdf'},
+    {n:'Vrt KS263', s:'pdf/geotechnika/sondy_podrobne/KS263.pdf'},
+    {n:'Vrt KS264', s:'pdf/geotechnika/sondy_podrobne/KS264.pdf'},
+    {n:'Vrt KS265', s:'pdf/geotechnika/sondy_podrobne/KS265.pdf'},
+    {n:'Vrt PJ106_1', s:'pdf/geotechnika/sondy_podrobne/PJ106_1.pdf'},
+    {n:'Vrt PJ106_2', s:'pdf/geotechnika/sondy_podrobne/PJ106_2.pdf'},
+    {n:'Vrt PJ107_1', s:'pdf/geotechnika/sondy_podrobne/PJ107_1.pdf'},
+    {n:'Vrt PJ107_2', s:'pdf/geotechnika/sondy_podrobne/PJ107_2.pdf'},
+    {n:'Vrt PJ134_1', s:'pdf/geotechnika/sondy_podrobne/PJ134_1.pdf'},
+    {n:'Vrt PJ134_2', s:'pdf/geotechnika/sondy_podrobne/PJ134_2.pdf'},
+    {n:'Vrt PJ137_1', s:'pdf/geotechnika/sondy_podrobne/PJ137_1.pdf'},
+    {n:'Vrt PJ137_2', s:'pdf/geotechnika/sondy_podrobne/PJ137_2.pdf'},
+    {n:'Vrt PJ143_1', s:'pdf/geotechnika/sondy_podrobne/PJ143_1.pdf'},
+    {n:'Vrt PJ143_2', s:'pdf/geotechnika/sondy_podrobne/PJ143_2.pdf'},
+    {n:'Vrt PJ157_1', s:'pdf/geotechnika/sondy_podrobne/PJ157_1.pdf'},
+    {n:'Vrt PJ157_2', s:'pdf/geotechnika/sondy_podrobne/PJ157_2.pdf'},
+    {n:'Vrt PJ173_1', s:'pdf/geotechnika/sondy_podrobne/PJ173_1.pdf'},
+    {n:'Vrt PJ173_2', s:'pdf/geotechnika/sondy_podrobne/PJ173_2.pdf'},
+    {n:'Vrt PJ176_1', s:'pdf/geotechnika/sondy_podrobne/PJ176_1.pdf'},
+    {n:'Vrt PJ176_2', s:'pdf/geotechnika/sondy_podrobne/PJ176_2.pdf'},
+    {n:'Vrt PJ183_1', s:'pdf/geotechnika/sondy_podrobne/PJ183_1.pdf'},
+    {n:'Vrt PJ183_2', s:'pdf/geotechnika/sondy_podrobne/PJ183_2.pdf'},
+    {n:'Vrt PJ198_1', s:'pdf/geotechnika/sondy_podrobne/PJ198_1.pdf'},
+    {n:'Vrt PJ198_2', s:'pdf/geotechnika/sondy_podrobne/PJ198_2.pdf'},
+    {n:'Vrt PJ201_1', s:'pdf/geotechnika/sondy_podrobne/PJ201_1.pdf'},
+    {n:'Vrt PJ201_2', s:'pdf/geotechnika/sondy_podrobne/PJ201_2.pdf'},
+    {n:'Vrt PJ209_1', s:'pdf/geotechnika/sondy_podrobne/PJ209_1.pdf'},
+    {n:'Vrt PJ209_2', s:'pdf/geotechnika/sondy_podrobne/PJ209_2.pdf'},
+    {n:'Vrt PJ211_1', s:'pdf/geotechnika/sondy_podrobne/PJ211_1.pdf'},
+    {n:'Vrt PJ211_2', s:'pdf/geotechnika/sondy_podrobne/PJ211_2.pdf'},
+    {n:'Vrt PJ219_1', s:'pdf/geotechnika/sondy_podrobne/PJ219_1.pdf'},
+    {n:'Vrt PJ219_2', s:'pdf/geotechnika/sondy_podrobne/PJ219_2.pdf'},
+    {n:'Vrt PJ222_1', s:'pdf/geotechnika/sondy_podrobne/PJ222_1.pdf'},
+    {n:'Vrt PJ222_2', s:'pdf/geotechnika/sondy_podrobne/PJ222_2.pdf'},
+    {n:'Vrt PJ229_1', s:'pdf/geotechnika/sondy_podrobne/PJ229_1.pdf'},
+    {n:'Vrt PJ229_2', s:'pdf/geotechnika/sondy_podrobne/PJ229_2.pdf'}
+  ],
+  sondy_predbezne: [
+    {n:'Vrt HJ14', s:'pdf/geotechnika/sondy_predbezne/HJ14.pdf'},
+    {n:'Vrt J1', s:'pdf/geotechnika/sondy_predbezne/J1.pdf'},
+    {n:'Vrt J4', s:'pdf/geotechnika/sondy_predbezne/J4.pdf'},
+    {n:'Vrt J5', s:'pdf/geotechnika/sondy_predbezne/J5.pdf'},
+    {n:'Vrt J6', s:'pdf/geotechnika/sondy_predbezne/J6.pdf'},
+    {n:'Vrt J7', s:'pdf/geotechnika/sondy_predbezne/J7.pdf'},
+    {n:'Vrt J8', s:'pdf/geotechnika/sondy_predbezne/J8.pdf'},
+    {n:'Vrt J9', s:'pdf/geotechnika/sondy_predbezne/J9.pdf'},
+    {n:'Vrt J10', s:'pdf/geotechnika/sondy_predbezne/J10.pdf'},
+    {n:'Vrt J12', s:'pdf/geotechnika/sondy_predbezne/J12.pdf'},
+    {n:'Vrt J13', s:'pdf/geotechnika/sondy_predbezne/J13.pdf'},
+    {n:'Vrt J15', s:'pdf/geotechnika/sondy_predbezne/J15.pdf'},
+    {n:'Vrt J16', s:'pdf/geotechnika/sondy_predbezne/J16.pdf'},
+    {n:'Vrt J17', s:'pdf/geotechnika/sondy_predbezne/J17.pdf'},
+    {n:'Vrt J18', s:'pdf/geotechnika/sondy_predbezne/J18.pdf'},
+    {n:'Vrt J19', s:'pdf/geotechnika/sondy_predbezne/J19.pdf'},
+    {n:'Vrt J21', s:'pdf/geotechnika/sondy_predbezne/J21.pdf'},
+    {n:'Vrt J22', s:'pdf/geotechnika/sondy_predbezne/J22.pdf'},
+    {n:'Vrt J23', s:'pdf/geotechnika/sondy_predbezne/J23.pdf'},
+    {n:'Vrt J24', s:'pdf/geotechnika/sondy_predbezne/J24.pdf'},
+    {n:'Vrt J25', s:'pdf/geotechnika/sondy_predbezne/J25.pdf'},
+    {n:'Vrt J27', s:'pdf/geotechnika/sondy_predbezne/J27.pdf'},
+    {n:'Vrt J28', s:'pdf/geotechnika/sondy_predbezne/J28.pdf'},
+    {n:'Vrt J29', s:'pdf/geotechnika/sondy_predbezne/J29.pdf'},
+    {n:'Vrt J30', s:'pdf/geotechnika/sondy_predbezne/J30.pdf'},
+    {n:'Vrt J31', s:'pdf/geotechnika/sondy_predbezne/J31.pdf'},
+    {n:'Vrt J32', s:'pdf/geotechnika/sondy_predbezne/J32.pdf'},
+    {n:'Vrt J34', s:'pdf/geotechnika/sondy_predbezne/J34.pdf'},
+    {n:'Vrt J35', s:'pdf/geotechnika/sondy_predbezne/J35.pdf'},
+    {n:'Vrt J36', s:'pdf/geotechnika/sondy_predbezne/J36.pdf'},
+    {n:'Vrt J37', s:'pdf/geotechnika/sondy_predbezne/J37.pdf'},
+    {n:'Vrt J38', s:'pdf/geotechnika/sondy_predbezne/J38.pdf'},
+    {n:'Vrt J41', s:'pdf/geotechnika/sondy_predbezne/J41.pdf'},
+    {n:'Vrt J42', s:'pdf/geotechnika/sondy_predbezne/J42.pdf'},
+    {n:'Vrt J43', s:'pdf/geotechnika/sondy_predbezne/J43.pdf'},
+    {n:'Vrt J44', s:'pdf/geotechnika/sondy_predbezne/J44.pdf'},
+    {n:'Vrt J45', s:'pdf/geotechnika/sondy_predbezne/J45.pdf'},
+    {n:'Vrt J46', s:'pdf/geotechnika/sondy_predbezne/J46.pdf'},
+    {n:'Vrt J47', s:'pdf/geotechnika/sondy_predbezne/J47.pdf'},
+    {n:'Vrt J48', s:'pdf/geotechnika/sondy_predbezne/J48.pdf'},
+    {n:'Vrt J49', s:'pdf/geotechnika/sondy_predbezne/J49.pdf'},
+    {n:'Vrt J50', s:'pdf/geotechnika/sondy_predbezne/J50.pdf'},
+    {n:'Vrt J51', s:'pdf/geotechnika/sondy_predbezne/J51.pdf'},
+    {n:'Vrt J52', s:'pdf/geotechnika/sondy_predbezne/J52.pdf'},
+    {n:'Vrt J53', s:'pdf/geotechnika/sondy_predbezne/J53.pdf'},
+    {n:'Vrt J55', s:'pdf/geotechnika/sondy_predbezne/J55.pdf'},
+    {n:'Vrt J56', s:'pdf/geotechnika/sondy_predbezne/J56.pdf'},
+    {n:'Vrt J57', s:'pdf/geotechnika/sondy_predbezne/J57.pdf'},
+    {n:'Vrt J59', s:'pdf/geotechnika/sondy_predbezne/J59.pdf'},
+    {n:'Vrt J60', s:'pdf/geotechnika/sondy_predbezne/J60.pdf'},
+    {n:'Vrt J63', s:'pdf/geotechnika/sondy_predbezne/J63.pdf'},
+    {n:'Vrt J64', s:'pdf/geotechnika/sondy_predbezne/J64.pdf'},
+    {n:'Vrt PJ3', s:'pdf/geotechnika/sondy_predbezne/PJ3.pdf'},
+    {n:'Vrt PJ40', s:'pdf/geotechnika/sondy_predbezne/PJ40.pdf'},
+    {n:'Vrt PJ54', s:'pdf/geotechnika/sondy_predbezne/PJ54.pdf'},
+    {n:'Vrt PJ58', s:'pdf/geotechnika/sondy_predbezne/PJ58.pdf'},
+    {n:'Vrt PJ61', s:'pdf/geotechnika/sondy_predbezne/PJ61.pdf'},
+    {n:'Vrt PJ62', s:'pdf/geotechnika/sondy_predbezne/PJ62.pdf'}
+  ],
+  sondy_archivni: [
+    {n:'Vrt AJ1', s:'pdf/geotechnika/sondy_archivni/AJ1.pdf'},
+    {n:'Vrt AJ8', s:'pdf/geotechnika/sondy_archivni/AJ8.pdf'},
+    {n:'Vrt J111', s:'pdf/geotechnika/sondy_archivni/J111.pdf'},
+    {n:'Vrt J112', s:'pdf/geotechnika/sondy_archivni/J112.pdf'},
+    {n:'Vrt J114', s:'pdf/geotechnika/sondy_archivni/J114.pdf'}
+  ],
+  reserse: [
+    {n:'DUR F.09 00 Reserse predbezneho GTP Razitko', s:'pdf/geotechnika/reserse/DUR_F.09_00_Reserse_predbezneho_GTP_Razitko.pdf'},
+    {n:'DUR F.09 01 Reserse predbezneho GTP zprava', s:'pdf/geotechnika/reserse/DUR_F.09_01_Reserse_predbezneho_GTP_zprava.pdf'},
+    {n:'DUR F.09 02 Reserse predbezneho GTP situace sond', s:'pdf/geotechnika/reserse/DUR_F.09_02_Reserse_predbezneho_GTP_situace_sond.pdf'},
+    {n:'DUR F.10-02 Reserse vsakovacich pomeru schema', s:'pdf/geotechnika/reserse/DUR_F.10-02_Reserse_vsakovacich_pomeru_schema.pdf'},
+    {n:'DUR F.10 00 Reserse vsakovacich pomeru Razitko', s:'pdf/geotechnika/reserse/DUR_F.10_00_Reserse_vsakovacich_pomeru_Razitko.pdf'},
+    {n:'I 16 MB-martinovice vsak', s:'pdf/geotechnika/reserse/I_16 MB-martinovice_vsak.pdf'}
+  ],
+};
 
 // PRACOVNÍ ŘEZY - pokud je PDPS má, naplň DOCS_PR; jinak nech prázdné
 var DOCS_PR = {};
@@ -5616,6 +5906,46 @@ function setZvsVisible(on) {
   }
 }
 function toggleZvsLayer(){ setZvsVisible(!(zvsLayer && map.hasLayer(zvsLayer))); }
+
+// ── GEOTECHNIKA – panel s vybranými PDF (vrty/sondy, zprávy, výkresy) ──────
+var GEO_SECTIONS = [
+  {key:'zpravy',          title:'📑 Souhrnné zprávy a výkresy'},
+  {key:'sondy_podrobne',  title:'🛢️ Vrtné sondy – podrobný GTP'},
+  {key:'sondy_predbezne', title:'🛢️ Vrtné sondy – předběžný GTP'},
+  {key:'sondy_archivni',  title:'🗄️ Archivní vrty'},
+  {key:'reserse',         title:'📚 Rešerše'}
+];
+function openGeotechPanel(){
+  var p=document.getElementById('geo-panel'); if(!p) return;
+  p.style.display='flex';
+  var s=document.getElementById('geo-search');
+  renderGeotech(s ? s.value : '');
+}
+function closeGeotechPanel(){ var p=document.getElementById('geo-panel'); if(p) p.style.display='none'; }
+function renderGeotech(filter){
+  var box=document.getElementById('geo-list'); if(!box || typeof GEOTECH==='undefined') return;
+  var q=(filter||'').trim().toLowerCase();
+  var html=''; var total=0;
+  GEO_SECTIONS.forEach(function(sec){
+    var items=(GEOTECH[sec.key]||[]).filter(function(it){ return !q || it.n.toLowerCase().indexOf(q)>=0; });
+    if(!items.length) return;
+    total+=items.length;
+    html+='<div style="margin:12px 0 5px;font-weight:800;font-size:14px;color:var(--accent);">'+sec.title+' <span style="color:var(--text2);font-weight:400;">('+items.length+')</span></div>';
+    html+='<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+    items.forEach(function(it){
+      html+='<button onclick="openGeoDoc(this.dataset.s,this.dataset.n)" data-s="'+it.s+'" data-n="'+it.n.replace(/"/g,'&quot;')+'" '
+        +'style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 11px;font-size:13px;cursor:pointer;text-align:left;">📄 '+escapeHtml(it.n)+'</button>';
+    });
+    html+='</div>';
+  });
+  if(!total) html='<div style="padding:24px 8px;color:var(--text2);">Nic nenalezeno.</div>';
+  box.innerHTML=html;
+}
+// Otevře geotechnické PDF ve stávajícím prohlížeči výkresů (panel geotechniky se schová pod ním).
+function openGeoDoc(s,n){
+  closeGeotechPanel();
+  openDocPanel([{soubor:s, nazev:n, typ:'🪨 Geotechnika'}], null, 0);
+}
 
 // ── LINEÁRNÍ SO (boční přeložky a přístupy) — samostatné osy se staničením ───
 // Kreslí polylinii z SO_OSY do layerGroups.so a podél osy rozmístí km štítky
@@ -11080,6 +11410,18 @@ function copyDiaryExport(){
       <button class="btn-secondary" style="flex:1;background:var(--panel2);color:var(--text2);border:1px solid var(--border);border-radius:8px;padding:10px;cursor:pointer;" onclick="closeOsobaEdit()">Zrušit</button>
     </div>
   </div>
+</div>
+
+<!-- ═════════════════════════ GEOTECHNIKA ═════════════════════════ -->
+<div id="geo-panel" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:3600;background:var(--bg);display:none;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:8px;padding:10px;border-bottom:1px solid var(--border);">
+    <button onclick="closeGeotechPanel()" style="background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:15px;cursor:pointer;">‹ Zpět</button>
+    <h2 style="margin:0;font-size:17px;flex:1;">🪨 Geotechnický průzkum</h2>
+  </div>
+  <div style="padding:8px 10px;border-bottom:1px solid var(--border);">
+    <input id="geo-search" type="search" placeholder="Hledat vrt / dokument (např. J120, laborky, situace)…" oninput="renderGeotech(this.value)" style="width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text);font-size:15px;">
+  </div>
+  <div id="geo-list" style="flex:1;overflow:auto;padding:6px 10px 30px;"></div>
 </div>
 
 <!-- ═════════════════════════ KVALITA / KZP ═════════════════════════ -->
