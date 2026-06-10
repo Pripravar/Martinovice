@@ -1086,6 +1086,7 @@ document.addEventListener('touchend', function(e){
   <button id="btn-gallery" onclick="openGallery()" title="Fotogalerie" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">🖼️</button>
   <button id="btn-notes-evidence" onclick="openNotesEvidence()" title="Evidence poznámek" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">📝</button>
   <button id="btn-place" onclick="startPlaceMode()" title="Přidat poznámku/úkol na mapu" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">📍➕</button>
+  <button id="btn-zvs" onclick="toggleZvsLayer()" title="Vytyčovací body ZVS (číslo, Y/X, výška Z)" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">📐 ZVS</button>
   <button id="btn-reset-view" onclick="resetMapView()" title="Reset pohledu" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">⌂</button>
   <div id="user-badge" onclick="showUserMenu()" title="Uživatel"><img id="user-photo" src="" alt=""><span id="user-name">…</span></div>
   <button id="btn-layers" onclick="toggleLayers()">☰ Vrstvy</button>
@@ -1169,6 +1170,10 @@ document.addEventListener('touchend', function(e){
   <div class="layer-row">
     <label>🧩 Doplňkové SO (000/300/400/500)</label>
     <label class="toggle"><input type="checkbox" id="lyr-doplnky" checked onchange="toggleLayer('doplnky',this.checked)"><span class="toggle-slider"></span></label>
+  </div>
+  <div class="layer-row">
+    <label>📐 Vytyčovací body ZVS</label>
+    <label class="toggle"><input type="checkbox" id="lyr-zvs" checked onchange="setZvsVisible(this.checked)"><span class="toggle-slider"></span></label>
   </div>
   <div class="layer-row">
     <label>🌈 Barevné SO pruhy (ekvidistanty)</label>
@@ -1539,6 +1544,48 @@ var SO_OSY=[
 
 // NN NADZEMNÍ VEDENÍ - křížení s osou (značka ⚡). Formát: {km: 0.077}
 var VEDENI_NN = [ /* DOPLNIT volitelně: křížení NN vedení */ ];
+
+// ZVS – Základní vytyčovací síť I/16 MB–Martinovice (36 bodů 5001–5036).
+// Zdroj: podklady/zvs (JTSK Y,X + výška Bpv Z). lat/lng dopočteno z JTSK
+// (Křovák→WGS84, ověřeno proti ose trasy). Vrstva se zapíná tlačítkem 📐 ZVS.
+var ZVS_BODY = [
+  {c:5001, lat:50.4285716, lng:14.9444736, y:700833.64, x:1010375.82, z:212.720, km:-0.200, popis:'hřeb v římse propustku'},
+  {c:5002, lat:50.4269944, lng:14.9458481, y:700759.48, x:1010562.41, z:212.199, km:0.020, popis:'hřeb v pilotě'},
+  {c:5003, lat:50.4267881, lng:14.9489468, y:700544.11, x:1010613.63, z:212.453, km:0.250, popis:'hřeb v pilotě'},
+  {c:5004, lat:50.4257395, lng:14.9495699, y:700515.28, x:1010735.01, z:212.797, km:0.370, popis:'hřeb v pilotě'},
+  {c:5005, lat:50.4256057, lng:14.9509798, y:700417.86, x:1010762.72, z:212.457, km:0.440, popis:'hřeb v základu stožáru'},
+  {c:5006, lat:50.4240167, lng:14.9528039, y:700312.17, x:1010954.74, z:213.129, km:0.660, popis:'hřeb v pilotě'},
+  {c:5007, lat:50.4224040, lng:14.9561595, y:700098.88, x:1011163.42, z:218.103, km:0.970, popis:'hřeb v pilotě'},
+  {c:5008, lat:50.4212707, lng:14.9605102, y:699808.57, x:1011328.35, z:215.942, km:1.310, popis:'hřeb v pilotě'},
+  {c:5009, lat:50.4205615, lng:14.9638383, y:699584.22, x:1011437.11, z:213.718, km:1.560, popis:'hřeb v pilotě'},
+  {c:5010, lat:50.4206628, lng:14.9691801, y:699206.32, x:1011474.91, z:227.767, km:1.920, popis:'hřeb v pilotě'},
+  {c:5011, lat:50.4212141, lng:14.9724965, y:698964.70, x:1011444.49, z:219.237, km:2.160, popis:'hřeb v pilotě'},
+  {c:5012, lat:50.4188983, lng:14.9730558, y:698958.50, x:1011705.06, z:222.163, km:2.200, popis:'hřeb v pilotě'},
+  {c:5013, lat:50.4243014, lng:14.9721523, y:698944.68, x:1011100.80, z:225.499, km:2.180, popis:'hřeb v pilotě'},
+  {c:5014, lat:50.4208796, lng:14.9783548, y:698556.65, x:1011535.06, z:216.304, km:2.580, popis:'hřeb v pilotě'},
+  {c:5015, lat:50.4211021, lng:14.9811226, y:698358.41, x:1011535.85, z:217.663, km:2.780, popis:'hřeb v pilotě'},
+  {c:5016, lat:50.4203409, lng:14.9847917, y:698110.74, x:1011653.41, z:218.868, km:3.040, popis:'hřeb v pilotě'},
+  {c:5017, lat:50.4194714, lng:14.9891182, y:697818.28, x:1011788.90, z:223.527, km:3.370, popis:'hřeb v pilotě'},
+  {c:5018, lat:50.4184151, lng:14.9932620, y:697541.36, x:1011943.32, z:219.414, km:3.680, popis:'hřeb v pilotě'},
+  {c:5019, lat:50.4190364, lng:14.9973576, y:697243.82, x:1011912.23, z:219.506, km:3.990, popis:'hřeb v pilotě'},
+  {c:5020, lat:50.4195288, lng:15.0020402, y:696906.76, x:1011900.70, z:221.044, km:4.310, popis:'hřeb v pilotě'},
+  {c:5021, lat:50.4195985, lng:15.0053391, y:696673.26, x:1011923.15, z:221.623, km:4.600, popis:'hřeb v pilotě'},
+  {c:5022, lat:50.4184192, lng:15.0079469, y:696506.32, x:1012077.05, z:220.531, km:4.700, popis:'hřeb v pilotě'},
+  {c:5023, lat:50.4205188, lng:15.0105026, y:696296.20, x:1011868.77, z:220.490, km:4.910, popis:'hřeb v pilotě'},
+  {c:5024, lat:50.4213736, lng:15.0134400, y:696076.97, x:1011801.28, z:222.729, km:5.150, popis:'hřeb v pilotě'},
+  {c:5025, lat:50.4231362, lng:15.0167016, y:695821.94, x:1011636.60, z:223.527, km:5.460, popis:'hřeb v pilotě'},
+  {c:5026, lat:50.4256100, lng:15.0194183, y:695595.17, x:1011388.48, z:223.945, km:5.790, popis:'hřeb v pilotě'},
+  {c:5027, lat:50.4267210, lng:15.0232398, y:695310.01, x:1011300.76, z:225.258, km:6.050, popis:'hřeb v pilotě'},
+  {c:5028, lat:50.4295219, lng:15.0245558, y:695177.32, x:1011003.78, z:230.836, km:6.350, popis:'hřeb v pilotě'},
+  {c:5029, lat:50.4308876, lng:15.0282836, y:694895.16, x:1010887.08, z:229.450, km:6.660, popis:'hřeb v pilotě'},
+  {c:5030, lat:50.4309698, lng:15.0300190, y:694771.70, x:1010893.82, z:229.318, km:6.760, popis:'hřeb v pilotě'},
+  {c:5031, lat:50.4316856, lng:15.0343342, y:694457.43, x:1010854.15, z:224.849, km:7.080, popis:'hřeb v pilotě'},
+  {c:5032, lat:50.4325903, lng:15.0369029, y:694263.54, x:1010777.72, z:227.450, km:7.350, popis:'hřeb v pilotě'},
+  {c:5033, lat:50.4308365, lng:15.0380972, y:694204.37, x:1010982.06, z:222.337, km:7.340, popis:'hřeb v pilotě'},
+  {c:5034, lat:50.4325095, lng:15.0416494, y:693930.24, x:1010829.82, z:222.751, km:7.620, popis:'hřeb v pilotě'},
+  {c:5035, lat:50.4333077, lng:15.0456236, y:693638.84, x:1010777.90, z:223.419, km:7.910, popis:'hřeb v pilotě'},
+  {c:5036, lat:50.4347216, lng:15.0478414, y:693462.44, x:1010642.08, z:227.098, km:8.140, popis:'hřeb v pilotě'},
+];
 
 // PRACOVNÍ ŘEZY - pokud je PDPS má, naplň DOCS_PR; jinak nech prázdné
 var DOCS_PR = {};
@@ -2749,7 +2796,7 @@ var gpsActive = false;
 var gpsCentering = false;
 var gpxCumulative = [];
 var calibSorted = null;
-var layerGroups = {trasa:null, st100:null, st20:null, soSt100:null, soSt20:null, pr:null, propustky:null, prikopy:null, etapy:null, etapa1:null, etapa2:null, etapa3:null, etapa4:null, so:null, ekvi:null, so101_1:null, so101_2:null, so101_3:null, sanace:null, notes:null, notes0:null, notes1:null, notes2:null, notes3:null, notes4:null, notes5:null, notes6:null};
+var layerGroups = {trasa:null, st100:null, st20:null, soSt100:null, soSt20:null, pr:null, propustky:null, prikopy:null, etapy:null, etapa1:null, etapa2:null, etapa3:null, etapa4:null, so:null, ekvi:null, so101_1:null, so101_2:null, so101_3:null, sanace:null, zvs:null, notes:null, notes0:null, notes1:null, notes2:null, notes3:null, notes4:null, notes5:null, notes6:null};
 
 // ── MATH ──────────────────────────────
 function haversine(lat1,lon1,lat2,lon2) {
@@ -3567,6 +3614,8 @@ function init() {
   buildPropustky();
   buildDoplnky();
   buildVedeniNN();
+  buildZVS();
+  setZvsVisible(true);   // ZVS body defaultně zapnuté (vrstva), lze vypnout tlačítkem 📐 ZVS i v panelu
   map.fitBounds(L.latLngBounds(GPX_POINTS.map(function(p){return[p[0],p[1]];})),{padding:[40,40]});
   startGPS();
   loadNotes();
@@ -5527,6 +5576,46 @@ function buildDoplnky() {
     m.addTo(doplnkyLayer);
   });
 }
+
+// ── ZVS – vytyčovací body (vrstva zapínaná tlačítkem 📐 ZVS) ──────────
+// Oranžový trojúhelníkový bod s číslem; po kliknutí popup: číslo + výška Z (+ Y/X JTSK, staničení).
+var zvsLayer = null;
+function buildZVS() {
+  if(zvsLayer) return;
+  zvsLayer = L.layerGroup();           // záměrně NEpřidávat na mapu – default vypnuto, zapne tlačítko
+  layerGroups.zvs = zvsLayer;
+  (typeof ZVS_BODY!=='undefined' ? ZVS_BODY : []).forEach(function(b) {
+    if(b.lat == null || b.lng == null) return;
+    var icon = L.divIcon({className:'', iconSize:[0,0],
+      html:'<div style="position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;">'
+        +'<div style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:11px solid #ff8c00;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6));"></div>'
+        +'<div style="background:#ff8c00;color:#1a1a1a;font-size:10px;font-weight:800;line-height:1;padding:1px 4px;border-radius:6px;border:1.5px solid #fff;margin-top:1px;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,.5);">'+b.c+'</div></div>'});
+    var m = L.marker([b.lat, b.lng], {icon:icon, interactive:true, zIndexOffset:200});
+    var kmTxt = (b.km != null) ? ('km '+(b.km<0?'−':'')+Math.abs(b.km).toFixed(3).replace('.',',')) : '';
+    m.bindPopup('<div style="font-size:13px;min-width:170px;">'
+      +'<div style="font-weight:800;font-size:15px;">📐 ZVS bod '+b.c+'</div>'
+      +'<div style="margin-top:4px;font-size:14px;">výška <b>Z = '+b.z.toFixed(3)+' m</b> Bpv</div>'
+      +'<div style="color:#888;font-size:12px;margin-top:3px;">Y '+b.y.toFixed(2)+' &nbsp;|&nbsp; X '+b.x.toFixed(2)+' (JTSK)</div>'
+      +(kmTxt ? '<div style="color:#888;font-size:12px;">staničení ~ '+kmTxt+'</div>' : '')
+      +(b.popis ? '<div style="font-size:12px;margin-top:3px;">'+escapeHtml(b.popis)+'</div>' : '')
+      +'</div>');
+    m.addTo(zvsLayer);
+  });
+}
+// Jednotný přepínač (sdílí tlačítko v liště i checkbox v panelu vrstev)
+function setZvsVisible(on) {
+  if(!zvsLayer) buildZVS();
+  var cb = document.getElementById('lyr-zvs'); if(cb) cb.checked = !!on;
+  var btn = document.getElementById('btn-zvs');
+  if(on) {
+    zvsLayer.addTo(map);
+    if(btn){ btn.style.background='var(--accent)'; btn.style.color='#fff'; }
+  } else {
+    if(map.hasLayer(zvsLayer)) map.removeLayer(zvsLayer);
+    if(btn){ btn.style.background='var(--panel2)'; btn.style.color='var(--text)'; }
+  }
+}
+function toggleZvsLayer(){ setZvsVisible(!(zvsLayer && map.hasLayer(zvsLayer))); }
 
 // ── LINEÁRNÍ SO (boční přeložky a přístupy) — samostatné osy se staničením ───
 // Kreslí polylinii z SO_OSY do layerGroups.so a podél osy rozmístí km štítky
