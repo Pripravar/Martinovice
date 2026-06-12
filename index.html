@@ -6268,7 +6268,11 @@ function setSituaceVisible(on){
   }
   if(_situaceLoading) return;
   _situaceLoading=true; showToast('⏳ Načítám situaci…', 1500);
-  if(!map.getPane('plochyPane')){ map.createPane('plochyPane'); map.getPane('plochyPane').style.zIndex=395; }
+  if(!map.getPane('plochyPane')){
+    var _rp=map.getPane('tilePane').parentNode;  // leaflet-rotate: dlaždice i čáry jsou v rotate-pane, ne v map-pane
+    map.createPane('plochyPane', _rp);            // plochyPane do STEJNÉHO kontejneru jako dlaždice, jinak ho podklad překryje
+    map.getPane('plochyPane').style.zIndex=250;   // nad dlaždice (200), pod čáry/overlay (400)
+  }
   Promise.all([
     fetch('overlay/situace_plochy.json?v=20260612d').then(function(r){return r.json();}),
     fetch('overlay/situace_lines.json?v=20260612d').then(function(r){return r.json();}),
