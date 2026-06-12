@@ -6272,7 +6272,8 @@ function setSituaceVisible(on){
   Promise.all([
     fetch('overlay/situace_plochy.json').then(function(r){return r.json();}),
     fetch('overlay/situace_lines.json').then(function(r){return r.json();}),
-    fetch('overlay/situace_text.json').then(function(r){return r.json();}).catch(function(){return [];})
+    fetch('overlay/situace_text.json').then(function(r){return r.json();}).catch(function(){return [];}),
+    fetch('overlay/situace_leaders.json').then(function(r){return r.json();}).catch(function(){return [];})
   ]).then(function(res){
     var fills=res[0]||{}, lines=res[1]||{}, op=_situaceOp(); _situaceTexts=res[2]||[];
     situaceLayer=L.layerGroup(); _situaceFills=[]; _situaceLines=[];
@@ -6284,6 +6285,8 @@ function setSituaceVisible(on){
     var lc=L.canvas({padding:0.5});
     var pl=L.polyline(lines, {renderer:lc, color:_situaceLineColor(), weight:0.7, opacity:Math.min(1,op+0.15), interactive:false});
     _situaceLines.push(pl); pl.addTo(situaceLayer);
+    var leaders=res[3]||[];
+    if(leaders.length){ L.polyline(leaders, {renderer:lc, color:'#c1121f', weight:1.2, opacity:1, interactive:false}).addTo(situaceLayer); }
     layerGroups.situace=situaceLayer; situaceLayer.addTo(map);
     situaceTextLayer=L.layerGroup().addTo(map); _bindSituaceText(); _renderSituaceText();
     _situaceLoading=false;
