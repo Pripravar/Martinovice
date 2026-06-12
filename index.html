@@ -1192,6 +1192,10 @@ document.addEventListener('touchend', function(e){
     <label style="font-size:12px;">↳ průhlednost</label>
     <input type="range" min="20" max="100" value="80" id="situace-opacity" oninput="setSituaceOpacity(this.value)" style="flex:1;max-width:120px;">
   </div>
+  <div class="layer-row" style="padding-left:12px;">
+    <label style="font-size:12px;">↳ barevné plochy (výplně)</label>
+    <label class="toggle"><input type="checkbox" id="lyr-plochy" onchange="setPlochyVisible(this.checked)"><span class="toggle-slider"></span></label>
+  </div>
   <div class="layer-row">
     <label>🌈 Barevné SO pruhy (ekvidistanty)</label>
     <label class="toggle"><input type="checkbox" id="lyr-ekvi" checked onchange="toggleLayer('ekvi',this.checked)"><span class="toggle-slider"></span></label>
@@ -6248,6 +6252,24 @@ function setSituaceVisible(on){
   }).catch(function(){ _situaceLoading=false; showToast('❌ Situaci se nepodařilo načíst', 2500); });
 }
 function setSituaceOpacity(v){ if(situaceVec) situaceVec.setStyle({opacity:(+v)/100}); }
+// Vyplněné plochy ze situace (HATCH solid) – samostatná vrstva POD čarami (vlastní pane).
+var plochyLayer = null, _plochyLoading = false;
+function setPlochyVisible(on){
+  var cb=document.getElementById('lyr-plochy'); if(cb) cb.checked=!!on;
+  if(!on){ if(plochyLayer && map.hasLayer(plochyLayer)) map.removeLayer(plochyLayer); return; }
+  if(plochyLayer){ plochyLayer.addTo(map); return; }
+  if(_plochyLoading) return;
+  _plochyLoading=true; showToast('⏳ Načítám plochy…', 1500);
+  if(!map.getPane('plochyPane')){ map.createPane('plochyPane'); map.getPane('plochyPane').style.zIndex=395; }
+  fetch('overlay/situace_plochy.json').then(function(r){return r.json();}).then(function(groups){
+    var rc=L.canvas({pane:'plochyPane', padding:0.5});
+    plochyLayer=L.layerGroup();
+    Object.keys(groups).forEach(function(hex){
+      L.polygon(groups[hex], {renderer:rc, pane:'plochyPane', stroke:false, fill:true, fillColor:hex, fillOpacity:0.35, interactive:false}).addTo(plochyLayer);
+    });
+    plochyLayer.addTo(map); _plochyLoading=false;
+  }).catch(function(){ _plochyLoading=false; showToast('❌ Plochy se nepodařily načíst', 2500); });
+}
 
 // ── MĚŘENÍ délky a plochy na mapě (obecný nástroj nad jakoukoli vrstvou) ──
 var measureMode = false;
