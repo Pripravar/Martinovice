@@ -6317,6 +6317,7 @@ function setPlochyOpacity(v){ var op=(+v)/100; _plochyFills.forEach(function(f){
 
 // ── MĚŘENÍ délky a plochy na mapě (obecný nástroj nad jakoukoli vrstvou) ──
 var measureMode = false;
+var measureKind = 'delka';   // 'delka' = otevřená spojnice (vzdálenost), 'plocha' = uzavřený obrazec
 var measurePts = [];
 var measureLayer = null;
 var _measureMoveH = null;
@@ -6359,7 +6360,17 @@ function startMeasure(){
   window.addEventListener('resize', _measureMoveH);
   var bp=document.getElementById('btn-place'); if(bp) bp.style.display='none';
   var bm=document.getElementById('btn-measure'); if(bm){ bm.style.background='var(--accent)'; bm.style.color='#fff'; }
-  updateMeasureHud();
+  setMeasureKind(measureKind);
+}
+function setMeasureKind(k){
+  measureKind = (k==='plocha') ? 'plocha' : 'delka';
+  var bd=document.getElementById('mkind-delka'), bp=document.getElementById('mkind-plocha');
+  if(bd&&bp){
+    var on='flex:1;min-height:44px;border-radius:8px;border:none;font-size:14px;cursor:pointer;background:var(--accent);color:#fff;';
+    var off='flex:1;min-height:44px;border-radius:8px;border:1px solid var(--border);font-size:14px;cursor:pointer;background:var(--panel2);color:var(--text);';
+    bd.style.cssText=(measureKind==='delka'?on:off); bp.style.cssText=(measureKind==='plocha'?on:off);
+  }
+  measureRedraw(); updateMeasureHud();
 }
 function stopMeasure(){
   measureMode=false;
@@ -6382,7 +6393,7 @@ function measureUndo(){ if(measurePts.length){ measurePts.pop(); measureRedraw()
 function measureClear(){ measurePts=[]; measureRedraw(); updateMeasureHud(); }
 function measureRedraw(){
   if(!measureLayer) return; measureLayer.clearLayers();
-  if(measurePts.length>=3) L.polygon(measurePts,{color:'#16a34a',weight:2,fillColor:'#16a34a',fillOpacity:0.18,interactive:false}).addTo(measureLayer);
+  if(measureKind==='plocha' && measurePts.length>=3) L.polygon(measurePts,{color:'#16a34a',weight:2,fillColor:'#16a34a',fillOpacity:0.18,interactive:false}).addTo(measureLayer);
   if(measurePts.length>=2) L.polyline(measurePts,{color:'#16a34a',weight:3,interactive:false}).addTo(measureLayer);
   measurePts.forEach(function(p){
     L.marker(p,{interactive:false, icon:L.divIcon({className:'',iconSize:[0,0],
@@ -6391,12 +6402,15 @@ function measureRedraw(){
 }
 function updateMeasureHud(){
   var el=document.getElementById('measure-readout'); if(!el) return;
-  var len=measureLengthM(measurePts), area=polygonAreaM2(measurePts);
+  var len=measureLengthM(measurePts);
   var html='<b>'+measurePts.length+'</b> bodů';
-  if(measurePts.length>=2) html+=' · délka <b>'+fmtLen(len)+'</b>';
-  if(measurePts.length>=3){
-    var perim=len + haversine(measurePts[measurePts.length-1][0],measurePts[measurePts.length-1][1],measurePts[0][0],measurePts[0][1]);
-    html+=' · plocha <b>'+fmtArea(area)+'</b> · obvod '+fmtLen(perim);
+  if(measureKind==='plocha'){
+    if(measurePts.length>=3){
+      var perim=len + haversine(measurePts[measurePts.length-1][0],measurePts[measurePts.length-1][1],measurePts[0][0],measurePts[0][1]);
+      html+=' · plocha <b>'+fmtArea(polygonAreaM2(measurePts))+'</b> · obvod <b>'+fmtLen(perim)+'</b>';
+    } else if(measurePts.length>=1){ html+=' · obrazec potřebuje ≥3 body'; }
+  } else {
+    if(measurePts.length>=2) html+=' · délka (spojnice) <b>'+fmtLen(len)+'</b>';
   }
   el.innerHTML=html;
 }
@@ -6406,7 +6420,7 @@ function measureSave(){
   var nazev=prompt('Název měření (povinný):',''); if(nazev===null) return;
   nazev=(nazev||'').trim(); if(!nazev){ showToast('Název je povinný', 2000); return; }
   var popis=(prompt('Popis (nepovinný):','')||'').trim();
-  var isPlocha=measurePts.length>=3;
+  var isPlocha=(measureKind==='plocha' && measurePts.length>=3);
   var rec={ nazev:nazev, popis:popis, typ:(isPlocha?'plocha':'delka'),
     body:measurePts.map(function(p){return {lat:p[0],lng:p[1]};}),
     delkaM:Math.round(measureLengthM(measurePts)),
@@ -12100,6 +12114,10 @@ function copyDiaryExport(){
 <button id="btn-measure" onclick="toggleMeasure()" title="Měřit délku / plochu na mapě">📏</button>
 <div id="measure-cross"></div>
 <div id="measure-hud">
+  <div class="mrow" style="margin-bottom:4px;">
+    <button id="mkind-delka" onclick="setMeasureKind('delka')">📏 Vzdálenost</button>
+    <button id="mkind-plocha" onclick="setMeasureKind('plocha')">⬛ Plocha</button>
+  </div>
   <div id="measure-readout">0 bodů</div>
   <div class="mrow">
     <button class="mprimary" onclick="measureAddPoint()">➕ Bod</button>
