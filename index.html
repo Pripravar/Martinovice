@@ -1185,6 +1185,14 @@ document.addEventListener('touchend', function(e){
     <label class="toggle"><input type="checkbox" id="lyr-mereni" checked onchange="toggleLayer('mereni',this.checked)"><span class="toggle-slider"></span></label>
   </div>
   <div class="layer-row">
+    <label>🗺️ Koordinační situace (DWG)</label>
+    <label class="toggle"><input type="checkbox" id="lyr-situace" onchange="toggleLayer('situace',this.checked)"><span class="toggle-slider"></span></label>
+  </div>
+  <div class="layer-row" style="padding-left:12px;">
+    <label style="font-size:12px;">↳ průhlednost</label>
+    <input type="range" min="20" max="100" value="80" id="situace-opacity" oninput="setSituaceOpacity(this.value)" style="flex:1;max-width:120px;">
+  </div>
+  <div class="layer-row">
     <label>🌈 Barevné SO pruhy (ekvidistanty)</label>
     <label class="toggle"><input type="checkbox" id="lyr-ekvi" checked onchange="toggleLayer('ekvi',this.checked)"><span class="toggle-slider"></span></label>
   </div>
@@ -3303,7 +3311,7 @@ var gpsActive = false;
 var gpsCentering = false;
 var gpxCumulative = [];
 var calibSorted = null;
-var layerGroups = {trasa:null, st100:null, st20:null, soSt100:null, soSt20:null, pr:null, propustky:null, prikopy:null, etapy:null, etapa1:null, etapa2:null, etapa3:null, etapa4:null, so:null, ekvi:null, so101_1:null, so101_2:null, so101_3:null, sanace:null, zvs:null, sondy:null, mereni:null, notes:null, notes0:null, notes1:null, notes2:null, notes3:null, notes4:null, notes5:null, notes6:null};
+var layerGroups = {trasa:null, st100:null, st20:null, soSt100:null, soSt20:null, pr:null, propustky:null, prikopy:null, etapy:null, etapa1:null, etapa2:null, etapa3:null, etapa4:null, so:null, ekvi:null, so101_1:null, so101_2:null, so101_3:null, sanace:null, zvs:null, sondy:null, mereni:null, situace:null, notes:null, notes0:null, notes1:null, notes2:null, notes3:null, notes4:null, notes5:null, notes6:null};
 
 // ── MATH ──────────────────────────────
 function haversine(lat1,lon1,lat2,lon2) {
@@ -4125,6 +4133,7 @@ function init() {
   setZvsVisible(true);   // ZVS body defaultně zapnuté (vrstva), lze vypnout tlačítkem 📐 ZVS i v panelu
   buildSondy();          // vrtné sondy – vrstva defaultně VYPNUTÁ (zapne checkbox v panelu Vrstvy)
   loadMereni();          // uložená týmová měření (délka/plocha)
+  buildSituace();        // overlay koordinační situace (DWG→PNG, EPSG:5514, default vypnuto)
   map.fitBounds(L.latLngBounds(GPX_POINTS.map(function(p){return[p[0],p[1]];})),{padding:[40,40]});
   startGPS();
   loadNotes();
@@ -6220,6 +6229,18 @@ function setSondyVisible(on){
   if(on) sondyLayer.addTo(map);
   else if(map.hasLayer(sondyLayer)) map.removeLayer(sondyLayer);
 }
+
+// ── KOORDINAČNÍ SITUACE — georeferencovaný obrázkový overlay (z DWG) ──────
+// PNG vyrenderováno z DWG (EPSG:5514→WebMercator), posazeno přesně přes leteckou.
+var SITUACE_OVERLAY = { url:'overlay/koordinacni_situace.png',
+  bounds:[[50.4159038,14.9367234],[50.4389196,15.0492114]] };
+var situaceOverlay = null;
+function buildSituace(){
+  if(situaceOverlay) return;
+  situaceOverlay = L.imageOverlay(SITUACE_OVERLAY.url, SITUACE_OVERLAY.bounds, {opacity:0.8, interactive:false});
+  layerGroups.situace = situaceOverlay;   // NEpřidávat na mapu – default vypnuto
+}
+function setSituaceOpacity(v){ if(situaceOverlay) situaceOverlay.setOpacity((+v)/100); }
 
 // ── MĚŘENÍ délky a plochy na mapě (obecný nástroj nad jakoukoli vrstvou) ──
 var measureMode = false;
