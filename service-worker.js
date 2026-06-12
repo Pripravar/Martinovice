@@ -4,7 +4,7 @@
 // DŮLEŽITÉ: HTML/navigace jde NETWORK-FIRST. Připnutá PWA na iOS si jinak
 // drží starý index.html z cache a po pushi neukazuje aktualizaci. Online
 // se vždy stáhne čerstvý HTML, offline padá zpět na poslední cache.
-var CACHE_NAME = 'martinovice-v0.4-2026-06-02';
+var CACHE_NAME = 'martinovice-v0.5-2026-06-12';
 var ASSETS = [
   './',
   './index.html',
@@ -43,6 +43,20 @@ self.addEventListener('fetch', function(e) {
      url.indexOf('services.cuzk.cz') !== -1 ||
      url.indexOf('unpkg.com') !== -1) {
     return; // browser default
+  }
+
+  // Data situace (overlay/) – NETWORK-FIRST, ať se po pushi vždy stáhnou čerstvá; offline → cache
+  if(url.indexOf('/overlay/') !== -1) {
+    e.respondWith(
+      fetch(req).then(function(resp){
+        if(resp && resp.status === 200 && req.method === 'GET') {
+          var cl = resp.clone();
+          caches.open(CACHE_NAME).then(function(c){ c.put(req, cl); });
+        }
+        return resp;
+      }).catch(function(){ return caches.match(req); })
+    );
+    return;
   }
 
   // HTML / navigace – NETWORK-FIRST (čerstvý index.html po pushi), offline → cache
