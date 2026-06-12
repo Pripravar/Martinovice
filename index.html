@@ -4108,6 +4108,7 @@ function toggleKatastr(en) {
   } else {
     map.removeLayer(baseLayers.katastr);
   }
+  if(typeof _updateSituaceLineColor==='function') _updateSituaceLineColor();
 }
 
 
@@ -6281,10 +6282,8 @@ function setSituaceVisible(on){
       _situaceFills.push(pg); pg.addTo(situaceLayer);
     });
     var lc=L.canvas({padding:0.5});
-    Object.keys(lines).forEach(function(hex){
-      var pl=L.polyline(lines[hex], {renderer:lc, color:hex, weight:1.0, opacity:Math.min(1,op+0.1), interactive:false});
-      _situaceLines.push(pl); pl.addTo(situaceLayer);
-    });
+    var pl=L.polyline(lines, {renderer:lc, color:_situaceLineColor(), weight:0.7, opacity:Math.min(1,op+0.15), interactive:false});
+    _situaceLines.push(pl); pl.addTo(situaceLayer);
     layerGroups.situace=situaceLayer; situaceLayer.addTo(map);
     situaceTextLayer=L.layerGroup().addTo(map); _bindSituaceText(); _renderSituaceText();
     _situaceLoading=false;
@@ -6295,6 +6294,9 @@ function setSituaceOpacity(v){
   _situaceLines.forEach(function(l){ l.setStyle({opacity:Math.min(1,op+0.1)}); });
   _situaceFills.forEach(function(f){ f.setStyle({fillOpacity:op}); });
 }
+// Čáry situace: s katastrem (taky černý) splývají → přepni na modrou; jinak černá.
+function _situaceLineColor(){ var k=document.getElementById('lyr-katastr'); return (k && k.checked) ? '#1565c0' : '#1a1a1a'; }
+function _updateSituaceLineColor(){ var c=_situaceLineColor(); _situaceLines.forEach(function(l){ l.setStyle({color:c}); }); }
 
 // ── MĚŘENÍ délky a plochy na mapě (obecný nástroj nad jakoukoli vrstvou) ──
 var measureMode = false;
