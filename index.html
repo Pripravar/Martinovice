@@ -6273,9 +6273,9 @@ function setSituaceVisible(on){
   if(_situaceLoading) return;
   _situaceLoading=true; showToast('⏳ Načítám situaci…', 1500);
   Promise.all([
-    fetch('overlay/situace_lines.json?v=20260613').then(function(r){return r.json();}),
-    fetch('overlay/situace_text.json?v=20260613').then(function(r){return r.json();}).catch(function(){return [];}),
-    fetch('overlay/situace_leaders.json?v=20260613').then(function(r){return r.json();}).catch(function(){return [];})
+    fetch('overlay/situace_lines.json?v=20260613b').then(function(r){return r.json();}),
+    fetch('overlay/situace_text.json?v=20260613b').then(function(r){return r.json();}).catch(function(){return [];}),
+    fetch('overlay/situace_leaders.json?v=20260613b').then(function(r){return r.json();}).catch(function(){return [];})
   ]).then(function(res){
     var lines=res[0]||{}; _situaceTexts=res[1]||[]; var leaders=res[2]||[];
     situaceLayer=L.layerGroup(); _situaceLines=[];
@@ -6303,7 +6303,7 @@ function setPlochyVisible(on){
     map.createPane('plochyPane', _rp);
     map.getPane('plochyPane').style.zIndex=250;    // nad dlaždice(200), pod čáry/overlay(400)
   }
-  fetch('overlay/situace_plochy.json?v=20260613').then(function(r){return r.json();}).then(function(groups){
+  fetch('overlay/situace_plochy.json?v=20260613b').then(function(r){return r.json();}).then(function(groups){
     var op=_plochyOp(); plochyLayer=L.layerGroup(); _plochyFills=[];
     var pc=L.canvas({pane:'plochyPane', padding:0.5});
     Object.keys(groups).forEach(function(hex){
