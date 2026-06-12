@@ -6242,7 +6242,7 @@ function setSituaceVisible(on){
   fetch('overlay/situace_lines.json').then(function(r){return r.json();}).then(function(lines){
     var oel=document.getElementById('situace-opacity');
     var op=oel ? (+oel.value)/100 : 0.85;
-    situaceVec=L.polyline(lines, {renderer:L.canvas({padding:0.5}), color:'#e53935', weight:1.2, opacity:op, interactive:false});
+    situaceVec=L.polyline(lines, {renderer:L.canvas({padding:0.5}), color:'#e53935', weight:0.8, opacity:op, interactive:false});
     layerGroups.situace=situaceVec;
     situaceVec.addTo(map); _situaceLoading=false;
   }).catch(function(){ _situaceLoading=false; showToast('❌ Situaci se nepodařilo načíst', 2500); });
