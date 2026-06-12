@@ -6270,10 +6270,10 @@ function setSituaceVisible(on){
   _situaceLoading=true; showToast('⏳ Načítám situaci…', 1500);
   if(!map.getPane('plochyPane')){ map.createPane('plochyPane'); map.getPane('plochyPane').style.zIndex=395; }
   Promise.all([
-    fetch('overlay/situace_plochy.json').then(function(r){return r.json();}),
-    fetch('overlay/situace_lines.json').then(function(r){return r.json();}),
-    fetch('overlay/situace_text.json').then(function(r){return r.json();}).catch(function(){return [];}),
-    fetch('overlay/situace_leaders.json').then(function(r){return r.json();}).catch(function(){return [];})
+    fetch('overlay/situace_plochy.json?v=20260612d').then(function(r){return r.json();}),
+    fetch('overlay/situace_lines.json?v=20260612d').then(function(r){return r.json();}),
+    fetch('overlay/situace_text.json?v=20260612d').then(function(r){return r.json();}).catch(function(){return [];}),
+    fetch('overlay/situace_leaders.json?v=20260612d').then(function(r){return r.json();}).catch(function(){return [];})
   ]).then(function(res){
     var fills=res[0]||{}, lines=res[1]||{}, op=_situaceOp(); _situaceTexts=res[2]||[];
     situaceLayer=L.layerGroup(); _situaceFills=[]; _situaceLines=[];
