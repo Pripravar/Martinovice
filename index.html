@@ -1186,7 +1186,7 @@ document.addEventListener('touchend', function(e){
   </div>
   <div class="layer-row">
     <label>🗺️ Koordinační situace (DWG)</label>
-    <label class="toggle"><input type="checkbox" id="lyr-situace" onchange="toggleLayer('situace',this.checked)"><span class="toggle-slider"></span></label>
+    <label class="toggle"><input type="checkbox" id="lyr-situace" onchange="setSituaceVisible(this.checked)"><span class="toggle-slider"></span></label>
   </div>
   <div class="layer-row" style="padding-left:12px;">
     <label style="font-size:12px;">↳ průhlednost</label>
@@ -4133,7 +4133,6 @@ function init() {
   setZvsVisible(true);   // ZVS body defaultně zapnuté (vrstva), lze vypnout tlačítkem 📐 ZVS i v panelu
   buildSondy();          // vrtné sondy – vrstva defaultně VYPNUTÁ (zapne checkbox v panelu Vrstvy)
   loadMereni();          // uložená týmová měření (délka/plocha)
-  buildSituace();        // overlay koordinační situace (DWG→PNG, EPSG:5514, default vypnuto)
   map.fitBounds(L.latLngBounds(GPX_POINTS.map(function(p){return[p[0],p[1]];})),{padding:[40,40]});
   startGPS();
   loadNotes();
@@ -6230,17 +6229,25 @@ function setSondyVisible(on){
   else if(map.hasLayer(sondyLayer)) map.removeLayer(sondyLayer);
 }
 
-// ── KOORDINAČNÍ SITUACE — georeferencovaný obrázkový overlay (z DWG) ──────
-// PNG vyrenderováno z DWG (EPSG:5514→WebMercator), posazeno přesně přes leteckou.
-var SITUACE_OVERLAY = { url:'overlay/koordinacni_situace.png',
-  bounds:[[50.4065709,14.9366623],[50.4389552,15.0509255]] };
-var situaceOverlay = null;
-function buildSituace(){
-  if(situaceOverlay) return;
-  situaceOverlay = L.imageOverlay(SITUACE_OVERLAY.url, SITUACE_OVERLAY.bounds, {opacity:0.8, interactive:false});
-  layerGroups.situace = situaceOverlay;   // NEpřidávat na mapu – default vypnuto
+// ── KOORDINAČNÍ SITUACE — VEKTOR (z DWG, ostré v každém zoomu) ────────────
+// Jádro kresby (těleso/vozovka/krajnice/obruby/osa/svodidla/propustky/mosty/zábor),
+// zjednodušeno (RDP ~1 m), EPSG:5514→WGS84 (pyproj). Lazy fetch při zapnutí.
+var situaceVec = null, _situaceLoading = false;
+function setSituaceVisible(on){
+  var cb=document.getElementById('lyr-situace'); if(cb) cb.checked=!!on;
+  if(!on){ if(situaceVec && map.hasLayer(situaceVec)) map.removeLayer(situaceVec); return; }
+  if(situaceVec){ situaceVec.addTo(map); return; }
+  if(_situaceLoading) return;
+  _situaceLoading=true; showToast('⏳ Načítám situaci…', 1500);
+  fetch('overlay/situace_lines.json').then(function(r){return r.json();}).then(function(lines){
+    var oel=document.getElementById('situace-opacity');
+    var op=oel ? (+oel.value)/100 : 0.85;
+    situaceVec=L.polyline(lines, {renderer:L.canvas({padding:0.5}), color:'#e53935', weight:1.2, opacity:op, interactive:false});
+    layerGroups.situace=situaceVec;
+    situaceVec.addTo(map); _situaceLoading=false;
+  }).catch(function(){ _situaceLoading=false; showToast('❌ Situaci se nepodařilo načíst', 2500); });
 }
-function setSituaceOpacity(v){ if(situaceOverlay) situaceOverlay.setOpacity((+v)/100); }
+function setSituaceOpacity(v){ if(situaceVec) situaceVec.setStyle({opacity:(+v)/100}); }
 
 // ── MĚŘENÍ délky a plochy na mapě (obecný nástroj nad jakoukoli vrstvou) ──
 var measureMode = false;
