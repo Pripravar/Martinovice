@@ -1185,12 +1185,16 @@ document.addEventListener('touchend', function(e){
     <label class="toggle"><input type="checkbox" id="lyr-mereni" checked onchange="toggleLayer('mereni',this.checked)"><span class="toggle-slider"></span></label>
   </div>
   <div class="layer-row">
-    <label>🗺️ Koordinační situace (DWG)</label>
+    <label>🗺️ Koordinační situace (DWG) – kresba</label>
     <label class="toggle"><input type="checkbox" id="lyr-situace" onchange="setSituaceVisible(this.checked)"><span class="toggle-slider"></span></label>
   </div>
+  <div class="layer-row">
+    <label>🎨 Podbarvení ploch (DWG)</label>
+    <label class="toggle"><input type="checkbox" id="lyr-plochy" onchange="setPlochyVisible(this.checked)"><span class="toggle-slider"></span></label>
+  </div>
   <div class="layer-row" style="padding-left:12px;">
-    <label style="font-size:12px;">↳ průhlednost</label>
-    <input type="range" min="20" max="100" value="90" id="situace-opacity" oninput="setSituaceOpacity(this.value)" style="flex:1;max-width:120px;">
+    <label style="font-size:12px;">↳ průhlednost ploch</label>
+    <input type="range" min="20" max="100" value="85" id="plochy-opacity" oninput="setPlochyOpacity(this.value)" style="flex:1;max-width:120px;">
   </div>
   <div class="layer-row">
     <label>🌈 Barevné SO pruhy (ekvidistanty)</label>
@@ -6230,12 +6234,10 @@ function setSondyVisible(on){
   else if(map.hasLayer(sondyLayer)) map.removeLayer(sondyLayer);
 }
 
-// ── KOORDINAČNÍ SITUACE (DWG) — jeden celek: plochy + barevné čáry + popisky ──
-// Barvy z CAD true_color. Plochy pod čarami. JEDEN posuvník = krytí ploch i čar.
-// Popisky (SO, mosty, propustky…) se kreslí od zoomu 15, jen ve výřezu (re-render na moveend).
-var situaceLayer = null, _situaceLoading = false, _situaceFills = [], _situaceLines = [];
+// ── KOORDINAČNÍ SITUACE (DWG) — čáry + odkazy + popisky ──────────────────
+// Podbarvení (výplně) je SAMOSTATNÁ vrstva (setPlochyVisible), viz níže.
+var situaceLayer = null, _situaceLoading = false, _situaceLines = [];
 var situaceTextLayer = null, _situaceTexts = [], _textHandler = null;
-function _situaceOp(){ var o=document.getElementById('situace-opacity'); return o ? (+o.value)/100 : 0.9; }
 function _renderSituaceText(){
   if(!situaceTextLayer) return;
   situaceTextLayer.clearLayers();
@@ -6254,6 +6256,8 @@ function _renderSituaceText(){
 }
 function _bindSituaceText(){ if(!_textHandler){ _textHandler=function(){_renderSituaceText();}; map.on('moveend zoomend', _textHandler); } }
 function _unbindSituaceText(){ if(_textHandler){ map.off('moveend zoomend', _textHandler); _textHandler=null; } }
+function _situaceLineColor(){ var k=document.getElementById('lyr-katastr'); return (k && k.checked) ? '#1565c0' : '#1a1a1a'; }
+function _updateSituaceLineColor(){ var c=_situaceLineColor(); _situaceLines.forEach(function(l){ l.setStyle({color:c}); }); }
 function setSituaceVisible(on){
   var cb=document.getElementById('lyr-situace'); if(cb) cb.checked=!!on;
   if(!on){
@@ -6268,42 +6272,48 @@ function setSituaceVisible(on){
   }
   if(_situaceLoading) return;
   _situaceLoading=true; showToast('⏳ Načítám situaci…', 1500);
-  if(!map.getPane('plochyPane')){
-    var _rp=map.getPane('tilePane').parentNode;  // leaflet-rotate: dlaždice i čáry jsou v rotate-pane, ne v map-pane
-    map.createPane('plochyPane', _rp);            // plochyPane do STEJNÉHO kontejneru jako dlaždice, jinak ho podklad překryje
-    map.getPane('plochyPane').style.zIndex=250;   // nad dlaždice (200), pod čáry/overlay (400)
-  }
   Promise.all([
-    fetch('overlay/situace_plochy.json?v=20260612d').then(function(r){return r.json();}),
-    fetch('overlay/situace_lines.json?v=20260612d').then(function(r){return r.json();}),
-    fetch('overlay/situace_text.json?v=20260612d').then(function(r){return r.json();}).catch(function(){return [];}),
-    fetch('overlay/situace_leaders.json?v=20260612d').then(function(r){return r.json();}).catch(function(){return [];})
+    fetch('overlay/situace_lines.json?v=20260613').then(function(r){return r.json();}),
+    fetch('overlay/situace_text.json?v=20260613').then(function(r){return r.json();}).catch(function(){return [];}),
+    fetch('overlay/situace_leaders.json?v=20260613').then(function(r){return r.json();}).catch(function(){return [];})
   ]).then(function(res){
-    var fills=res[0]||{}, lines=res[1]||{}, op=_situaceOp(); _situaceTexts=res[2]||[];
-    situaceLayer=L.layerGroup(); _situaceFills=[]; _situaceLines=[];
-    var pc=L.canvas({pane:'plochyPane', padding:0.5});
-    Object.keys(fills).forEach(function(hex){
-      var pg=L.polygon(fills[hex], {renderer:pc, pane:'plochyPane', stroke:false, fill:true, fillColor:hex, fillOpacity:op, interactive:false});
-      _situaceFills.push(pg); pg.addTo(situaceLayer);
-    });
+    var lines=res[0]||{}; _situaceTexts=res[1]||[]; var leaders=res[2]||[];
+    situaceLayer=L.layerGroup(); _situaceLines=[];
     var lc=L.canvas({padding:0.5});
-    var pl=L.polyline(lines, {renderer:lc, color:_situaceLineColor(), weight:0.7, opacity:Math.min(1,op+0.15), interactive:false});
+    var pl=L.polyline(lines, {renderer:lc, color:_situaceLineColor(), weight:0.7, opacity:1, interactive:false});
     _situaceLines.push(pl); pl.addTo(situaceLayer);
-    var leaders=res[3]||[];
     if(leaders.length){ L.polyline(leaders, {renderer:lc, color:'#c1121f', weight:1.2, opacity:1, interactive:false}).addTo(situaceLayer); }
     layerGroups.situace=situaceLayer; situaceLayer.addTo(map);
     situaceTextLayer=L.layerGroup().addTo(map); _bindSituaceText(); _renderSituaceText();
     _situaceLoading=false;
   }).catch(function(){ _situaceLoading=false; showToast('❌ Situaci se nepodařilo načíst', 2500); });
 }
-function setSituaceOpacity(v){
-  var op=(+v)/100;
-  _situaceLines.forEach(function(l){ l.setStyle({opacity:Math.min(1,op+0.1)}); });
-  _situaceFills.forEach(function(f){ f.setStyle({fillOpacity:op}); });
+
+// ── PODBARVENÍ DWG ploch — SAMOSTATNÁ vrstva (vozovka/násyp/zářez/příkop/zeleň…) ──
+var plochyLayer = null, _plochyLoading = false, _plochyFills = [];
+function _plochyOp(){ var o=document.getElementById('plochy-opacity'); return o ? (+o.value)/100 : 0.85; }
+function setPlochyVisible(on){
+  var cb=document.getElementById('lyr-plochy'); if(cb) cb.checked=!!on;
+  if(!on){ if(plochyLayer && map.hasLayer(plochyLayer)) map.removeLayer(plochyLayer); return; }
+  if(plochyLayer){ plochyLayer.addTo(map); return; }
+  if(_plochyLoading) return;
+  _plochyLoading=true; showToast('⏳ Načítám podbarvení…', 1500);
+  if(!map.getPane('plochyPane')){
+    var _rp=map.getPane('tilePane').parentNode;   // leaflet-rotate: jinak podklad výplně překryje
+    map.createPane('plochyPane', _rp);
+    map.getPane('plochyPane').style.zIndex=250;    // nad dlaždice(200), pod čáry/overlay(400)
+  }
+  fetch('overlay/situace_plochy.json?v=20260613').then(function(r){return r.json();}).then(function(groups){
+    var op=_plochyOp(); plochyLayer=L.layerGroup(); _plochyFills=[];
+    var pc=L.canvas({pane:'plochyPane', padding:0.5});
+    Object.keys(groups).forEach(function(hex){
+      var pg=L.polygon(groups[hex], {renderer:pc, pane:'plochyPane', stroke:false, fill:true, fillColor:hex, fillOpacity:op, interactive:false});
+      _plochyFills.push(pg); pg.addTo(plochyLayer);
+    });
+    layerGroups.plochy=plochyLayer; plochyLayer.addTo(map); _plochyLoading=false;
+  }).catch(function(){ _plochyLoading=false; showToast('❌ Podbarvení se nepodařilo načíst', 2500); });
 }
-// Čáry situace: s katastrem (taky černý) splývají → přepni na modrou; jinak černá.
-function _situaceLineColor(){ var k=document.getElementById('lyr-katastr'); return (k && k.checked) ? '#1565c0' : '#1a1a1a'; }
-function _updateSituaceLineColor(){ var c=_situaceLineColor(); _situaceLines.forEach(function(l){ l.setStyle({color:c}); }); }
+function setPlochyOpacity(v){ var op=(+v)/100; _plochyFills.forEach(function(f){ f.setStyle({fillOpacity:op}); }); }
 
 // ── MĚŘENÍ délky a plochy na mapě (obecný nástroj nad jakoukoli vrstvou) ──
 var measureMode = false;
