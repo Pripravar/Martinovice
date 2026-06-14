@@ -7743,6 +7743,7 @@ function signInWithGoogle() {
                  err.code === 'auth/operation-not-supported-in-this-environment')) {
         // Fallback: redirect
         showAuthError('⏳ Přesměrovávám na Google…');
+        try{ sessionStorage.setItem('pendingGoogleRedirect','1'); }catch(e){}
         fbAuth.signInWithRedirect(provider).catch(function(err2){
           console.error('Redirect fallback error:', err2);
           showAuthError('Chyba přihlášení: ' + (err2.message || err2.code));
@@ -7779,20 +7780,28 @@ if(!authConfigOk()) {
 // Po návratu z redirect přihlášení explicitně dokončit flow.
 // Bez toho onAuthStateChanged v iOS PWA někdy nefiruje a uživatel zůstane viset na login obrazovce.
 if(fbAuth && authConfigOk()) {
-  showAuthError('⏳ Dokončuji přihlášení…');
-  fbAuth.getRedirectResult().then(function(result) {
-    if(result && result.user) {
-      console.log('Redirect login OK:', result.user.uid, result.user.displayName);
-      showAuthError('');
-      // onAuthStateChanged se postará o zbytek (skrytí gate, načtení dat).
-    } else {
-      // Nebyl žádný redirect (běžné načtení) - zhasni "Dokončuji…"
-      showAuthError('');
-    }
-  }).catch(function(err) {
-    console.error('Redirect result error:', err);
-    showAuthError('Chyba dokončení přihlášení: ' + (err.message || err.code || 'neznámá') + '. Zkus to znovu.');
-  });
+  // getRedirectResult voláme JEN když se vracíme z redirect přihlášení. Na běžném načtení ne –
+  // moderní prohlížeče blokují iframe na firebaseapp.com (cookies 3. stran) a getRedirectResult
+  // by VISEL navždy → uvíznutí na „Dokončuji přihlášení". Popup login iframe nepotřebuje.
+  var _pendingRedirect = false;
+  try { _pendingRedirect = sessionStorage.getItem('pendingGoogleRedirect') === '1'; } catch(e){}
+  if(_pendingRedirect) {
+    try { sessionStorage.removeItem('pendingGoogleRedirect'); } catch(e){}
+    showAuthError('⏳ Dokončuji přihlášení…');
+    var _grrDone = false;
+    var _grrTimer = setTimeout(function(){
+      if(_grrDone) return; _grrDone = true;
+      showAuthError('Přihlášení přes přesměrování se nedokončilo (prohlížeč blokuje cookies 3. stran). Zkus to prosím znovu — mělo by se otevřít přihlašovací okno.');
+    }, 7000);
+    fbAuth.getRedirectResult().then(function(result) {
+      if(_grrDone) return; _grrDone = true; clearTimeout(_grrTimer);
+      showAuthError('');   // onAuthStateChanged dokončí (skryje gate, načte data)
+    }).catch(function(err) {
+      if(_grrDone) return; _grrDone = true; clearTimeout(_grrTimer);
+      console.error('Redirect result error:', err);
+      showAuthError('Přihlášení se nepodařilo dokončit. Zkus to znovu.');
+    });
+  }
 }
 
 // ── Pohledy auth-gate ───────────────────────────────────────────────
