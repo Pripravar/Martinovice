@@ -17,6 +17,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <!-- Plugin pro otáčení mapy dvěma prsty (touch rotate jako v Google Maps) -->
 <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
@@ -1240,7 +1241,7 @@ document.addEventListener('touchend', function(e){
     <button id="btn-pdf-next" onclick="docNav(1)">&#8250;</button>
     <button id="btn-pdf-zoom-out" onclick="pdfZoom(-1)" title="Zmenšit" style="display:none;background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer;padding:4px 6px;font-weight:700;">−</button>
     <button id="btn-pdf-zoom-in"  onclick="pdfZoom(+1)" title="Zvětšit" style="display:none;background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer;padding:4px 6px;font-weight:700;">+</button>
-    <button onclick="if(currentPdfSrc)window.open(currentPdfSrc,'_blank')" title="Otevřít v Safari s plnou lupou" style="background:none;border:none;color:var(--text2);font-size:16px;cursor:pointer;padding:4px 6px;">↗</button>
+    <button onclick="openPdfExternal()" title="Otevřít v Safari s plnou lupou" style="background:none;border:none;color:var(--text2);font-size:16px;cursor:pointer;padding:4px 6px;">↗</button>
     <button id="btn-pdf-addvk" onclick="addVykresStart()" title="Přidat výkres (PDF) pod tento objekt" style="display:none;background:none;border:none;color:var(--accent);font-size:16px;cursor:pointer;padding:4px 6px;font-weight:700;">➕</button>
     <button id="btn-pdf-delvk" onclick="delCurrentVykres()" title="Odebrat tento nahraný výkres" style="display:none;background:none;border:none;color:#ff6b6b;font-size:15px;cursor:pointer;padding:4px 6px;">🗑</button>
     <button id="btn-pdf-invalidate" onclick="toggleInvalidateCurrentDoc()" title="Zneplatnit tento výkres" style="display:none;background:none;border:none;color:var(--text2);font-size:16px;cursor:pointer;padding:4px 6px;">🗄️</button>
@@ -3630,7 +3631,7 @@ function openPRPanel(realKm, pr) {
   if(openWrap) openWrap.style.display='none';
   if(frameWrap) frameWrap.style.display='flex';
   var frame = document.getElementById('pdf-frame');
-  if(frame) frame.src = pdfFrameSrcFor(pr.soubor);
+  _setPdfFrameSrc(frame, pr.soubor);
 }
 
 // Azimut úseku mezi dvěma body (stupně, 0=N, 90=E)
@@ -3873,6 +3874,45 @@ function openDocPanel(pages, realKm, startIdx, soId) {
 
 var currentPdfSrc = '';
 
+// ── SOUKROMÉ SOUBORY: překlad cesty → Storage token-URL (čte jen přihlášený) ──────────
+// Soubory (pdf/, overlay/, photos/) jsou v privátním EU bucketu. V kódu i DB držíme CESTY;
+// resolveFileUrl je za běhu přeloží na getDownloadURL. Dokud objekt ve Storage není (nebo SDK
+// chybí), vrátí cestu → prohlížeč si ji vezme z GitHub Pages = dual-read fallback (nic se nerozbije).
+var STORAGE_BUCKET_EU = 'gs://martinovice-7a661-eu';
+var _euStorage = null;
+function _euStorageOK(){
+  try { if(!_euStorage && typeof firebase!=='undefined' && firebase.app && typeof firebase.app().storage==='function') _euStorage = firebase.app().storage(STORAGE_BUCKET_EU); } catch(e){ _euStorage=null; }
+  return _euStorage;
+}
+var _fileUrlCache = {};
+function resolveFileUrl(path){
+  if(!path) return Promise.resolve(path);
+  if(/^data:|^blob:|^https?:/i.test(path)) return Promise.resolve(path);   // už URL / lokální náhled
+  if(_fileUrlCache[path]) return Promise.resolve(_fileUrlCache[path]);
+  var st = _euStorageOK();
+  if(!st) return Promise.resolve(path);                                    // SDK není → Pages fallback
+  return st.ref(path).getDownloadURL().then(function(u){ _fileUrlCache[path]=u; return u; })
+    .catch(function(){ return path; });                                    // objekt chybí → Pages fallback
+}
+// Přidá cache-buster správně (token-URL už má '?', tak '&'); u cesty '?'.
+function _fileUrlCB(u, v){ if(!v) return u; return u + (u.indexOf('?')!==-1 ? '&'+v : '?'+v); }
+// Načte JSON ze Storage (přes resolver) s fallbackem na Pages.
+function _fetchOverlayJson(path){
+  return resolveFileUrl(path).then(function(u){ return fetch(_fileUrlCB(u,'v=20260613b')); }).then(function(r){ return r.json(); });
+}
+// Nastaví PDF iframe z cesty (přes resolver). frameEl = element iframe.
+function _setPdfFrameSrc(frameEl, soubor){
+  if(!frameEl) return;
+  frameEl.src = 'about:blank';
+  resolveFileUrl(soubor).then(function(u){ frameEl.src = pdfFrameSrcFor(u); });
+}
+// Otevře PDF externě (Safari, plná lupa) bez popup-blocku: okno otevři HNED v gestu, URL doplň po resolve.
+function openPdfExternal(){
+  if(!currentPdfSrc) return;
+  var w = window.open('', '_blank');
+  resolveFileUrl(currentPdfSrc).then(function(u){ if(w) w.location.href = u; else window.open(u, '_blank'); });
+}
+
 function isMobile() {
   return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth < 768;
 }
@@ -3895,14 +3935,6 @@ function isIOS() {
 function isPWA() {
   return window.matchMedia && window.matchMedia('(display-mode: standalone)').matches ||
          window.navigator.standalone === true; // iOS Safari home-screen app
-}
-
-function openPdfExternal() {
-  if(!currentPdfSrc) return;
-  // Vždy otevřít externě v Safari - tam dostane plný PDF prohlížeč
-  // s toolbarem, pinch-zoom a navigací mezi stranami.
-  // (V PWA módu na iOS jiný způsob neexistuje, iframe je vykreslen bez toolbarů.)
-  window.open(currentPdfSrc, '_blank');
 }
 
 function renderDocPage(realKm) {
@@ -3959,7 +3991,7 @@ function renderDocPage(realKm) {
   if(openWrap)   openWrap.style.display   = 'none';
   if(frameWrap)  frameWrap.style.display  = 'flex';
   var frame = document.getElementById('pdf-frame');
-  if(frame) frame.src = pdfFrameSrcFor(p.soubor);
+  _setPdfFrameSrc(frame, p.soubor);
   if(zoomIn)  zoomIn.style.display  = 'none';
   if(zoomOut) zoomOut.style.display = 'none';
 }
@@ -6483,9 +6515,9 @@ function setSituaceVisible(on){
   if(_situaceLoading) return;
   _situaceLoading=true; showToast('⏳ Načítám situaci…', 1500);
   Promise.all([
-    fetch('overlay/situace_lines.json?v=20260613b').then(function(r){return r.json();}),
-    fetch('overlay/situace_text.json?v=20260613b').then(function(r){return r.json();}).catch(function(){return [];}),
-    fetch('overlay/situace_leaders.json?v=20260613b').then(function(r){return r.json();}).catch(function(){return [];})
+    _fetchOverlayJson('overlay/situace_lines.json'),
+    _fetchOverlayJson('overlay/situace_text.json').catch(function(){return [];}),
+    _fetchOverlayJson('overlay/situace_leaders.json').catch(function(){return [];})
   ]).then(function(res){
     var lines=res[0]||{}; _situaceTexts=res[1]||[]; var leaders=res[2]||[];
     situaceLayer=L.layerGroup(); _situaceLines=[];
@@ -6513,7 +6545,7 @@ function setPlochyVisible(on){
     map.createPane('plochyPane', _rp);
     map.getPane('plochyPane').style.zIndex=250;    // nad dlaždice(200), pod čáry/overlay(400)
   }
-  fetch('overlay/situace_plochy.json?v=20260613b').then(function(r){return r.json();}).then(function(groups){
+  _fetchOverlayJson('overlay/situace_plochy.json').then(function(groups){
     var op=_plochyOp(); plochyLayer=L.layerGroup(); _plochyFills=[];
     var pc=L.canvas({pane:'plochyPane', padding:0.5});
     Object.keys(groups).forEach(function(hex){
@@ -7207,7 +7239,7 @@ function renderPropPage(idx) {
   var propZoomOut = document.getElementById('btn-prop-zoom-out');
   if(canvasWrap) canvasWrap.style.display = 'none';
   if(openWrap)   openWrap.style.display   = 'none';
-  if(frameEl)    { frameEl.style.display = 'flex'; frameEl.src = pdfFrameSrcFor(p.soubor); }
+  if(frameEl)    { frameEl.style.display = 'flex'; _setPdfFrameSrc(frameEl, p.soubor); }
   if(propZoomIn)  propZoomIn.style.display  = 'none';
   if(propZoomOut) propZoomOut.style.display = 'none';
 }
@@ -11626,7 +11658,7 @@ function openKzpPdfInline(k){
   }
   if(pdfView) pdfView.style.display = 'flex';
   if(frame && typeof pdfFrameSrcFor === 'function') {
-    frame.src = pdfFrameSrcFor(k.pdfUrl);
+    _setPdfFrameSrc(frame, k.pdfUrl);
   } else if(frame) {
     frame.src = k.pdfUrl;
   }
