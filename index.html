@@ -700,6 +700,8 @@ textarea.note-field { min-height:80px; resize:vertical; }
 .gallery-grid { display:grid; grid-template-columns:repeat(var(--gcols,3),1fr); gap:4px; }
 .gallery-item { position:relative; aspect-ratio:1; cursor:pointer; }
 .gallery-item img { width:100%; height:100%; object-fit:cover; border-radius:6px; display:block; }
+.gallery-item.gallery-sub img { outline:3px solid #f97316; outline-offset:-3px; }
+.gallery-sub-badge { position:absolute; top:3px; left:3px; background:#f97316; color:#fff; font-size:9px; font-weight:800; border-radius:3px; padding:1px 4px; }
 .gallery-item-meta { position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.6); color:#fff; font-size:9px; border-radius:0 0 6px 6px; padding:2px 4px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .gallery-note-badge { position:absolute; top:3px; right:3px; background:rgba(233,69,96,0.85); color:#fff; font-size:9px; border-radius:3px; padding:1px 4px; }
 #gallery-empty { text-align:center; color:var(--text2); padding:40px 20px; font-size:14px; }
@@ -1122,6 +1124,7 @@ document.addEventListener('touchend', function(e){
     <label>📐 Staničení 20m</label>
     <label class="toggle"><input type="checkbox" id="lyr-st20" onchange="toggleLayer('st20',this.checked)"><span class="toggle-slider"></span></label>
   </div>
+  <div data-perm="pripominky">
   <div class="layer-row">
     <label>📝 Poznámky</label>
     <label class="toggle"><input type="checkbox" id="lyr-notes" onchange="toggleNotesLayer(this.checked)"><span class="toggle-slider"></span></label>
@@ -1154,6 +1157,8 @@ document.addEventListener('touchend', function(e){
     <label style="font-size:12px;" id="notes-lbl-6">↳ 🏷️ Vlastní</label>
     <label class="toggle"><input type="checkbox" id="lyr-notes6" onchange="toggleLayer('notes6',this.checked)"><span class="toggle-slider"></span></label>
   </div>
+  </div>
+  <div data-perm="ukoly">
   <div class="layer-row">
     <label>✅ Úkoly</label>
     <label class="toggle"><input type="checkbox" id="lyr-tasks" checked onchange="toggleTasksLayer(this.checked)"><span class="toggle-slider"></span></label>
@@ -1165,6 +1170,7 @@ document.addEventListener('touchend', function(e){
   <div class="layer-row" style="padding-left:12px;">
     <label style="font-size:12px;">↳ 🟢 Hotové</label>
     <label class="toggle"><input type="checkbox" id="lyr-tasks-done" onchange="toggleTaskSubLayer('done',this.checked)"><span class="toggle-slider"></span></label>
+  </div>
   </div>
   <div class="layer-row">
     <label>🔵 Propustky (SO 104, SO 105)</label>
@@ -1182,6 +1188,7 @@ document.addEventListener('touchend', function(e){
     <label>🛢️ Vrtné sondy (geotechnika)</label>
     <label class="toggle"><input type="checkbox" id="lyr-sondy" onchange="setSondyVisible(this.checked)"><span class="toggle-slider"></span></label>
   </div>
+  <div data-perm="mereni">
   <div class="layer-row">
     <label>📏 Měření (uložená)</label>
     <label class="toggle"><input type="checkbox" id="lyr-mereni" checked onchange="toggleLayer('mereni',this.checked)"><span class="toggle-slider"></span></label>
@@ -1190,6 +1197,7 @@ document.addEventListener('touchend', function(e){
     <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="mshow-nazev" onchange="setMereniShow('nazev',this.checked)"> název</label>
     <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="mshow-vymera" checked onchange="setMereniShow('vymera',this.checked)"> výměra</label>
     <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="mshow-datum" onchange="setMereniShow('datum',this.checked)"> datum</label>
+  </div>
   </div>
   <div class="layer-row">
     <label>🗺️ Koordinační situace (DWG) – kresba</label>
@@ -3255,6 +3263,7 @@ function toggleInvalidateCurrentDoc(){
 
 // ── Otevření kompletní sady výkresů jednoho SO (statické z PDPS/D + nahrané) ──
 function openSOVykresy(soId){
+  if(typeof _permGuard==='function' && !_permGuard('pdf','Prohlížení výkresů')) return;
   var statik = (typeof SO_VYKRESY!=='undefined' && SO_VYKRESY[soId]) ? SO_VYKRESY[soId] : [];
   var pages = filterDocPages(statik.slice()).map(function(v){
     return {soubor:v.soubor, nazev:v.nazev, typ:(v.typ||'📄')};
@@ -3314,42 +3323,24 @@ function _sanitizeFnamePart(s){
 function uploadVykresToGitHub(soId, nazev, origName, base64){
   var u = (typeof fbAuth!=='undefined' && fbAuth) ? fbAuth.currentUser : null;
   if(!u){ showToast('❌ Nejsi přihlášen', 3000); return; }
+  var st = _euStorageOK();
+  if(!st){ showToast('❌ Storage nedostupné', 3000); return; }
   var soNum = _sanitizeFnamePart(soId);
   var fname = 'SO_' + soNum + '/u_' + Date.now() + '_' + _sanitizeFnamePart(origName.replace(/\.pdf$/i,'')).slice(0,40) + '.pdf';
+  var soubor = 'pdf/' + fname;   // v DB držíme CESTU, resolver ji přeloží (auth brána)
   showSync('⏳ Nahrávám výkres…');
-  u.getIdToken().then(function(idToken){
-    return fetch(UPLOAD_VK_FN_URL, {
-      method:'POST',
-      headers:{ 'Authorization':'Bearer '+idToken, 'Content-Type':'application/json' },
-      body: JSON.stringify({ filename: fname, content: base64 })
-    });
-  })
-  .then(function(r){ return r.json().then(function(d){ return {ok:r.ok, data:d}; }); })
-  .then(function(res){
-    if(!(res.ok && res.data)){
-      var msg = (res.data && res.data.error) ? res.data.error : 'neznámá chyba';
-      hideSync(); showToast('❌ Nahrání výkresu: '+msg, 4500); return;
-    }
-    // Cesta v repu (servíruje GitHub Pages přes iframe) – preferuj relativní pdf/ cestu
-    var soubor = 'pdf/' + fname;
-    var meta = {
-      soubor: soubor,
-      nazev: nazev,
-      typ: '⬆ nahráno',
-      ownerUid: (window.currentUser ? window.currentUser.uid : (u.uid||'')),
-      author: (window.currentUser ? window.currentUser.name : (u.displayName||'')),
-      origName: origName,
-      ts: Date.now()
-    };
-    db.ref('vykresy_uzivatelske/' + soNum).push(meta)
-      .then(function(){
-        hideSync(); showToast('✅ Výkres přidán', 2000);
-        // uploadedVykresy se obnoví přes .on() listener a panel se překreslí
-        try { reopenDocPanel(); } catch(e){}
-      })
-      .catch(function(){ hideSync(); showToast('⚠ Výkres nahrán, ale zápis do DB selhal', 4000); });
-  })
-  .catch(function(e){ console.error('uploadVykres exc:', e); hideSync(); showToast('❌ Síťová chyba nahrávání', 3500); });
+  st.ref(soubor).putString(base64, 'base64', { contentType:'application/pdf' })
+    .then(function(){
+      var meta = {
+        soubor: soubor, nazev: nazev, typ: '⬆ nahráno',
+        ownerUid: (window.currentUser ? window.currentUser.uid : (u.uid||'')),
+        author: (window.currentUser ? window.currentUser.name : (u.displayName||'')),
+        origName: origName, ts: Date.now()
+      };
+      return db.ref('vykresy_uzivatelske/' + soNum).push(meta);
+    })
+    .then(function(){ hideSync(); showToast('✅ Výkres přidán', 2000); try { reopenDocPanel(); } catch(e){} })
+    .catch(function(e){ console.error('uploadVykres exc:', e && (e.code||e.message)); hideSync(); showToast('❌ Nahrání výkresu selhalo', 3500); });
 }
 // Odebrání právě zobrazeného nahraného výkresu (tlačítko 🗑 v hlavičce panelu)
 function delCurrentVykres(){
@@ -3751,6 +3742,7 @@ function findDocsForKm(docs, realKm) {
 }
 
 function onStaniceniClick(realKm) {
+  if(typeof _permGuard==='function' && !_permGuard('pdf','Prohlížení výkresů')) return;
   showToast('km '+fmtKm(realKm),1500);
   var sPos = realKmToLatLng(realKm);
   if(sPos) showSelectionRing(L.latLng(sPos[0], sPos[1]));
@@ -4929,28 +4921,17 @@ function burnInMetadata(dataUrl, km, author, callback, so) {
 }
 
 function uploadPhotoToGitHub(dataUrl, filename, callback) {
-  var base64 = dataUrl.replace(/^data:image\/\w+;base64,/, '');
+  // Nahrává do SOUKROMÉHO EU Storage (ne GitHub). Vrací CESTU (ne URL) – ta se uloží do DB a
+  // resolvuje se za běhu přes resolveFileUrl (auth brána). Token v DB by unikl (DB je veřejně čitelná).
   var user = (typeof fbAuth !== 'undefined' && fbAuth) ? fbAuth.currentUser : null;
   if(!user) { showToast('❌ Nejsi přihlášen – foto se nenahrálo', 3000); callback(null); return; }
-  user.getIdToken().then(function(idToken){
-    return fetch(UPLOAD_FN_URL, {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filename: filename, content: base64 })
-    });
-  })
-  .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, data: d }; }); })
-  .then(function(res){
-    if(res.ok && res.data && res.data.download_url) {
-      callback(res.data.download_url);
-    } else {
-      console.error('Upload fn err:', JSON.stringify(res.data));
-      var msg = (res.data && res.data.error) ? res.data.error : 'neznámá chyba';
-      showToast('❌ Upload: ' + msg, 4000);
-      callback(null);
-    }
-  })
-  .catch(function(e){ console.error('Upload fn exc:', e); showToast('❌ Síťová chyba uploadu', 3000); callback(null); });
+  var st = _euStorageOK();
+  if(!st) { showToast('❌ Storage nedostupné', 3000); callback(null); return; }
+  var path = 'photos/' + filename;   // stejná struktura jako dřív (photos/standalone/…)
+  var base64 = dataUrl.replace(/^data:image\/\w+;base64,/, '');
+  st.ref(path).putString(base64, 'base64', { contentType:'image/jpeg' })
+    .then(function(){ callback(path); })   // vrať CESTU, ne URL
+    .catch(function(e){ console.error('Storage upload:', e && (e.code||e.message)); showToast('❌ Upload fotky selhal', 3500); callback(null); });
 }
 
 function uploadPhotosToGitHub(items, onProgress, onDone, meta) {
@@ -5192,9 +5173,9 @@ function openPhotoFs(src, firebaseKey, item) {
 
 // Vykreslí jednu fotku do fullscreenu (sdílí openPhotoFs i navigace tažením). Vždy plná verze (url).
 function _renderFsItem(url, firebaseKey, item) {
-  document.getElementById('photo-fs-img').src = url;
+  var imgEl = document.getElementById('photo-fs-img');
   var ob = document.getElementById('photo-fs-open');
-  if(ob) ob.href = url;
+  resolveFileUrl(url).then(function(u){ if(imgEl) imgEl.src = u; if(ob) ob.href = u; });   // cesta → Storage URL
   _photoFsKey = firebaseKey || null;
   _photoFsItem = item || { url: url };
   if(!_photoFsItem.url) _photoFsItem.url = url;
@@ -5313,9 +5294,11 @@ function exifDateString(d) {
        + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
 }
 
-// Stáhne blob a vrátí Promise<{blob, dataUrl}>
+// Stáhne blob a vrátí Promise<blob>. url může být CESTA (Storage) → přeloží se přes resolver.
 function fetchPhotoAsBlob(url) {
-  return fetch(url, { mode:'cors' }).then(function(r){
+  return resolveFileUrl(url).then(function(u){
+    return fetch(u, { mode:'cors' });
+  }).then(function(r){
     if(!r.ok) throw new Error('HTTP '+r.status);
     return r.blob();
   });
@@ -6391,6 +6374,7 @@ var GEO_SECTIONS = [
   {key:'reserse',         title:'📚 Rešerše'}
 ];
 function openGeotechPanel(){
+  if(typeof _permGuard==='function' && !_permGuard('pdf','Geotechniku')) return;
   var p=document.getElementById('geo-panel'); if(!p) return;
   p.style.display='flex';
   var s=document.getElementById('geo-search');
@@ -7793,6 +7777,7 @@ function _processPhotoQueue(){
           };
           if(urlOrig)  entry.urlOriginal = urlOrig;
           if(urlStamp) entry.urlStamped  = urlStamp;
+          if(typeof isSubOnly==='function' && isSubOnly()){ entry.zdroj='SUB'; entry.sub=true; }   // fotka subky
           function saveEntry(){
             db.ref('standalone_photos/' + t).set(entry).then(function(){
               photoPending = Math.max(0, photoPending-1); _photoBadge();
@@ -7887,6 +7872,9 @@ function openGallery() {
   if(!_permGuard('galerie','Galerii fotek')) return;
   document.getElementById('gallery-modal').classList.add('open');
   unlockViewport();
+  // Subka vidí jen svoje SUB fotky – vynuť filtr a zamkni ho.
+  var subCb=document.getElementById('gfilt-sub');
+  if(subCb && typeof isSubOnly==='function'){ if(isSubOnly()){ subCb.checked=true; subCb.disabled=true; } else { subCb.disabled=false; } }
   applyGalleryCols();
   renderGallery();
 }
@@ -7957,7 +7945,9 @@ function applyGalleryFilters(items){
   var dtDo = (document.getElementById('gfilt-date-do').value || '').trim();
   var aut  = (document.getElementById('gfilt-author').value || '').trim();
   var soF  = (function(){ var e=document.getElementById('gfilt-so'); return e?(e.value||'').trim():''; })();
+  var subF = (typeof isSubOnly==='function' && isSubOnly()) || (function(){ var e=document.getElementById('gfilt-sub'); return !!(e && e.checked); })();
   return items.filter(function(it){
+    if(subF && !(it.zdroj==='SUB' || it.sub)) return false;   // subka / filtr „jen SUB"
     if(soF){ var so=(it.so||''); if(soF==='__none__'){ if(so) return false; } else if(so!==soF) return false; }
     if(!isNaN(kmOd) || !isNaN(kmDo)) {
       var km = parseKmStr(it.km);
@@ -8146,8 +8136,8 @@ function _galleryItemEl(item) {
   div.setAttribute('data-gk', k);
   if(gallerySelectedKeys[k]) div.classList.add('selected');
   var img = document.createElement('img');
-  img.src = item.thumb || item.url;   // v mřížce malý náhled; plná kvalita až ve fullscreenu/stahování
   img.loading = 'lazy';
+  resolveFileUrl(item.thumb || item.url).then(function(u){ img.src = u; });   // cesta → Storage URL (náhled)
   (function(it, divRef) {
     img.onclick = function() {
       if(gallerySelectMode) { _toggleGallerySelection(it, divRef); }
@@ -8169,6 +8159,11 @@ function _galleryItemEl(item) {
       };
     })(item);
     div.appendChild(badge);
+  }
+  if(item.zdroj==='SUB' || item.sub){
+    div.classList.add('gallery-sub');
+    var subBadge = document.createElement('div'); subBadge.className = 'gallery-sub-badge'; subBadge.textContent = 'SUB';
+    div.appendChild(subBadge);
   }
   var meta = document.createElement('div');
   meta.className = 'gallery-item-meta';
@@ -8342,8 +8337,15 @@ function isBlocked(uid){
   var rec = window.allUsers && window.allUsers[u];
   return !!(rec && rec.blocked);
 }
+// „Fotí jako subka" – subdodavatel: tvrdě jen focení + galerie (jen svoje SUB fotky).
+function isSubOnly(uid){
+  var u = uid || (window.currentUser && window.currentUser.uid); if(!u) return false;
+  var rec = window.allUsers && window.allUsers[u];
+  return !!(rec && rec.subOnly);
+}
 // Funkce, které jde adminovi zakázat konkrétnímu uživateli (allow-by-default).
 var FEATURES = [
+  {key:'pdf',        label:'Prohlížení výkresů (PDF)',  btns:[]},   // otvírá se klikem na mapu → gating v openerech + data-perm vrstvy
   {key:'foto',       label:'Focení',                   btns:['btn-standalone-foto']},
   {key:'galerie',    label:'Galerie fotek',            btns:['btn-gallery']},
   {key:'vykresy',    label:'Nahrávání výkresů',        btns:['btn-pdf-addvk']},
@@ -8357,6 +8359,7 @@ function hasPerm(f){
   if(isAdmin()) return true;
   var me = window.currentUser && window.currentUser.uid; if(!me) return false;
   if(isBlocked(me)) return false;
+  if(isSubOnly(me)) return (f === 'foto' || f === 'galerie');   // subka = tvrdě jen focení + galerie
   var rec = window.allUsers && window.allUsers[me];
   return !(rec && rec.perms && rec.perms[f] === false);   // allow-by-default
 }
@@ -8364,6 +8367,16 @@ function applyPermsToUI(){
   FEATURES.forEach(function(f){
     var vis = hasPerm(f.key);
     (f.btns||[]).forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display = vis ? '' : 'none'; });
+  });
+  // Viditelnost ve Vrstvách: zakázaná funkce se skryje + vypnou se její lyr-* přepínače (vrstva zmizí i z mapy).
+  document.querySelectorAll('[data-perm]').forEach(function(sec){
+    var vis = hasPerm(sec.getAttribute('data-perm'));
+    sec.style.display = vis ? '' : 'none';
+    if(!vis){
+      sec.querySelectorAll('input[id^="lyr-"]').forEach(function(cb){
+        if(cb.checked){ cb.checked = false; if(typeof cb.onchange === 'function') cb.onchange(); }
+      });
+    }
   });
 }
 // Guard na vstup funkce (backstop k schování tlačítka). Vrací true když SMÍ pokračovat.
@@ -8391,23 +8404,32 @@ function closeUserAdmin(){ var m=document.getElementById('user-admin-modal'); if
 function _renderUserAdmin(){
   var box=document.getElementById('user-admin-list'); if(!box) return;
   var d=window.allUsers||{}; var me=(window.currentUser&&window.currentUser.uid);
-  var keys=Object.keys(d).sort(function(a,b){ return ((d[b]&&d[b].lastSeen)||0)-((d[a]&&d[a].lastSeen)||0); });
+  function _pend(uid){ return (!isAdmin(uid) && d[uid] && d[uid].approved!==true) ? 0 : 1; }  // 0 = čeká → nahoru
+  var keys=Object.keys(d).sort(function(a,b){
+    if(_pend(a)!==_pend(b)) return _pend(a)-_pend(b);
+    return ((d[b]&&d[b].lastSeen)||0)-((d[a]&&d[a].lastSeen)||0);
+  });
   if(!keys.length){ box.innerHTML='<div style="padding:18px;color:var(--text2);text-align:center;">Zatím žádní přihlášení uživatelé.</div>'; return; }
   var bs='border:none;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;';
   box.innerHTML=keys.map(function(uid){
     var u=d[uid]||{}; var admin=isAdmin(uid), blocked=isBlocked(uid), self=(uid===me);
+    var pending=(!admin && u.approved!==true);
     var badges=(admin?'<span style="background:#f59e0b;color:#111;font-size:10px;font-weight:800;padding:1px 5px;border-radius:5px;margin-left:6px;">ADMIN</span>':'')+
-               (blocked?'<span style="background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:1px 5px;border-radius:5px;margin-left:6px;">BLOKOVÁN</span>':'');
+               (blocked?'<span style="background:#ef4444;color:#fff;font-size:10px;font-weight:800;padding:1px 5px;border-radius:5px;margin-left:6px;">BLOKOVÁN</span>':'')+
+               (pending?'<span style="background:#0ea5e9;color:#fff;font-size:10px;font-weight:800;padding:1px 5px;border-radius:5px;margin-left:6px;">⏳ ČEKÁ</span>':'');
     var perms = admin ? '<div style="font-size:11px;color:var(--text2);margin-top:6px;">⭐ Admin má přístup ke všemu.</div>'
+      : (u.subOnly ? '<div style="font-size:11px;color:#f97316;margin-top:6px;">📷 Fotí jako subka — tvrdě jen focení + galerie svých SUB fotek (práva níž se ignorují).</div>'
       : '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;">'+FEATURES.map(function(f){
           var allowed = !(u.perms && u.perms[f.key]===false);
           return '<label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;color:var(--text);">'+
             '<input type="checkbox" '+(allowed?'checked':'')+' onchange="toggleUserPerm(\''+uid+'\',\''+f.key+'\',this.checked)"> '+f.label+'</label>';
-        }).join('')+'</div>';
+        }).join('')+'</div>');
     var ctrl = self ? '<span style="font-size:11px;color:var(--text2);align-self:center;">(to jsi ty)</span>' :
+      (pending ? '<button onclick="toggleUserApprove(\''+uid+'\')" style="'+bs+'background:#22c55e;color:#fff;">✅ Schválit</button>' : '')+
       '<button onclick="toggleBlockUser(\''+uid+'\','+(!blocked)+')" style="'+bs+(blocked?'background:#22c55e;color:#fff;':'background:#ef4444;color:#fff;')+'">'+(blocked?'✅ Odblokovat':'🚫 Blokovat')+'</button>'+
-      '<button onclick="toggleUserAdmin(\''+uid+'\','+(!admin)+')" style="'+bs+(admin?'background:var(--panel);color:var(--text);border:1px solid var(--border);':'background:#f59e0b;color:#111;')+'">'+(admin?'⭐ Zrušit admina':'⭐ Udělat admina')+'</button>';
-    return '<div style="border:1px solid var(--border);border-radius:8px;padding:9px 11px;margin-bottom:8px;background:var(--panel2);">'+
+      '<button onclick="toggleUserAdmin(\''+uid+'\','+(!admin)+')" style="'+bs+(admin?'background:var(--panel);color:var(--text);border:1px solid var(--border);':'background:#f59e0b;color:#111;')+'">'+(admin?'⭐ Zrušit admina':'⭐ Udělat admina')+'</button>'+
+      (admin?'':'<button onclick="toggleUserSubOnly(\''+uid+'\','+(!u.subOnly)+')" style="'+bs+(u.subOnly?'background:#f97316;color:#fff;':'background:var(--panel2);color:var(--text);border:1px solid var(--border);')+'">📷 '+(u.subOnly?'Subka ✓':'Jako subka')+'</button>');
+    return '<div style="border:1px solid '+(pending?'#0ea5e9':'var(--border)')+';border-radius:8px;padding:9px 11px;margin-bottom:8px;background:'+(pending?'rgba(14,165,233,0.10)':'var(--panel2)')+';">'+
       '<div style="display:flex;align-items:center;gap:8px;">'+
         '<img src="'+(u.photo||_uaDefAvatar)+'" style="width:30px;height:30px;border-radius:50%;object-fit:cover;background:#556;flex-shrink:0;">'+
         '<div style="flex:1;min-width:0;"><div style="font-weight:700;color:var(--text);">'+escapeHtml(u.name||'—')+badges+'</div>'+
@@ -8427,6 +8449,18 @@ function toggleBlockUser(uid, block){
 function toggleUserPerm(uid, key, allowed){
   if(!isAdmin()){ return; }
   db.ref('uzivatele/'+uid+'/perms/'+key).set(allowed?null:false).catch(function(){ showToast('❌ Chyba zápisu práva', 2500); });
+}
+function toggleUserApprove(uid){
+  if(!isAdmin()){ return; }
+  db.ref('uzivatele/'+uid+'/approved').set(true)
+    .then(function(){ showToast('✅ Uživatel schválen', 1800); })
+    .catch(function(){ showToast('❌ Chyba (publikoval jsi pravidla?)', 3000); });
+}
+function toggleUserSubOnly(uid, mk){
+  if(!isAdmin()){ return; }
+  db.ref('uzivatele/'+uid+'/subOnly').set(mk?true:null)
+    .then(function(){ showToast(mk?'📷 Nastaveno: fotí jako subka':'Subka režim zrušen', 2000); })
+    .catch(function(){ showToast('❌ Chyba (publikoval jsi pravidla?)', 3000); });
 }
 function toggleUserAdmin(uid, mk){
   if(!isAdmin()){ return; }
@@ -8519,9 +8553,10 @@ function completeLogin(user, nameOverride) {
     photo:    window.currentUser.photo,
     lastSeen: Date.now()
   });
-  // BLOKACE: zjisti, jestli uživatel není zablokovaný, a teprve pak ho pusť dovnitř.
-  db.ref('uzivatele/' + user.uid + '/blocked').once('value').then(function(snap){
-    if(snap.val() === true){
+  // BLOKACE + SCHVÁLENÍ: přečti celý záznam a rozhodni, jestli pustit dovnitř.
+  db.ref('uzivatele/' + user.uid).once('value').then(function(snap){
+    var rec = snap.val() || {};
+    if(rec.blocked === true){
       window.currentUser = null;
       document.getElementById('auth-gate').classList.remove('hide');
       showMainView();
@@ -8529,8 +8564,30 @@ function completeLogin(user, nameOverride) {
       try { fbAuth.signOut(); } catch(e){}
       return;
     }
+    // Schvalování: admin (ADMIN_UIDS nebo role) projde vždy; ostatní musí být approved.
+    var admin = (ADMIN_UIDS.indexOf(user.uid) !== -1) || rec.role === 'admin';
+    if(rec.approved !== true && !admin){
+      _showPendingApproval(user.uid, displayName);
+      return;
+    }
     _enterApp(displayName);
   }).catch(function(){ _enterApp(displayName); });  // při chybě čtení nech projít (offline apod.)
+}
+// Uživatel čeká na schválení administrátorem. Zůstane přihlášený (admin ho vidí v /uzivatele),
+// ale nevpustí se; živě poslouchá approved a jakmile ho admin schválí, appka se sama otevře.
+function _showPendingApproval(uid, name){
+  document.getElementById('auth-gate').classList.remove('hide');
+  showMainView();
+  showAuthError('⏳ Čekáš na schválení administrátorem. Jakmile tě schválí, aplikace se sama otevře. (Okno nezavírej.)');
+  try {
+    db.ref('uzivatele/'+uid+'/approved').on('value', function(s){
+      if(s.val() === true){
+        try { db.ref('uzivatele/'+uid+'/approved').off(); } catch(e){}
+        showAuthError('');
+        _enterApp(name);
+      }
+    });
+  } catch(e){}
 }
 // Vpuštění do aplikace (voláno až po ověření, že uživatel není blokovaný).
 function _enterApp(displayName){
@@ -12072,6 +12129,7 @@ function copyDiaryExport(){
           <option value="">— libovolný —</option>
         </select>
       </div>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text);cursor:pointer;white-space:nowrap;padding-bottom:6px;"><input type="checkbox" id="gfilt-sub" onchange="renderGallery()"> 📷 jen SUB</label>
     </div>
     <div style="display:flex;gap:8px;align-items:flex-end;margin-top:8px;">
       <div style="flex:1;">
