@@ -4266,6 +4266,7 @@ function init() {
   loadNotes();
   loadVykresy();
   loadVykresRevize();
+  loadCustomSO();        // vlastní objekty (deponie…) ze sdíleného /so_custom
   initLongPress();
   // Zastavit touch eventy z panelů aby nešly do Leaflet mapy
   ['pdf-panel','prop-panel'].forEach(function(id) {
@@ -4881,7 +4882,9 @@ function _soStampLabel(so){
   if(Array.isArray(so)){ return so.map(_soStampLabel).filter(Boolean).join(' · '); }   // víc SO
   so = (so == null) ? '' : String(so).trim();
   if(!so) return '';
-  return /^so\b/i.test(so) ? so : ('SO ' + so);
+  if(/^so\b/i.test(so)) return so;          // už „SO …"
+  if(/^\d/.test(so)) return 'SO ' + so;     // holé číslo → „SO 101"
+  return so;                                 // vlastní název (deponie…) nech tak
 }
 // Sdílené kreslení razítkového boxu vpravo dole. lines = [{t, bold}], prázdné řádky vyhodí.
 function _drawStampBox(ctx, img, lines){
@@ -6776,7 +6779,15 @@ function deleteMereni(key){
   db.ref('mereni/'+key).remove().then(function(){ showToast('🗑️ Smazáno', 1500); }).catch(function(){ showToast('❌ Chyba mazání', 2500); });
 }
 // Upravit smí autor (legacy bez vlastníka = kdokoliv přihlášený – stejný model jako mazání).
-function canEditMereni(r){ return (typeof canDeleteRecord==='function') ? canDeleteRecord(r) : true; }
+// Upravit/mazat měření smí AUTOR nebo ADMIN (přísnější než canDeleteRecord: záznam bez vlastníka jen admin,
+// protože měření jsou sdílená týmová data). Viz reference/namety-vylepseni.md #16.
+function canEditMereni(r){
+  if(!r) return false;
+  if(typeof isAdmin==='function' && isAdmin()) return true;
+  var owner = (typeof recOwnerUid==='function') ? recOwnerUid(r) : (r.ownerUid || '');
+  var me = (window.currentUser && window.currentUser.uid) || null;
+  return !!owner && !!me && owner === me;
+}
 
 // ── Úprava BODŮ uloženého měření (tahací vrcholy) ──
 function editMereniGeometry(key){
@@ -7619,10 +7630,13 @@ function soKandidati(kmNum){
   return r;
 }
 
-// Hezký popisek objektu pro hlavičku složky / tlačítko.
+// Hezký popisek objektu pro hlavičku složky / tlačítko (hledá i mezi vlastními objekty /so_custom).
 function soLabel(id){
   for(var i=0;i<SO_OBJEKTY.length;i++){
     if(SO_OBJEKTY[i].id === id) return SO_OBJEKTY[i].short ? (id + ' — ' + SO_OBJEKTY[i].short) : id;
+  }
+  for(var j=0;j<customSO.length;j++){
+    if(customSO[j].id === id) return customSO[j].short ? (id + ' — ' + customSO[j].short) : id;
   }
   return id;
 }
@@ -7630,8 +7644,19 @@ function soLabel(id){
 // Vybere SO pro novou fotku. Primárně podle GPS (jen SO v okruhu 50 m, řazeno od nejbližšího);
 // když GPS chybí, fallback na km-staničení. 1 kandidát → rovnou; víc → modál; 0 → ruční výběr.
 // cb dostane id objektu (string) nebo '' když „Nepřiřazovat".
+// Vlastní objekty mimo PD (deponie, zařízení staveniště, místa…) – sdílené přes /so_custom.
+var customSO = [];
+function loadCustomSO(){
+  if(typeof db==='undefined' || !db) return;
+  db.ref('so_custom').on('value', function(snap){
+    var v = snap.val() || {}; customSO = Object.keys(v).map(function(k){ var o=v[k]||{}; return { id:o.id, short:(o.short||''), _key:k }; }).filter(function(o){ return o.id; });
+    if(_soPick && _soPick.showCustom) _renderSOPicker();   // živě dorenderuj, když je otevřený výběr
+  }, function(){});
+}
+
 // MULTI-VÝBĚR SO: cb dostane POLE id (prázdné = nepřiřazovat). preset = předzaškrtnutá (pro editaci).
-var _soPick = null;   // {cb, sel:{}, kand:[], showAll:false}
+// 3 sekce: 📍 blízké → 📋 Všechny SO → 📦 Ostatní/deponie (+ ✏️ ruční přidání do /so_custom).
+var _soPick = null;
 function chooseSOForPhoto(kmStr, lat, lng, cb, preset){
   var kand;
   if(typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)){
@@ -7644,13 +7669,29 @@ function chooseSOForPhoto(kmStr, lat, lng, cb, preset){
 function openSOPicker(kand, cb, preset){
   var modal = document.getElementById('so-pick-modal');
   if(!modal){ cb([]); return; }
-  _soPick = { cb: cb, sel: {}, kand: (kand || []), showAll: false };
+  _soPick = { cb: cb, sel: {}, kand: (kand || []), showAll: false, showCustom: false };
   (preset || []).forEach(function(id){ if(id) _soPick.sel[id] = true; });
   _renderSOPicker();
   modal.classList.add('open');
 }
 function _soPickToggle(id){ if(!_soPick) return; if(_soPick.sel[id]) delete _soPick.sel[id]; else _soPick.sel[id]=true; _renderSOPicker(); }
 function _soPickShowAll(){ if(_soPick){ _soPick.showAll = true; _renderSOPicker(); } }
+function _soPickShowCustom(){ if(_soPick){ _soPick.showCustom = true; _renderSOPicker(); } }
+function _soPickAddCustom(){
+  if(!_soPick) return;
+  var name = prompt('Název vlastního objektu (deponie, zařízení staveniště, místo…):', '');
+  if(name === null) return;
+  name = (name || '').trim().slice(0,60);
+  if(!name){ return; }
+  // ulož do sdíleného /so_custom (pokud ještě není) + rovnou zaškrtni
+  var exists = customSO.some(function(o){ return o.id === name; });
+  if(!exists && typeof db !== 'undefined' && db){
+    try { db.ref('so_custom').push({ id:name, short:'', ts:Date.now(), author:(window.currentUser?window.currentUser.name:'') }); } catch(e){}
+    customSO = customSO.concat([{ id:name, short:'' }]);   // lokálně hned (než doběhne .on())
+  }
+  _soPick.sel[name] = true; _soPick.showCustom = true;
+  _renderSOPicker();
+}
 function _renderSOPicker(){
   var body = document.getElementById('so-pick-list'), sub = document.getElementById('so-pick-sub');
   if(!body || !_soPick) return;
@@ -7661,13 +7702,23 @@ function _renderSOPicker(){
     return '<button class="so-pick-btn'+(on?' so-pick-on':'')+'" onclick="_soPickToggle(\''+String(o.id).replace(/'/g,"\\'")+'\')">'+(on?'☑ ':'☐ ')+escapeHtml(lbl)+'</button>';
   }
   var html = '';
+  // 1) Blízké objekty
   if(_soPick.kand.length){ html += '<div class="so-pick-sec">📍 Blízké objekty</div>' + _soPick.kand.map(itemBtn).join(''); }
+  // 2) Všechny SO (z katalogu)
+  var near = {}; _soPick.kand.forEach(function(o){ near[o.id] = true; });
   if(_soPick.showAll){
-    var near = {}; _soPick.kand.forEach(function(o){ near[o.id] = true; });
     var rest = (typeof SO_OBJEKTY !== 'undefined' ? SO_OBJEKTY : []).filter(function(o){ return !near[o.id]; });
     html += '<div class="so-pick-sec">📋 Všechny SO</div>' + rest.map(itemBtn).join('');
   } else {
     html += '<button class="so-pick-btn so-pick-more" onclick="_soPickShowAll()">📋 Všechny SO…</button>';
+  }
+  // 3) Ostatní / deponie / místa (vlastní, sdílené) + ruční přidání
+  if(_soPick.showCustom){
+    html += '<div class="so-pick-sec">📦 Ostatní / deponie / místa</div>';
+    if(customSO.length) html += customSO.map(itemBtn).join('');
+    html += '<button class="so-pick-btn so-pick-more" onclick="_soPickAddCustom()">✏️ Přidat vlastní objekt…</button>';
+  } else {
+    html += '<button class="so-pick-btn so-pick-more" onclick="_soPickShowCustom()">📦 Ostatní / deponie / místa…</button>';
   }
   body.innerHTML = html;
   var cnt = Object.keys(_soPick.sel).length;
