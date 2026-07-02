@@ -1055,14 +1055,14 @@ document.addEventListener('touchend', function(e){
     <div id="auth-view-phone" style="display:none;">
       <p style="text-align:left;">Telefonní číslo:</p>
       <input type="tel" id="phone-input" class="auth-input" placeholder="+420 600 123 456" autocomplete="tel">
-      <button id="btn-send-sms" class="auth-google" onclick="sendSmsCode()">📨 Odeslat SMS kód</button>
+      <button id="btn-send-sms" class="auth-google" onclick="sendSmsCode()">➡️ Pokračovat k zadání kódu</button>
       <button class="auth-back" onclick="showMainView()">↩ Zpět</button>
       <div id="recaptcha-container"></div>
     </div>
 
     <!-- Pohled 3: zadání SMS kódu -->
     <div id="auth-view-code" style="display:none;">
-      <p style="text-align:left;">Zadej 6-místný kód, který jsme ti poslali:</p>
+      <p style="text-align:left;">Zadej ověřovací kód <b>123456</b>:</p>
       <input type="tel" id="sms-code-input" class="auth-input" placeholder="123456" maxlength="6" autocomplete="one-time-code" inputmode="numeric">
       <button class="auth-google" onclick="verifySmsCode()">✓ Ověřit kód</button>
       <button class="auth-back" onclick="showPhoneView()">↩ Změnit číslo</button>
@@ -1337,9 +1337,8 @@ var KM_END   = 8.200;   /* KÚ */
 
 var GITHUB_USER_REPO = 'Pripravar/Martinovice';
 var GITHUB_BRANCH_PDF = 'main';
-// Upload fotek jde přes Cloud Function (GitHub token zůstává na serveru, ne v prohlížeči).
-var UPLOAD_FN_URL = 'https://europe-west1-martinovice-7a661.cloudfunctions.net/uploadFoto'; /* aktivní až po deployi (Blaze plán) */
-var UPLOAD_VK_FN_URL = 'https://europe-west1-martinovice-7a661.cloudfunctions.net/uploadVykres'; /* nahrání výkresu (PDF) – aktivní až po deployi funkce uploadVykres */
+// (Upload fotek i výkresů jde nově přímo do soukromého EU Firebase Storage přes Storage SDK –
+//  původní Cloud Functions uploadFoto/uploadVykres se už nevolají, konstanty odstraněny.)
 // Bázová cesta k PDF výkresům - RELATIVNÍ k aplikaci (na GitHub Pages).
 // Důvod: raw.githubusercontent.com servíruje PDF jako application/octet-stream
 // → iframe je nezobrazí. Pages servírují PDF jako application/pdf → iframe OK.
@@ -4879,6 +4878,7 @@ window.addEventListener('load', function() {
 // -- Burn-in metadata do fotky --------
 // Popisek SO do razítka: '101' → 'SO 101'; '' → '' (nic). Když už začíná „SO/so", nechá tak.
 function _soStampLabel(so){
+  if(Array.isArray(so)){ return so.map(_soStampLabel).filter(Boolean).join(' · '); }   // víc SO
   so = (so == null) ? '' : String(so).trim();
   if(!so) return '';
   return /^so\b/i.test(so) ? so : ('SO ' + so);
@@ -7810,7 +7810,7 @@ function _processPhotoQueue(){
         });
       }, 500);
     });
-  }, meta.so);
+  }, (meta.soList && meta.soList.length ? meta.soList : meta.so));
 }
 
 function ppAnswer(yes) {
@@ -7963,7 +7963,7 @@ function applyGalleryFilters(items){
   var subF = (typeof isSubOnly==='function' && isSubOnly()) || (function(){ var e=document.getElementById('gfilt-sub'); return !!(e && e.checked); })();
   return items.filter(function(it){
     if(subF && !(it.zdroj==='SUB' || it.sub)) return false;   // subka / filtr „jen SUB"
-    if(soF){ var so=(it.so||''); if(soF==='__none__'){ if(so) return false; } else if(so!==soF) return false; }
+    if(soF){ var _l=(it.soList&&it.soList.length)?it.soList:(it.so?[it.so]:[]); if(soF==='__none__'){ if(_l.length) return false; } else if(_l.indexOf(soF)===-1) return false; }
     if(!isNaN(kmOd) || !isNaN(kmDo)) {
       var km = parseKmStr(it.km);
       if(km === null) return false; // bez km neprochází filtr
@@ -8035,7 +8035,7 @@ function fillGallerySOOptions(items){
   var sel = document.getElementById('gfilt-so'); if(!sel) return;
   var current = sel.value;
   var set = {}; var hasNone = false;
-  items.forEach(function(it){ if(it.so) set[it.so]=true; else hasNone=true; });
+  items.forEach(function(it){ var l=(it.soList&&it.soList.length)?it.soList:(it.so?[it.so]:[]); if(l.length){ l.forEach(function(s){ if(s) set[s]=true; }); } else hasNone=true; });
   var arr = Object.keys(set).sort(function(a,b){ return a.localeCompare(b,'cs',{numeric:true}); });
   sel.innerHTML = '<option value="">— libovolný —</option>';
   arr.forEach(function(so){
@@ -8073,25 +8073,26 @@ function editPhotoSO(){
   if(!window.currentUser){ showToast('Pro zatřídění se přihlas', 2500); return; }
   var it=_photoFsItem, key=_photoFsKey;
   if(!it || !key){ showToast('Zatřídit jde jen samostatné fotky', 2500); return; }
-  _pickSOForReassign(function(soId){
-    if(soId===null || soId===undefined) return;   // zrušeno
-    db.ref('standalone_photos/'+key+'/so').set(soId||'')
-      .then(function(){ if(_photoFsItem) _photoFsItem.so=soId||''; showToast('🏗️ Zatříděno do '+(soId?soLabel(soId):'Nezařazené'), 2200); if(document.getElementById('gallery-modal').classList.contains('open')) renderGallery(); })
+  var preset = (it.soList && it.soList.length) ? it.soList : (it.so ? [it.so] : []);
+  chooseSOForPhoto(it.km, it.lat, it.lng, function(arr){
+    arr = arr || []; var so = arr[0] || '';
+    db.ref('standalone_photos/'+key).update({ so:so, soList:arr })
+      .then(function(){ if(_photoFsItem){ _photoFsItem.so=so; _photoFsItem.soList=arr; } showToast('🏗️ Zatříděno ('+arr.length+' SO)', 2200); if(document.getElementById('gallery-modal').classList.contains('open')) renderGallery(); })
       .catch(function(){ showToast('❌ Chyba zápisu', 2500); });
-  });
+  }, preset);
 }
-// Hromadné přeřazení vybraných fotek v galerii.
+// Hromadné přeřazení vybraných fotek v galerii (multi-výběr).
 function reassignSelectedGalleryPhotos(){
   if(!window.currentUser){ showToast('Pro zatřídění se přihlas', 2500); return; }
   var items=Object.values(gallerySelectedKeys).filter(function(it){ return it && it.fbKey; });
   if(!items.length){ showToast('Vyber nejdřív fotky (jen samostatné)', 2200); return; }
-  _pickSOForReassign(function(soId){
-    if(soId===null || soId===undefined) return;
-    var updates={}; items.forEach(function(it){ updates['standalone_photos/'+it.fbKey+'/so']=soId||''; });
+  openSOPicker([], function(arr){
+    arr = arr || []; var so = arr[0] || '';
+    var updates={}; items.forEach(function(it){ updates['standalone_photos/'+it.fbKey+'/so']=so; updates['standalone_photos/'+it.fbKey+'/soList']=arr; });
     db.ref().update(updates)
-      .then(function(){ showToast('🏗️ Zatříděno '+items.length+' fotek do '+(soId?soLabel(soId):'Nezařazené'), 2600); renderGallery(); })
+      .then(function(){ showToast('🏗️ Zatříděno '+items.length+' fotek ('+arr.length+' SO)', 2600); renderGallery(); })
       .catch(function(){ showToast('❌ Chyba hromadného zatřídění', 2800); });
-  });
+  }, []);
 }
 
 // ── Jednorázová migrace: dogenerovat náhledy starým fotkám (bez thumb) ──
@@ -8700,7 +8701,7 @@ function normalizePhone(input) {
 // ── Denní limit přihlášení přes SMS (zdarma do limitu, bez Blaze) ──────
 // Per-zařízení počítadlo v localStorage. Firebase má navíc vlastní strop 10/den
 // na celý projekt zdarma — tohle drží spotřebu komfortně pod ním.
-var SMS_DAILY_LIMIT = 5;
+var SMS_DAILY_LIMIT = 30;   // testovací čísla nic nestojí → vyšší limit, ať to kolegy neblokuje
 function _smsQuotaKey() { return 'smsLoginCount_' + new Date().toISOString().slice(0,10); }
 function _smsCountToday() { return parseInt(localStorage.getItem(_smsQuotaKey()) || '0', 10) || 0; }
 function _smsBumpCount() {
@@ -8725,7 +8726,7 @@ function sendSmsCode() {
     showAuthError('Denní limit přihlášení přes telefon (' + SMS_DAILY_LIMIT + '×) byl vyčerpán. Zkus to prosím zítra.');
     return;
   }
-  showAuthError('⏳ Odesílám SMS…');
+  showAuthError('⏳ Připravuji přihlášení…');
   _ensureRecaptcha()
     .then(function(verifier){
       if(!verifier) throw new Error('reCAPTCHA se nepodařilo inicializovat.');
@@ -8734,7 +8735,7 @@ function sendSmsCode() {
     .then(function(result){
       window._phoneConfirm = result;
       _smsBumpCount();
-      showAuthError('✓ SMS odeslána na ' + phone);
+      showAuthError('Zadej ověřovací kód 123456');
       showCodeView();
       setTimeout(function(){ var i = document.getElementById('sms-code-input'); if(i) i.focus(); }, 200);
     })
