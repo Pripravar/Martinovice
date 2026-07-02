@@ -7601,16 +7601,27 @@ var galleryGrouped = false;   // false = klasická mřížka, true = složky po 
 // bodové doplňkové objekty (DOPLNKY_SO) mají jedno km. Při focení se podle staničení
 // najdou objekty v okolí ±50 m a uživatel vybere přesný SO.
 var SO_OBJEKTY = (function(){
-  // DOPLNIT: lineární SO této stavby (bodové se přidají automaticky z DOPLNKY_SO níže).
-  // Viz reference/datova-pole.md §7. Formát: {id:'SO 101', short:'silnice', kmOd:0.000, kmDo:4.605}
-  var list = [
-    /* {id:'SO 101', short:'silnice', kmOd:0.000, kmDo:4.605}, */
-  ];
+  // Kompletní katalog SO stavby pro výběr u fotky. Skládá se ze:
+  //  1) bodových/doplňkových SO (DOPLNKY_SO) – mají km → nabízejí se i podle polohy (blízké objekty),
+  //  2) VŠECH ostatních SO, které mají výkresy (SO_VYKRESY) – lineární SO (silnice, mosty, propustky,
+  //     přeložky IS, VO…) bez km → objeví se v sekci „Všechny SO".
+  var list = [], seen = {};
+  function _soNum(id){ var m = String(id).replace(/^SO\s+/i,'').match(/^\d+(?:\.\d+)?/); return m ? m[0] : null; }
   (typeof DOPLNKY_SO !== 'undefined' ? DOPLNKY_SO : []).forEach(function(d){
-    if(!d || typeof d.km !== 'number') return;
+    if(!d || !d.id) return;
     var short = String(d.nazev || d.id).replace(d.id + ' - ', '').replace(/\s*\(km[^)]*\)\s*$/i, '').trim();
-    list.push({ id:d.id, short:short, kmOd:d.km, kmDo:d.km });
+    var e = { id:d.id, short:short };
+    if(typeof d.km === 'number'){ e.kmOd = d.km; e.kmDo = d.km; }   // s km → blízké objekty
+    list.push(e);
+    var n = _soNum(d.id); if(n) seen[n] = true;
   });
+  if(typeof SO_VYKRESY !== 'undefined'){
+    Object.keys(SO_VYKRESY).sort(function(a,b){ return a.localeCompare(b,'cs',{numeric:true}); }).forEach(function(k){
+      if(seen[k]) return;                       // už pokryto z DOPLNKY_SO
+      list.push({ id:'SO ' + k, short:'' });    // lineární SO s výkresy, bez km
+      seen[k] = true;
+    });
+  }
   return list;
 })();
 
@@ -7708,6 +7719,7 @@ function _renderSOPicker(){
   var near = {}; _soPick.kand.forEach(function(o){ near[o.id] = true; });
   if(_soPick.showAll){
     var rest = (typeof SO_OBJEKTY !== 'undefined' ? SO_OBJEKTY : []).filter(function(o){ return !near[o.id]; });
+    rest.sort(function(a,b){ return String(a.id).localeCompare(String(b.id), 'cs', {numeric:true}); });   // podle čísla SO (001,020,101,201…)
     html += '<div class="so-pick-sec">📋 Všechny SO</div>' + rest.map(itemBtn).join('');
   } else {
     html += '<button class="so-pick-btn so-pick-more" onclick="_soPickShowAll()">📋 Všechny SO…</button>';
