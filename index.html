@@ -729,7 +729,13 @@ textarea.note-field { min-height:80px; resize:vertical; }
 #so-pick-list { overflow-y:auto; -webkit-overflow-scrolling:touch; display:flex; flex-direction:column; gap:8px; }
 .so-pick-btn { background:var(--panel2); border:1px solid var(--border); border-radius:10px; color:var(--text); padding:13px 14px; font-size:15px; font-weight:600; text-align:left; cursor:pointer; min-height:48px; }
 .so-pick-btn:active { background:var(--accent2); color:#0f3460; }
-.so-pick-none { margin-top:4px; color:var(--text2); font-weight:700; text-align:center; }
+.so-pick-btn.so-pick-on { background:var(--accent); color:#fff; border-color:var(--accent); }
+.so-pick-sec { font-size:11px; font-weight:800; color:var(--text2); text-transform:uppercase; margin:8px 0 2px; }
+.so-pick-more { color:var(--accent); text-align:center; }
+.so-pick-footer { display:flex; gap:8px; margin-top:12px; flex-shrink:0; }
+.so-pick-footer .so-pick-btn { flex:1; text-align:center; }
+.so-pick-doneBtn { background:var(--accent2) !important; color:#0f3460 !important; border:none !important; }
+.so-pick-none { color:var(--text2); font-weight:700; text-align:center; }
 
 /* ═══════════════════════════════════════════════════════
    AUTH GATE + UŽIVATEL + ÚKOLNÍČEK (přidáno 2026-05-12)
@@ -7624,45 +7630,52 @@ function soLabel(id){
 // Vybere SO pro novou fotku. Primárně podle GPS (jen SO v okruhu 50 m, řazeno od nejbližšího);
 // když GPS chybí, fallback na km-staničení. 1 kandidát → rovnou; víc → modál; 0 → ruční výběr.
 // cb dostane id objektu (string) nebo '' když „Nepřiřazovat".
-function chooseSOForPhoto(kmStr, lat, lng, cb){
+// MULTI-VÝBĚR SO: cb dostane POLE id (prázdné = nepřiřazovat). preset = předzaškrtnutá (pro editaci).
+var _soPick = null;   // {cb, sel:{}, kand:[], showAll:false}
+function chooseSOForPhoto(kmStr, lat, lng, cb, preset){
   var kand;
   if(typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)){
     kand = soKandidatiGPS(lat, lng);
   } else {
     kand = soKandidati(parseKmStr(kmStr));
   }
-  if(kand.length === 1){ cb(kand[0].id); return; }
-  if(kand.length === 0){ openSOPicker(SO_OBJEKTY.slice(), cb, true); return; }
-  openSOPicker(kand, cb, false);
+  openSOPicker(kand, cb, preset || []);
 }
-
-function openSOPicker(list, cb, manual){
+function openSOPicker(kand, cb, preset){
   var modal = document.getElementById('so-pick-modal');
-  var body  = document.getElementById('so-pick-list');
-  var sub   = document.getElementById('so-pick-sub');
-  if(!modal || !body){ cb(''); return; }
-  if(sub) sub.textContent = manual ? '⚠ Staničení/GPS chybí – vyber objekt ručně' : 'Nejbližší objekty v okruhu 50 m – vyber pro tuto fotku';
-  body.innerHTML = '';
-  list.forEach(function(o){
-    var b = document.createElement('button');
-    b.className = 'so-pick-btn';
-    var lbl = o.id + (o.short ? '  —  ' + o.short : '');
-    if(typeof o.dist === 'number') lbl += '  (' + Math.round(o.dist) + ' m)';
-    b.textContent = lbl;
-    b.onclick = function(){ _closeSOPicker(); cb(o.id); };
-    body.appendChild(b);
-  });
-  var none = document.createElement('button');
-  none.className = 'so-pick-btn so-pick-none';
-  none.textContent = '⊘ Nepřiřazovat';
-  none.onclick = function(){ _closeSOPicker(); cb(''); };
-  body.appendChild(none);
+  if(!modal){ cb([]); return; }
+  _soPick = { cb: cb, sel: {}, kand: (kand || []), showAll: false };
+  (preset || []).forEach(function(id){ if(id) _soPick.sel[id] = true; });
+  _renderSOPicker();
   modal.classList.add('open');
 }
-function _closeSOPicker(){
-  var modal = document.getElementById('so-pick-modal');
-  if(modal) modal.classList.remove('open');
+function _soPickToggle(id){ if(!_soPick) return; if(_soPick.sel[id]) delete _soPick.sel[id]; else _soPick.sel[id]=true; _renderSOPicker(); }
+function _soPickShowAll(){ if(_soPick){ _soPick.showAll = true; _renderSOPicker(); } }
+function _renderSOPicker(){
+  var body = document.getElementById('so-pick-list'), sub = document.getElementById('so-pick-sub');
+  if(!body || !_soPick) return;
+  if(sub) sub.textContent = 'Zaškrtni jeden nebo víc objektů – fotka se zařadí do všech.';
+  function itemBtn(o){
+    var on = !!_soPick.sel[o.id];
+    var lbl = o.id + (o.short ? '  —  ' + o.short : '') + (typeof o.dist === 'number' ? '  (' + Math.round(o.dist) + ' m)' : '');
+    return '<button class="so-pick-btn'+(on?' so-pick-on':'')+'" onclick="_soPickToggle(\''+String(o.id).replace(/'/g,"\\'")+'\')">'+(on?'☑ ':'☐ ')+escapeHtml(lbl)+'</button>';
+  }
+  var html = '';
+  if(_soPick.kand.length){ html += '<div class="so-pick-sec">📍 Blízké objekty</div>' + _soPick.kand.map(itemBtn).join(''); }
+  if(_soPick.showAll){
+    var near = {}; _soPick.kand.forEach(function(o){ near[o.id] = true; });
+    var rest = (typeof SO_OBJEKTY !== 'undefined' ? SO_OBJEKTY : []).filter(function(o){ return !near[o.id]; });
+    html += '<div class="so-pick-sec">📋 Všechny SO</div>' + rest.map(itemBtn).join('');
+  } else {
+    html += '<button class="so-pick-btn so-pick-more" onclick="_soPickShowAll()">📋 Všechny SO…</button>';
+  }
+  body.innerHTML = html;
+  var cnt = Object.keys(_soPick.sel).length;
+  var done = document.getElementById('so-pick-done'); if(done) done.textContent = '✓ Hotovo' + (cnt ? ' (' + cnt + ')' : '');
 }
+function _soPickDone(){ var cb = _soPick && _soPick.cb, arr = _soPick ? Object.keys(_soPick.sel) : []; _closeSOPicker(); if(cb) cb(arr); }
+function _soPickNone(){ var cb = _soPick && _soPick.cb; _closeSOPicker(); if(cb) cb([]); }
+function _closeSOPicker(){ var modal = document.getElementById('so-pick-modal'); if(modal) modal.classList.remove('open'); _soPick = null; }
 
 // ── Foto-flow: vyfotit → razítkovat? → vyfotit další? → smyčka ─────
 window.photoSession = {count: 0, pendingPhoto: null, pendingMeta: null, phase: null};
@@ -7770,7 +7783,7 @@ function _processPhotoQueue(){
           var urlOrig = yes ? url2 : url1, urlStamp = yes ? url1 : url2, visibleUrl = yes ? urlStamp : urlOrig;
           var entry = {
             url: visibleUrl, stamped: !!yes,
-            so: (meta.so || ''), kmAxis: (meta.kmAxis || ''),
+            so: (meta.so || ''), soList: (meta.soList || (meta.so ? [meta.so] : [])), kmAxis: (meta.kmAxis || ''),
             ownerUid: (window.currentUser ? window.currentUser.uid : ''),
             km: meta.km, author: meta.author, lat: meta.lat, lng: meta.lng,
             time: new Date(t).toLocaleString('cs-CZ'), date: new Date(t).toLocaleDateString('cs-CZ'), ts: t
@@ -7853,12 +7866,14 @@ window.addEventListener('load', function() {
         window.photoSession.pendingMeta  = {km: km, author: author, lat: latlng.lat, lng: latlng.lng};
         window.photoSession.phase = 'stamp';
         // Výběr stavebního objektu (složky) podle staničení, pak teprve razítko + upload.
-        chooseSOForPhoto(km, latlng.lat, latlng.lng, function(so){
+        chooseSOForPhoto(km, latlng.lat, latlng.lng, function(soArr){
           var meta = window.photoSession.pendingMeta;
-          meta.so = so || '';
-          // Má-li vybraný objekt vlastní osu (boční trasu) poblíž, ulož staničení té osy
+          soArr = soArr || [];
+          meta.soList = soArr;
+          meta.so = soArr[0] || '';   // primární (zpětná kompatibilita)
+          // Má-li primární objekt vlastní osu (boční trasu) poblíž, ulož staničení té osy
           // místo km hlavní I/16 (smysluplné u kolmých přeložek / přístupů).
-          var br = branchKmForSO(so, latlng.lat, latlng.lng);
+          var br = branchKmForSO(meta.so, latlng.lat, latlng.lng);
           if(br){ meta.km = fmtKm(br.km); meta.kmAxis = br.id; }
           ppAnswer(true);  // true = v galerii bude razítkovaná verze
         });
@@ -8184,9 +8199,12 @@ function _paintGallery(filtered) {
     groupsEl.style.display = 'block';
     var groups = {}, order = [];
     filtered.forEach(function(it){
-      var so = it.so ? it.so : '__none__';
-      if(!groups[so]) { groups[so] = []; order.push(so); }
-      groups[so].push(it);
+      var list = (it.soList && it.soList.length) ? it.soList : (it.so ? [it.so] : ['__none__']);
+      list.forEach(function(so){
+        so = so || '__none__';
+        if(!groups[so]) { groups[so] = []; order.push(so); }
+        groups[so].push(it);   // fotka s víc SO se objeví v každé složce
+      });
     });
     order.sort(function(a,b){
       if(a === '__none__') return 1;
@@ -12392,6 +12410,10 @@ function copyDiaryExport(){
     <div class="so-pick-title">🏗️ Přiřadit fotku k objektu</div>
     <div id="so-pick-sub" class="so-pick-subtitle">Vyber stavební objekt pro tuto fotku</div>
     <div id="so-pick-list"></div>
+    <div class="so-pick-footer">
+      <button class="so-pick-btn so-pick-none" onclick="_soPickNone()">⊘ Nepřiřazovat</button>
+      <button id="so-pick-done" class="so-pick-btn so-pick-doneBtn" onclick="_soPickDone()">✓ Hotovo</button>
+    </div>
   </div>
 </div>
 
