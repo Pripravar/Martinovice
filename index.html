@@ -7600,6 +7600,15 @@ var galleryGrouped = false;   // false = klasická mřížka, true = složky po 
 // Liniové objekty mají rozsah km (kmOd–kmDo, odvozeno z výkresů situací/profilů),
 // bodové doplňkové objekty (DOPLNKY_SO) mají jedno km. Při focení se podle staničení
 // najdou objekty v okolí ±50 m a uživatel vybere přesný SO.
+// Názvy lineárních SO (které nemají popis z DOPLNKY_SO). Klíč = číslo SO, hodnota = název.
+// Doplňuj podle „Seznamu stavebních objektů" projektu. Co tu není, ukáže se jen jako „SO XXX".
+var SO_NAMES = {
+  '020': 'příprava území',
+  '121': 'dopravní značení',
+  '180': 'přechodné dopravní značení',
+  '190': 'velkoplošné dopravní značky'
+};
+
 var SO_OBJEKTY = (function(){
   // Kompletní katalog SO stavby pro výběr u fotky. Skládá se ze:
   //  1) bodových/doplňkových SO (DOPLNKY_SO) – mají km → nabízejí se i podle polohy (blízké objekty),
@@ -7618,7 +7627,7 @@ var SO_OBJEKTY = (function(){
   if(typeof SO_VYKRESY !== 'undefined'){
     Object.keys(SO_VYKRESY).sort(function(a,b){ return a.localeCompare(b,'cs',{numeric:true}); }).forEach(function(k){
       if(seen[k]) return;                       // už pokryto z DOPLNKY_SO
-      list.push({ id:'SO ' + k, short:'' });    // lineární SO s výkresy, bez km
+      list.push({ id:'SO ' + k, short:(SO_NAMES[k] || '') });   // lineární SO s výkresy (název z SO_NAMES, když je)
       seen[k] = true;
     });
   }
