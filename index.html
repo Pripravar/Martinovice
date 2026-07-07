@@ -1261,8 +1261,30 @@ document.addEventListener('touchend', function(e){
     <label class="toggle"><input type="checkbox" id="lyr-stamp" onchange="onStampToggle(this.checked)"><span class="toggle-slider"></span></label>
   </div>
   <div class="layer-row" data-perm="galerie">
-    <label>📍 Fotky v mapě <span style="font-size:11px;color:var(--text2);">(poslední měsíc)</span></label>
+    <label>📍 Fotky v mapě</label>
     <label class="toggle"><input type="checkbox" id="lyr-fotomapa" onchange="setFotoMapaVisible(this.checked)"><span class="toggle-slider"></span></label>
+  </div>
+  <div class="layer-sub" id="sub-fotomapa">
+    <div class="layer-row" style="padding-left:12px;">
+      <label style="font-size:12px;">↳ 👤 Osoba</label>
+      <select id="fm-osoba" onchange="applyFotoMapaFilter()" style="font-size:12px;max-width:130px;background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 4px;">
+        <option value="">Všichni</option>
+      </select>
+    </div>
+    <div class="layer-row" style="padding-left:12px;">
+      <label style="font-size:12px;">↳ 📷 SUB / investor</label>
+      <select id="fm-sub" onchange="applyFotoMapaFilter()" style="font-size:12px;max-width:130px;background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 4px;">
+        <option value="">Všechny</option>
+        <option value="od">🔵 od SUB/firem</option>
+        <option value="pro">🟢 sdílené pro SUB</option>
+        <option value="inv-od">🟣 od investora</option>
+        <option value="inv-pro">🟪 sdílené investorovi</option>
+      </select>
+    </div>
+    <div class="layer-row" style="padding-left:12px;">
+      <label style="font-size:12px;">↳ 🕘 I starší než měsíc</label>
+      <label class="toggle"><input type="checkbox" id="fm-vse" onchange="applyFotoMapaFilter()"><span class="toggle-slider"></span></label>
+    </div>
   </div>
   <div class="layer-row" data-perm="zkousky">
     <label>🔬 Zkoušky na stavbě</label>
@@ -10287,7 +10309,7 @@ function toggleTaskSubLayer(which, visible) {
 }
 // Po načtení otevři ty podkategorie, jejichž hlavní přepínač je zaškrtnutý (Úkoly default ON).
 window.addEventListener('load', function(){
-  [['lyr-notes','sub-notes'],['lyr-tasks','sub-tasks']].forEach(function(p){
+  [['lyr-notes','sub-notes'],['lyr-tasks','sub-tasks'],['lyr-fotomapa','sub-fotomapa']].forEach(function(p){
     var inp = document.getElementById(p[0]);
     _setLayerSub(p[1], !!(inp && inp.checked));
   });
@@ -10482,35 +10504,77 @@ window.addEventListener('load', function(){
   });
 });
 
-// ── Fotky v mapě (jako v Apple Fotkách) + clustering ─────────────────
+// ── Fotky v mapě (jako v Apple Fotkách) + clustering + vnořené filtry ──
 window._fotoMapaLayer = null;
-function setFotoMapaVisible(show){
-  if(!show){
-    if(window._fotoMapaLayer){ try{ map.removeLayer(window._fotoMapaLayer); }catch(e){} window._fotoMapaLayer = null; }
-    return;
-  }
+var _fotoMapaPhotos = null;   // cache načtených fotek (filtrování bez opakovaného čtení DB)
+function setFotoMapaVisible(on){
+  var cb=document.getElementById('lyr-fotomapa'); if(cb) cb.checked=!!on;
+  _setLayerSub('sub-fotomapa', on);   // ukázat/schovat vnořené filtry
+  if(window._fotoMapaLayer && map.hasLayer(window._fotoMapaLayer)){ try{ map.removeLayer(window._fotoMapaLayer); }catch(e){} }
+  if(!on){ return; }
   if(typeof db==='undefined' || !db){ return; }
-  // poslední měsíc – ať mapa neztěžkne tisíci piny
-  var cut = new Date(); cut.setMonth(cut.getMonth()-1); cut.setHours(0,0,0,0); var cutMs = cut.getTime();
+  if(typeof trackEvent==='function') trackEvent('fotky_v_mape');
   showToast('⏳ Načítám fotky do mapy…', 1200);
-  db.ref('standalone_photos').once('value', function(snap){
-    var grp = (typeof L.markerClusterGroup === 'function')
-      ? L.markerClusterGroup({ maxClusterRadius: 45, showCoverageOnHover:false })
-      : L.layerGroup();
-    var n = 0;
+  db.ref('standalone_photos').once('value').then(function(snap){
+    var arr = [];
     snap.forEach(function(ch){
-      var v = ch.val() || {}; v.fbKey = ch.key;
+      var v = ch.val(); if(!v) return;
       if(typeof v.lat !== 'number' || typeof v.lng !== 'number') return;
-      if(photoCreationDate(v).getTime() < cutMs) return;
-      var icon = L.divIcon({ className:'foto-pin', html:'📷', iconSize:[26,26], iconAnchor:[13,13] });
-      var mk = L.marker([v.lat, v.lng], { icon: icon });
-      mk.on('click', function(){ galleryCurrentItems = []; openPhotoFs(v.url, v.fbKey, v); });
-      grp.addLayer(mk); n++;
+      v.fbKey = ch.key; arr.push(v);
     });
-    if(window._fotoMapaLayer){ try{ map.removeLayer(window._fotoMapaLayer); }catch(e){} }
-    window._fotoMapaLayer = grp; grp.addTo(map);
-    showToast(n ? ('📍 '+n+' fotek v mapě') : 'Za poslední měsíc žádné fotky s polohou', 1800);
+    _fotoMapaPhotos = arr;
+    _fillFotoMapaOsoby(arr);
+    renderFotoMapa();
+  }).catch(function(){ showToast('❌ Fotky se nepodařilo načíst', 2500); var c=document.getElementById('lyr-fotomapa'); if(c) c.checked=false; });
+}
+// Naplní select osob z autorů načtených fotek (zachová aktuální výběr).
+function _fillFotoMapaOsoby(arr){
+  var sel = document.getElementById('fm-osoba'); if(!sel) return;
+  var cur = sel.value, names = {};
+  arr.forEach(function(v){ var a=(v.author||v.autor||'').trim(); if(a) names[a]=1; });
+  var sorted = Object.keys(names).sort(function(a,b){ return a.localeCompare(b,'cs'); });
+  sel.innerHTML = '<option value="">Všichni</option>' + sorted.map(function(n){ return '<option value="'+n.replace(/"/g,'&quot;')+'">'+escapeHtml(n)+'</option>'; }).join('');
+  if(cur && names[cur]) sel.value = cur;
+}
+// Překreslí markery fotek podle filtrů (osoba / SUB-investor / i starší měsíc). Z cache, bez čtení DB.
+function renderFotoMapa(){
+  if(!_fotoMapaPhotos) return;
+  if(window._fotoMapaLayer && map.hasLayer(window._fotoMapaLayer)){ try{ map.removeLayer(window._fotoMapaLayer); }catch(e){} }
+  var fOsoba = (document.getElementById('fm-osoba')||{}).value || '';
+  var fSub   = (document.getElementById('fm-sub')||{}).value || '';   // '' | od | pro | inv-od | inv-pro
+  var fVse   = !!(document.getElementById('fm-vse')||{}).checked;
+  var cutoff = 0;
+  if(!fVse){ var _mc=new Date(); _mc.setMonth(_mc.getMonth()-1); _mc.setHours(0,0,0,0); cutoff=_mc.getTime(); }
+  var grp = (typeof L.markerClusterGroup === 'function')
+    ? L.markerClusterGroup({ maxClusterRadius: 45, spiderfyOnMaxZoom: true, showCoverageOnHover: false })
+    : L.layerGroup();
+  var n = 0;
+  _fotoMapaPhotos.forEach(function(v){
+    if(cutoff && photoCreationDate(v).getTime() < cutoff) return;
+    if(fOsoba && (v.author||v.autor||'').trim() !== fOsoba) return;
+    if(fSub === 'od'      && !(v.sub || v.zdroj==='SUB')) return;
+    if(fSub === 'pro'     && !v.sdilenoSub) return;
+    if(fSub === 'inv-od'  && !(v.investor || v.zdroj==='INVESTOR')) return;
+    if(fSub === 'inv-pro' && !v.sdilenoInvestor) return;
+    // Barva pinu: investor fialová, SUB zelená, jinak modrá
+    var forInv = !!(v.sdilenoInvestor || v.investor || v.zdroj==='INVESTOR');
+    var forSub = !!(v.sdilenoSub || v.sub || v.zdroj==='SUB');
+    var bg = forInv ? '#8b5cf6' : (forSub ? '#16a34a' : '#0ea5e9');
+    var html = '<div style="width:26px;height:26px;border-radius:50%;background:'+bg+';border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font-size:13px;">📷</div>';
+    var icon = L.divIcon({ className:'', html:html, iconSize:[26,26], iconAnchor:[13,13] });
+    var mk = L.marker([v.lat, v.lng], { icon:icon, interactive:true, zIndexOffset:150 });
+    (function(it){ mk.on('click', function(e){ L.DomEvent.stopPropagation(e); galleryCurrentItems=[]; openPhotoFs(it.url, it.fbKey||null, it); }); })(v);
+    grp.addLayer(mk); n++;
   });
+  window._fotoMapaLayer = grp; grp.addTo(map);
+  var suffix = fVse ? '' : ' (poslední měsíc)';
+  showToast(n ? ('📍 Fotky v mapě'+suffix+': ' + n) : ('Žádné fotky'+(fVse?'':' za poslední měsíc')), 2000);
+}
+// Změna filtru → jen překreslit z cache.
+function applyFotoMapaFilter(){
+  if(!(document.getElementById('lyr-fotomapa')||{}).checked) return;
+  if(!_fotoMapaPhotos){ setFotoMapaVisible(true); return; }
+  renderFotoMapa();
 }
 
 // ── PWA: service worker registrace ──────────────────────────────────
