@@ -4997,18 +4997,19 @@ function _drawStampBox(ctx, img, lines){
     ctx.fillText(l.t, boxX + pad, boxY + lineH * (i + 0.85));
   });
 }
-function burnInMetadata(dataUrl, km, author, callback, so) {
+function burnInMetadata(dataUrl, km, author, callback, so, timeObj) {
   var img = new Image();
   img.onload = function() {
     var canvas = document.createElement('canvas');
     canvas.width = img.width; canvas.height = img.height;
     var ctx = canvas.getContext('2d');
     ctx.drawImage(img, 0, 0);
-    var dnes = new Date().toLocaleDateString('cs-CZ');
+    var dObj = (timeObj instanceof Date && !isNaN(timeObj)) ? timeObj : new Date();
+    var dnes = dObj.toLocaleDateString('cs-CZ');
     var soLbl = _soStampLabel(so);
     var lines = [];
     if(soLbl) lines.push({ t: soLbl, bold: true });
-    lines.push({ t: 'km ' + (km || '-') + '   •   ' + dnes, bold: true });
+    lines.push({ t: 'km ' + (km || '-') + '   •   ' + dnes + '   •   ' + _hhmm(dObj), bold: true });
     if(author) lines.push({ t: author, bold: false });
     _drawStampBox(ctx, img, lines);
     callback(canvas.toDataURL('image/jpeg', 0.88));
@@ -5519,7 +5520,7 @@ function _authorInitials(name){
 function photoFilename(item, idx) {
   var d = photoCreationDate(item);
   var base = 'stavba_' + d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate())
-           + '_' + pad2(d.getHours()) + pad2(d.getMinutes());
+           + '_' + pad2(d.getHours()) + '-' + pad2(d.getMinutes()) + 'h';
   if(item && item.km) base += '_km' + String(item.km).replace(/\s+/g,'').replace(/[^\w+\-.]/g,'');
   if(item && item.author){ var ini=_authorInitials(item.author); if(ini) base += '_' + ini; }
   if(typeof idx === 'number') base += '_' + (idx+1);
@@ -5580,13 +5581,13 @@ function setExifCreationDate(jpegDataUrl, date) {
 // Razítko VŽDY vypalujeme z ČISTÉHO originálu (urlOriginal), aby se nezdvojovalo. Když originál
 // není (staré fotky), použije se item.url (může mít razítko z focení → varování v modalu).
 function _stampFields(stampChoice){
-  if(stampChoice === true) return {so:true,km:true,datum:true,jmeno:true};
+  if(stampChoice === true) return {so:true,km:true,datum:true,cas:true,jmeno:true};
   if(stampChoice && typeof stampChoice === 'object') return stampChoice;
   return null;
 }
 function _chooseDownloadUrl(item, stampChoice) {
   var f = _stampFields(stampChoice);
-  var anyField = !!(f && (f.so||f.km||f.datum||f.jmeno));
+  var anyField = !!(f && (f.so||f.km||f.datum||f.cas||f.jmeno));
   if(anyField){
     return { url: (item.urlOriginal || item.url), needsBurn: true, fields: f };
   }
@@ -5594,6 +5595,8 @@ function _chooseDownloadUrl(item, stampChoice) {
   return { url: (item.urlOriginal || item.url), needsBurn: false };
 }
 // Vypálí do fotky jen zvolená pole (z čistého originálu). Reuse _drawStampBox.
+// Čas HH:MM z Date (razítko i filtr času). pad2 už existuje.
+function _hhmm(d){ try { return pad2(d.getHours()) + ':' + pad2(d.getMinutes()); } catch(e){ return ''; } }
 function _burnStampFields(dataUrl, item, fields, dateObj, cb){
   var img = new Image();
   img.onload = function(){
@@ -5605,6 +5608,7 @@ function _burnStampFields(dataUrl, item, fields, dateObj, cb){
     var l2=[];
     if(fields.km) l2.push('km ' + (item.km || '-'));
     if(fields.datum) l2.push(dateObj.toLocaleDateString('cs-CZ'));
+    if(fields.cas) l2.push(_hhmm(dateObj));
     if(l2.length) lines.push({t:l2.join('   •   '), bold:true});
     if(fields.jmeno && item.author) lines.push({t:item.author, bold:false});
     _drawStampBox(ctx, img, lines);
@@ -5662,7 +5666,7 @@ function burnInMetadataWithDate(dataUrl, km, author, dateObj, callback, so) {
     var soLbl = _soStampLabel(so);
     var lines = [];
     if(soLbl) lines.push({ t: soLbl, bold: true });
-    lines.push({ t: 'km ' + (km || '-') + '   •   ' + dStr, bold: true });
+    lines.push({ t: 'km ' + (km || '-') + '   •   ' + dStr + '   •   ' + _hhmm(dateObj), bold: true });
     if(author) lines.push({ t: author, bold: false });
     _drawStampBox(ctx, img, lines);
     callback(canvas.toDataURL('image/jpeg', 0.9));
@@ -5680,7 +5684,7 @@ function askDownloadStampChoice(photoCount, opts) {
   opts = opts || {};
   return new Promise(function(resolve){
     var modal = document.getElementById('dl-stamp-modal');
-    if(!modal) { resolve({so:true,km:true,datum:true,jmeno:true}); return; }
+    if(!modal) { resolve({so:true,km:true,datum:true,cas:true,jmeno:true}); return; }
     document.getElementById('dlsm-title').innerHTML = '🏷️ Razítko při stažení' +
       (photoCount > 1 ? ' (' + photoCount + ' fotek)' : '');
     var warn = document.getElementById('dlsm-warning');
@@ -5696,7 +5700,7 @@ function _resolveStampChoice(choice) {
   var result = null;
   if(choice === 'ok'){
     function ck(id){ var e=document.getElementById(id); return !!(e && e.checked); }
-    result = { so:ck('dlsm-so'), km:ck('dlsm-km'), datum:ck('dlsm-datum'), jmeno:ck('dlsm-jmeno') };
+    result = { so:ck('dlsm-so'), km:ck('dlsm-km'), datum:ck('dlsm-datum'), cas:ck('dlsm-cas'), jmeno:ck('dlsm-jmeno') };
   }
   if(typeof _stampChoiceResolver === 'function') {
     var r = _stampChoiceResolver; _stampChoiceResolver = null; r(result);
@@ -8310,7 +8314,7 @@ function _processPhotoQueue(){
         });
       }, 500);
     });
-  }, (meta.soList && meta.soList.length ? meta.soList : meta.so));
+  }, (meta.soList && meta.soList.length ? meta.soList : meta.so), new Date(meta.ts || Date.now()));
 }
 
 function ppAnswer(yes) {
@@ -13682,6 +13686,7 @@ function copyDiaryExport(){
     <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text);cursor:pointer;padding:4px 2px;"><input type="checkbox" id="dlsm-so" checked> 🏗️ Číslo SO (objekt)</label>
     <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text);cursor:pointer;padding:4px 2px;"><input type="checkbox" id="dlsm-km" checked> 📏 Staničení (km)</label>
     <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text);cursor:pointer;padding:4px 2px;"><input type="checkbox" id="dlsm-datum" checked> 📅 Datum</label>
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text);cursor:pointer;padding:4px 2px;"><input type="checkbox" id="dlsm-cas" checked> 🕒 Čas pořízení</label>
     <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:var(--text);cursor:pointer;padding:4px 2px;"><input type="checkbox" id="dlsm-jmeno" checked> 👤 Jméno autora</label>
     <div id="dlsm-warning" style="display:none;font-size:11px;color:var(--accent2);text-align:center;background:rgba(245,166,35,0.1);padding:6px 8px;border-radius:6px;line-height:1.35;">
       ⚠ Tato fotka nemá uložený čistý originál (starší) → razítko se přidá k tomu stávajícímu.
