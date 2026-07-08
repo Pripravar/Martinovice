@@ -5008,9 +5008,10 @@ function burnInMetadata(dataUrl, km, author, callback, so, timeObj) {
     var dnes = dObj.toLocaleDateString('cs-CZ');
     var soLbl = _soStampLabel(so);
     var lines = [];
-    if(soLbl) lines.push({ t: soLbl, bold: true });
-    lines.push({ t: 'km ' + (km || '-') + '   •   ' + dnes + '   •   ' + _hhmm(dObj), bold: true });
-    if(author) lines.push({ t: author, bold: false });
+    if(soLbl) lines.push({ t: soLbl, bold: true });                       // 1) SO
+    lines.push({ t: dnes + '   •   ' + _hhmm(dObj), bold: true });        // 2) datum + čas
+    lines.push({ t: 'km ' + (km || '-'), bold: true });                  // 3) staničení
+    if(author) lines.push({ t: author, bold: false });                   // 4) jméno (TK)
     _drawStampBox(ctx, img, lines);
     callback(canvas.toDataURL('image/jpeg', 0.88));
   };
@@ -5517,12 +5518,23 @@ function _authorInitials(name){
   var ini = parts.map(function(w){ return w.charAt(0); }).join('');
   return ini.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9]/g,'').toUpperCase();
 }
+// Název staženého souboru – pořadí: SO · datum · čas · staničení (km) · TK (iniciály autora).
 function photoFilename(item, idx) {
   var d = photoCreationDate(item);
-  var base = 'stavba_' + d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate())
-           + '_' + pad2(d.getHours()) + '-' + pad2(d.getMinutes()) + 'h';
-  if(item && item.km) base += '_km' + String(item.km).replace(/\s+/g,'').replace(/[^\w+\-.]/g,'');
-  if(item && item.author){ var ini=_authorInitials(item.author); if(ini) base += '_' + ini; }
+  function clean(s){ return String(s).replace(/\s+/g,'').replace(/[^\w+\-.]/g,''); }
+  var parts = ['stavba'];
+  // 1) SO
+  var so = item && (item.so || (item.soList && item.soList.length ? item.soList[0] : ''));
+  if(so) parts.push('SO' + clean(so));
+  // 2) datum
+  parts.push(d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate()));
+  // 3) čas
+  parts.push(pad2(d.getHours()) + '-' + pad2(d.getMinutes()) + 'h');
+  // 4) staničení (km)
+  if(item && item.km) parts.push('km' + clean(item.km));
+  // 5) TK – iniciály autora
+  if(item && item.author){ var ini=_authorInitials(item.author); if(ini) parts.push(ini); }
+  var base = parts.join('_');
   if(typeof idx === 'number') base += '_' + (idx+1);
   return base + '.jpg';
 }
@@ -5604,12 +5616,13 @@ function _burnStampFields(dataUrl, item, fields, dateObj, cb){
     canvas.width = img.width; canvas.height = img.height;
     var ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0);
     var lines = [];
+    // Pořadí: 1) SO, 2) datum + čas, 3) staničení (km), 4) jméno (TK)
     if(fields.so){ var soLbl=_soStampLabel(item.so); if(soLbl) lines.push({t:soLbl, bold:true}); }
-    var l2=[];
-    if(fields.km) l2.push('km ' + (item.km || '-'));
-    if(fields.datum) l2.push(dateObj.toLocaleDateString('cs-CZ'));
-    if(fields.cas) l2.push(_hhmm(dateObj));
-    if(l2.length) lines.push({t:l2.join('   •   '), bold:true});
+    var dt=[];
+    if(fields.datum) dt.push(dateObj.toLocaleDateString('cs-CZ'));
+    if(fields.cas) dt.push(_hhmm(dateObj));
+    if(dt.length) lines.push({t:dt.join('   •   '), bold:true});
+    if(fields.km) lines.push({t:'km ' + (item.km || '-'), bold:true});
     if(fields.jmeno && item.author) lines.push({t:item.author, bold:false});
     _drawStampBox(ctx, img, lines);
     cb(canvas.toDataURL('image/jpeg', 0.9));
@@ -5665,9 +5678,10 @@ function burnInMetadataWithDate(dataUrl, km, author, dateObj, callback, so) {
     var dStr = dateObj.toLocaleDateString('cs-CZ');
     var soLbl = _soStampLabel(so);
     var lines = [];
-    if(soLbl) lines.push({ t: soLbl, bold: true });
-    lines.push({ t: 'km ' + (km || '-') + '   •   ' + dStr + '   •   ' + _hhmm(dateObj), bold: true });
-    if(author) lines.push({ t: author, bold: false });
+    if(soLbl) lines.push({ t: soLbl, bold: true });                       // 1) SO
+    lines.push({ t: dStr + '   •   ' + _hhmm(dateObj), bold: true });     // 2) datum + čas
+    lines.push({ t: 'km ' + (km || '-'), bold: true });                  // 3) staničení
+    if(author) lines.push({ t: author, bold: false });                   // 4) jméno (TK)
     _drawStampBox(ctx, img, lines);
     callback(canvas.toDataURL('image/jpeg', 0.9));
   };
