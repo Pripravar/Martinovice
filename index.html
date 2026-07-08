@@ -5532,8 +5532,10 @@ function _authorInitials(name){
   var ini = parts.map(function(w){ return w.charAt(0); }).join('');
   return ini.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9]/g,'').toUpperCase();
 }
-// Název staženého souboru – pořadí: SO · datum · čas · staničení (km) · TK (iniciály autora).
-function photoFilename(item, idx) {
+// Název staženého souboru – pořadí: SO · datum · čas · staničení (km) · TK (iniciály) · raz/orig.
+// stampChoice (nepovinné): volba razítka – přidá „_raz" (něco vypáleno) nebo „_orig" (čistá fotka),
+// ať se orazítkovaná a čistá verze téže fotky nepřepíšou a hned je poznáš.
+function photoFilename(item, idx, stampChoice) {
   var d = photoCreationDate(item);
   function clean(s){ return String(s).replace(/\s+/g,'').replace(/[^\w+\-.]/g,''); }
   var parts = ['Martinovice'];
@@ -5548,6 +5550,12 @@ function photoFilename(item, idx) {
   if(item && item.km) parts.push('km' + clean(item.km));
   // 5) TK – iniciály autora
   if(item && item.author){ var ini=_authorInitials(item.author); if(ini) parts.push(ini); }
+  // 6) značka raz/orig – jen když volající předá volbu razítka (stahování)
+  if(arguments.length >= 3){
+    var f = _stampFields(stampChoice);
+    var stamped = !!(f && (f.so||f.km||f.datum||f.cas||f.jmeno));
+    parts.push(stamped ? 'raz' : 'orig');
+  }
   var base = parts.join('_');
   if(typeof idx === 'number') base += '_' + (idx+1);
   return base + '.jpg';
@@ -5767,7 +5775,7 @@ function _doDownloadCurrentFsPhoto(item, applyStamp) {
     .then(function(blob){
       hideSync();
       var d = photoCreationDate(item);
-      var name = photoFilename(item);
+      var name = photoFilename(item, undefined, applyStamp);
       var file;
       try { file = new File([blob], name, { type:'image/jpeg', lastModified:d.getTime() }); }
       catch(e) { file = null; }
@@ -5882,7 +5890,7 @@ function _prepareSelectedPhotosAsFiles(applyStamp) {
       done++;
       showSync('⏳ Připravuji ' + done + '/' + total + '...');
       var d = photoCreationDate(it);
-      var name = photoFilename(it, total > 1 ? idx : undefined);
+      var name = photoFilename(it, total > 1 ? idx : undefined, applyStamp);
       try {
         return new File([blob], name, { type: 'image/jpeg', lastModified: d.getTime() });
       } catch(e) {
