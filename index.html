@@ -1101,6 +1101,8 @@ document.addEventListener('touchend', function(e){
 <div id="header">
   <h1><span class="title-prefix">I/16 </span><span class="title-name">Martinovice</span><span class="title-suffix"></span></h1>
   <div id="km-display">km –</div>
+  <!-- ❓ PRVNÍ tlačítko za km. #header se vodorovně roluje → cokoliv důležitého patří doleva. -->
+  <button id="btn-help" onclick="openHelp()" title="Nápověda – co appka umí a jak se ovládá" style="background:var(--panel2);border:1px solid var(--accent2);border-radius:8px;color:var(--accent2);padding:6px 10px;font-size:15px;font-weight:700;cursor:pointer;">❓</button>
   <button id="btn-tasks" onclick="openTasksPanel()" title="Úkoly" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">✅<span class="task-badge" id="task-badge">0</span></button>
   <button id="btn-denik" onclick="openDiaryPanel()" title="Deník stavby" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">📓</button>
   <button id="btn-kzp"   onclick="openKzpPanel()"   title="Kvalita / KZP"   style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">🧪</button>
@@ -4287,6 +4289,25 @@ function resetMapView() {
 }
 function toggleLayers(){document.getElementById('layers-panel').classList.toggle('open');}
 function closeLayersPanel(){document.getElementById('layers-panel').classList.remove('open');}
+
+// ── Nápověda / návod v aplikaci ──────────────────────────────────────
+// ZÁMĚRNĚ BEZ PRÁV: není ve FEATURES ani ve FN_PERM → vidí ji každý, i subka/investor.
+// Návod NEobsahuje screenshoty (zastaraly by při každé změně UI) – místo toho SVG plánek
+// obrazovky + legenda skutečných emoji + rozbalovací sekce. Nová funkce = dopiš řádek.
+function openHelp(){
+  var m = document.getElementById('help-modal'); if(!m) return;
+  closeLayersPanel();
+  m.style.display = 'flex';
+  var b = document.getElementById('help-body'); if(b) b.scrollTop = 0;
+}
+function closeHelp(){ var m = document.getElementById('help-modal'); if(m) m.style.display = 'none'; }
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){ var m = document.getElementById('help-modal'); if(m && m.style.display === 'flex') closeHelp(); }
+});
+window.addEventListener('load', function(){
+  var m = document.getElementById('help-modal');
+  if(m) m.addEventListener('click', function(e){ if(e.target === m) closeHelp(); });   // klik mimo okno = zavřít
+});
 
 // Mapa: název vrstvy → právo. Kdo právo nemá, vrstvu nezapne (ani voláním z konzole).
 var LAYER_PERM = {
@@ -9425,6 +9446,7 @@ function _renderUserAdmin(){
     var ctrl = self ? '<span style="font-size:11px;color:var(--text2);align-self:center;">(to jsi ty)</span>' :
       (pending ? '<button onclick="toggleUserApprove(\''+uid+'\')" style="'+bs+'background:#22c55e;color:#fff;">✅ Schválit</button>' : '')+
       '<button onclick="toggleBlockUser(\''+uid+'\','+(!blocked)+')" style="'+bs+(blocked?'background:#22c55e;color:#fff;':'background:#ef4444;color:#fff;')+'">'+(blocked?'✅ Odblokovat':'🚫 Blokovat')+'</button>'+
+      '<button onclick="deleteUserAccount(\''+uid+'\')" title="Smazat záznam (duplicitní účet). NENÍ to ban – účet se po přihlášení obnoví." style="'+bs+'background:var(--panel);color:#ef4444;border:1px solid #ef4444;">🗑</button>'+
       '<button onclick="toggleUserAdmin(\''+uid+'\','+(!admin)+')" style="'+bs+(admin?'background:var(--panel);color:var(--text);border:1px solid var(--border);':'background:#f59e0b;color:#111;')+'">'+(admin?'⭐ Zrušit admina':'⭐ Udělat admina')+'</button>'+
       catSel;
     return '<div style="border:1px solid '+(pending?'#0ea5e9':'var(--border)')+';border-radius:8px;padding:9px 11px;margin-bottom:8px;background:'+(pending?'rgba(14,165,233,0.10)':'var(--panel2)')+';">'+
@@ -9442,6 +9464,28 @@ function toggleBlockUser(uid, block){
   if(uid===(window.currentUser&&window.currentUser.uid)){ showToast('Sebe zablokovat nejde', 2500); return; }
   db.ref('uzivatele/'+uid+'/blocked').set(block?true:null)
     .then(function(){ showToast(block?'🚫 Uživatel zablokován':'✅ Uživatel odblokován', 1800); })
+    .catch(function(){ showToast('❌ Chyba (publikoval jsi pravidla?)', 3000); });
+}
+// 🗑️ Smazání ZÁZNAMU uživatele (na duplicitní / omylem založené účty).
+// POZOR: NENÍ to ban. Maže jen /uzivatele/{uid} – přihlašovací účet ve Firebase Auth ZŮSTÁVÁ,
+// takže po dalším přihlášení se záznam znovu založí (jako nový, nechválený). Trvalé odepření
+// přístupu = 🚫 Blokovat. (Smazáním blokovaného ho naopak pustíš zpět do fronty na schválení.)
+// Bez změny pravidel: `$uid` .write admina pouští a .validate se při mazání nevyhodnocuje.
+function deleteUserAccount(uid){
+  if(!isAdmin()){ return; }
+  if(uid===(window.currentUser&&window.currentUser.uid)){ showToast('Sebe smazat nejde', 2500); return; }
+  var u = (window.allUsers && window.allUsers[uid]) || {};
+  var jmeno = u.name || '(bez jména)';
+  if(isAdmin(uid) && !confirm('POZOR: „'+jmeno+'" je ADMINISTRÁTOR.\n\nOpravdu smazat jeho záznam?')) return;
+  if(!confirm(
+      'Smazat záznam uživatele „'+jmeno+'"?\n\n'+
+      '• Maže se JEN záznam ve správě uživatelů (zmizí i z přiřazování úkolů).\n'+
+      '• Přihlašovací účet ZŮSTÁVÁ — až se dotyčný přihlásí znovu, objeví se jako NOVÝ, nechválený.\n'+
+      '• Není to trvalé odepření přístupu! Na to použij 🚫 Blokovat.\n'+
+      '• Jeho fotky, úkoly a záznamy zůstanou zachované.'
+    )) return;
+  db.ref('uzivatele/'+uid).remove()
+    .then(function(){ showToast('🗑️ Záznam uživatele smazán', 2200); })
     .catch(function(){ showToast('❌ Chyba (publikoval jsi pravidla?)', 3000); });
 }
 // Efektivní právo uživatele (pro zaškrtnutí v adminu): override > kategorie.
@@ -14606,11 +14650,197 @@ function copyDiaryExport(){
     </div>
     <div id="user-admin-list" style="padding:10px 12px;overflow-y:auto;"></div>
     <div style="padding:10px 14px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-      <span style="font-size:11px;color:var(--text2);">Vypnutá funkce = skryté tlačítko. Blokace vyhodí uživatele.</span>
+      <span style="font-size:11px;color:var(--text2);">Vypnutá funkce = skryté tlačítko. 🚫 Blokace vyhodí uživatele. 🗑 maže jen záznam (duplicitní účet) — <b>není to ban</b>, po přihlášení se obnoví.</span>
       <button onclick="signOutUser()" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 12px;font-size:13px;cursor:pointer;">Odhlásit se</button>
     </div>
   </div>
 </div>
+<!-- ═══════════════ NÁPOVĚDA / NÁVOD K APLIKACI (bez práv – vidí ho každý) ═══════════════
+     ZÁSADA: žádné screenshoty (zastaraly by). SVG plánek + legenda reálných emoji + sekce.
+     Přidáváš funkci? Dopiš řádek do legendy a/nebo novou <details> sekci. -->
+<div id="help-modal" style="display:none;position:fixed;inset:0;z-index:5100;background:rgba(0,0,0,.65);align-items:center;justify-content:center;padding:12px;">
+  <div style="background:var(--panel);border-radius:14px;max-width:640px;width:100%;max-height:92vh;display:flex;flex-direction:column;border:1px solid var(--border);">
+    <div style="display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <div style="flex:1;font-size:16px;font-weight:800;color:var(--accent2);">❓ Návod k aplikaci</div>
+      <button onclick="closeHelp()" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;min-width:44px;min-height:44px;">✕</button>
+    </div>
+    <div id="help-body" style="padding:12px 16px 18px;overflow-y:auto;font-size:13px;line-height:1.55;color:var(--text);">
+
+      <p style="margin:0 0 10px;color:var(--text2);">Mapa stavby <b style="color:var(--text);">I/16 Mladá Boleslav – Martinovice</b> v telefonu: výkresy podle staničení, fotky s razítkem, úkoly, deník, měření. Funguje i venku se slabým signálem — fotky se nahrají na pozadí.</p>
+
+      <!-- Plánek obrazovky -->
+      <div style="background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px;margin:10px 0;">
+        <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Kde co je</div>
+        <svg viewBox="0 0 360 210" style="width:100%;height:auto;display:block;">
+          <rect x="4" y="4" width="352" height="202" rx="10" fill="none" stroke="var(--border)"/>
+          <rect x="10" y="10" width="340" height="26" rx="6" fill="var(--panel)" stroke="var(--border)"/>
+          <text x="14" y="27" font-size="9" fill="var(--text2)">km 1+240</text>
+          <rect x="58" y="14" width="17" height="17" rx="3" fill="var(--panel2)" stroke="var(--accent2)"/><text x="62" y="27" font-size="9">❓</text>
+          <g fill="var(--panel2)" stroke="var(--border)">
+            <rect x="80" y="14" width="17" height="17" rx="3"/><rect x="100" y="14" width="17" height="17" rx="3"/>
+            <rect x="120" y="14" width="17" height="17" rx="3"/><rect x="140" y="14" width="17" height="17" rx="3"/>
+            <rect x="160" y="14" width="17" height="17" rx="3"/><rect x="180" y="14" width="17" height="17" rx="3"/>
+            <rect x="200" y="14" width="17" height="17" rx="3"/><rect x="220" y="14" width="17" height="17" rx="3"/>
+          </g>
+          <rect x="290" y="13" width="56" height="19" rx="5" fill="var(--accent)" opacity="0.85"/>
+          <text x="299" y="26" font-size="9" fill="#fff">☰ Vrstvy</text>
+          <text x="58" y="48" font-size="8" fill="var(--accent2)">❓ nápověda</text>
+          <text x="120" y="48" font-size="8.5" fill="var(--text2)">ikony funkcí (✅ 📓 🧪 📋 🔬 📷 🖼️ …)</text>
+          <rect x="20" y="58" width="320" height="140" rx="8" fill="var(--panel2)" opacity="0.45" stroke="var(--border)" stroke-dasharray="3 3"/>
+          <text x="150" y="130" font-size="11" fill="var(--text2)">MAPA</text>
+          <circle cx="322" cy="180" r="13" fill="var(--panel)" stroke="var(--border)"/><text x="316" y="184" font-size="10">📍</text>
+          <circle cx="322" cy="148" r="13" fill="var(--panel)" stroke="var(--border)"/><text x="316" y="152" font-size="10">📏</text>
+          <text x="210" y="184" font-size="8.5" fill="var(--text2)">GPS · měřit →</text>
+        </svg>
+      </div>
+
+      <!-- Rychlý start -->
+      <div style="background:rgba(34,211,238,0.08);border:1px solid #22d3ee;border-radius:10px;padding:10px 12px;margin:10px 0;">
+        <div style="font-weight:800;color:#22d3ee;margin-bottom:4px;">🚀 Rychlý start (3 kroky)</div>
+        <div><b>1.</b> Přihlas se (Google, nebo telefonem — <b>bez SMS</b>). Administrátor Tě schválí.</div>
+        <div><b>2.</b> Zapni <b>📍 GPS</b> (kulaté tlačítko vpravo dole). Nahoře uvidíš svoje <b>staničení (km)</b>.</div>
+        <div><b>3.</b> Foť <b>📷</b> — appka sama doplní SO, datum, čas, km i jméno.</div>
+      </div>
+
+      <div style="font-weight:800;color:var(--accent);margin:14px 0 4px;">🔘 Tlačítka v horní liště</div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 8px;">
+        <b>❓</b><span>Tenhle návod</span>
+        <b>✅</b><span>Úkoly – zadání, přiřazení lidem, termíny, priorita, připomínky</span>
+        <b>📓</b><span>Stavební deník – šichtovka, stroje, záznamy dne, materiály, závěr</span>
+        <b>🧪</b><span>Kvalita / KZP – kontrolní zkušební plány, podpisy TePř</span>
+        <b>📋</b><span>Dokumenty – KZP, TePř, protokoly (PDF)</span>
+        <b>🔬</b><span>Zkoušky na stavbě – laboratorní průvodka (⚠️ dokud chybí protokol)</span>
+        <b>📷</b><span>Vyfotit – fotka se uloží s razítkem a polohou</span>
+        <b>🖼️</b><span>Fotogalerie – filtry, komentáře, sdílení, stahování</span>
+        <b>📐</b><span>Evidence měření (uložená měření)</span>
+        <b>📝</b><span>Evidence poznámek</span>
+        <b>📍➕</b><span>Přidat poznámku / úkol na konkrétní místo v mapě</span>
+        <b>📐 ZVS</b><span>Vytyčovací body (číslo, Y/X, výška Z)</span>
+        <b>🪨</b><span>Geotechnika – vrtné sondy, zprávy, výkresy</span>
+        <b>⌂</b><span>Reset pohledu mapy</span>
+        <b>👤</b><span>Účet – odhlášení; admin má i správu uživatelů</span>
+        <b>☰</b><span>Vrstvy – co se na mapě zobrazuje</span>
+      </div>
+      <div style="font-weight:800;color:var(--accent);margin:14px 0 4px;">⭕ Kulatá tlačítka u mapy</div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 8px;">
+        <b>📍</b><span>GPS zapnout / vypnout / vycentrovat na sebe</span>
+        <b>📏</b><span>Měřit délku, obvod nebo plochu přímo v mapě</span>
+      </div>
+
+      <div style="font-weight:800;color:var(--accent);margin:16px 0 6px;">📖 Podrobně po funkcích</div>
+
+      <details style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+        <summary style="cursor:pointer;font-weight:700;">📷 Focení</summary>
+        <div style="padding-top:6px;color:var(--text2);">
+          Zapni GPS, ťukni <b>📷</b>. Po vyfocení vybereš <b>stavební objekt (SO)</b> — appka nabídne <b>blízké SO</b> podle polohy, pak všechny SO, pak vlastní objekty (deponie, zařízení staveniště).
+          Můžeš vybrat <b>víc SO najednou</b>. Rovnou tam zaškrtneš i <b>sdílení subce / investorovi</b>.
+          Nepovedla se? <b>🗑️ Nepoužít</b> ji zahodí a rovnou nabídne další.
+          Do fotky se vypálí razítko v pořadí: <b>SO · datum + čas · km · jméno</b>. Fotky se nahrávají <b>na pozadí</b>, takže můžeš fotit dál.
+        </div>
+      </details>
+
+      <details style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+        <summary style="cursor:pointer;font-weight:700;">🖼️ Galerie fotek</summary>
+        <div style="padding-top:6px;color:var(--text2);">
+          Ve výchozím stavu ukazuje <b>poslední měsíc</b> (⬇️ Zobrazit starší dolistuje dál). <b>🔍 Filtr</b> podle km, data, objektu, autora a SUB/investora; <b>✕ Zrušit filtr</b> se objeví, jen když nějaký běží.
+          <b>📁 Po objektech</b> seskupí fotky do složek podle SO. <b>☑️ Vybrat</b> zapne hromadné akce (stáhnout, ZIP, zatřídit do SO, sdílet subce/investorovi).
+          Klik na fotku = fullscreen; tam je <b>⋯ Možnosti</b> (komentář, sdílení, stažení, přeřazení SO, smazání).
+          <b>Stahování:</b> vybereš, co se má do fotky vypálit (SO, datum, čas, km, jméno). Název souboru drží stejné pořadí a rozliší <code>_raz</code> (s razítkem) / <code>_orig</code> (čistá).
+          Barevné rámečky: 🟠 od SUB · 🟢 sdíleno subce · 🟣 investor.
+        </div>
+      </details>
+
+      <details style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+        <summary style="cursor:pointer;font-weight:700;">✅ Úkoly</summary>
+        <div style="padding-top:6px;color:var(--text2);">
+          <b>📍➕</b> vloží úkol na konkrétní místo v mapě, <b>✅</b> otevře úkolníček. Přiřadíš lidi, termín, <b>prioritu</b> (nízká = nikomu nezazvoní, vysoká = výrazné upozornění) a <b>připomínku</b>:
+          v určitý čas, před termínem, nebo <b>„až budu na stavbě"</b> (připomene se, když otevřeš appku poblíž). Fotku k úkolu přidáš z <b>fotoaparátu, telefonu i galerie appky</b>.
+        </div>
+      </details>
+
+      <details style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+        <summary style="cursor:pointer;font-weight:700;">📝 Poznámky</summary>
+        <div style="padding-top:6px;color:var(--text2);">
+          <b>📍➕</b> → Poznámka. Kategorie (problém, hotovo, kontrola…) mají vlastní barvu a jdou samostatně zapínat ve <b>☰ Vrstvách</b>. Fotky lze přikládat. <b>📝</b> otevře evidenci všech poznámek s hledáním.
+        </div>
+      </details>
+
+      <details style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+        <summary style="cursor:pointer;font-weight:700;">📏 Měření</summary>
+        <div style="padding-top:6px;color:var(--text2);">
+          Kulaté <b>📏</b>. Vyber režim (vzdálenost / plocha / bod), klikej do mapy, <b>↩️ Zpět</b> vrací poslední bod. <b>💾 Uložit</b> měření pojmenuje a zachová. <b>📐</b> v liště = evidence uložených měření (zobrazit v mapě, přejmenovat, smazat).
+        </div>
+      </details>
+
+      <details style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+        <summary style="cursor:pointer;font-weight:700;">☰ Vrstvy a mapa</summary>
+        <div style="padding-top:6px;color:var(--text2);">
+          Zapínáš, co je na mapě: katastr, trasa a staničení, poznámky, úkoly, propustky, doplňkové SO, ZVS, vrtné sondy, uložená měření, koordinační situace (DWG), boční osy SO, <b>📍 Fotky v mapě</b> a zkoušky.
+          Nahoře je <b>⚙️ Zobrazení při spuštění</b> — <b>💾 Uložit jako výchozí</b> si zapamatuje tvoje nastavení (per zařízení), <b>↺ Standard</b> ho vrátí.
+          Klik na <b>staničení</b> v mapě otevře výkresy pro daný km.
+        </div>
+      </details>
+
+      <details style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+        <summary style="cursor:pointer;font-weight:700;">📍 Fotky v mapě</summary>
+        <div style="padding-top:6px;color:var(--text2);">
+          Vrstva ve <b>☰ Vrstvách</b>. Fotky se shluknou do <b>clusterů</b>, po přiblížení se rozpadnou; klik na pin otevře fotku. Pod přepínačem jsou <b>vnořené filtry</b>: 👤 osoba, 📷 SUB/investor, 🕘 i starší než měsíc.
+          Barvy pinů: 🔵 náš tým · 🟢 SUB · 🟣 investor.
+        </div>
+      </details>
+
+      <details style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+        <summary style="cursor:pointer;font-weight:700;">📓 Stavební deník</summary>
+        <div style="padding-top:6px;color:var(--text2);">
+          Den po dni: počasí, kontroly TDS/BOZP, <b>šichtovka</b> (hodiny lidí), <b>stroje</b> (motohodiny), průběžné <b>záznamy</b>, materiály a závěr dne.
+          <b>👷 Lidé / firmy</b> a <b>🚜 Spravovat stroje</b> spravují seznamy (jde přidat i dělníka bez přihlášení).
+          <b>📤 Export</b> vygeneruje text — buď plný deník, nebo jen šichtovku/stroje po firmách (podklad pro fakturaci).
+        </div>
+      </details>
+
+      <details style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+        <summary style="cursor:pointer;font-weight:700;">🧪 Kvalita/KZP · 📋 Dokumenty · 🔬 Zkoušky</summary>
+        <div style="padding-top:6px;color:var(--text2);">
+          <b>🧪 KZP</b> – kontrolní zkušební plány a TePř, včetně <b>podpisů prstem</b> (i v cizím jazyce) a stažení podepsaného PDF.<br>
+          <b>📋 Dokumenty</b> – nahraješ PDF (KZP, TePř, protokoly) do kategorií a otevřeš odkudkoliv.<br>
+          <b>🔬 Zkoušky</b> – laboratorní průvodka (materiál, vrstva, km, technik, laboratoř). Dokud nedoplníš <b>výsledek a číslo protokolu</b>, svítí <b>⚠️</b> — na mapě i v seznamu.
+        </div>
+      </details>
+
+      <details style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+        <summary style="cursor:pointer;font-weight:700;">📐 ZVS · 🪨 Geotechnika · výkresy</summary>
+        <div style="padding-top:6px;color:var(--text2);">
+          <b>📐 ZVS</b> zapne vytyčovací body (číslo, souřadnice Y/X, výška Z). <b>🪨</b> otevře geotechnický průzkum — vrtné sondy, zprávy a výkresy.
+          Výkresy k danému místu otevřeš <b>klikem na staničení</b> v mapě; v PDF panelu jde listovat, zoomovat, otevřít v prohlížeči, případně <b>nahrát vlastní výkres</b> nebo starý <b>zneplatnit</b>.
+        </div>
+      </details>
+
+      <details style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+        <summary style="cursor:pointer;font-weight:700;">👤 Účet, práva a kategorie</summary>
+        <div style="padding-top:6px;color:var(--text2);">
+          Přihlášení Googlem, nebo <b>telefonem bez SMS</b> (číslo slouží jen jako jmenovka). Nový člověk čeká na <b>schválení adminem</b>.
+          Každý patří do kategorie: <b>🛣️ Silnice</b> (náš tým — vidí vše), <b>🔵 SUB</b> (subdodavatel) nebo <b>🟣 Investor</b>.
+          SUB i investor vidí <b>jen svoje fotky a to, co jim někdo sdílel</b> — ostatní funkce jim admin musí povolit.
+          Admin má v <b>👤</b> správu uživatelů: schvalování, blokaci, kategorie, práva na jednotlivé funkce, statistiky využití a mazání duplicitních záznamů.
+        </div>
+      </details>
+
+      <details style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+        <summary style="cursor:pointer;font-weight:700;">💡 Tipy a řešení potíží</summary>
+        <div style="padding-top:6px;color:var(--text2);">
+          • <b>Nejde fotit / chybí km?</b> Zapni <b>📍 GPS</b> a chvíli počkej, než chytí signál.<br>
+          • <b>Chybí ti tlačítko?</b> Nejspíš ti tu funkci admin nepovolil — napiš mu. Horní lišta se navíc dá <b>posouvat do stran</b>.<br>
+          • <b>Fotky se nenahrály?</b> Nahrávají se na pozadí; při slabém signálu to chvíli trvá. Nezavírej appku hned.<br>
+          • <b>Appka se neaktualizovala?</b> Zavři ji úplně a otevři znovu (u ikony na ploše).<br>
+          • <b>Vrstvy se pořád samy nastavují jinak?</b> Nastav si je a dej <b>💾 Uložit jako výchozí</b> ve Vrstvách.<br>
+          • <b>Chceš appku po ruce?</b> V Safari <b>Sdílet ⤴ → Přidat na plochu</b>. Pak chodí i notifikace k úkolům.
+        </div>
+      </details>
+
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Statistiky využití „Co se v appce používá" -->
 <div id="stats-modal" onclick="if(event.target===this)closeStats()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:4950;align-items:center;justify-content:center;padding:14px;">
   <div style="background:var(--panel);border:1px solid var(--border);border-radius:14px;width:min(96vw,520px);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 12px 40px rgba(0,0,0,0.5);">
