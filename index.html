@@ -707,6 +707,14 @@ textarea.note-field { min-height:80px; resize:vertical; }
 .gallery-item img { width:100%; height:100%; object-fit:cover; border-radius:6px; display:block; }
 .gallery-item.gallery-sub img { outline:3px solid #f97316; outline-offset:-3px; }
 .gallery-sub-badge { position:absolute; top:3px; left:3px; background:#f97316; color:#fff; font-size:9px; font-weight:800; border-radius:3px; padding:1px 4px; }
+/* fotka OD investora – fialový rám + odznak INV */
+.gallery-item.gallery-inv img { outline:3px solid #8b5cf6; outline-offset:-3px; }
+.gallery-inv-badge { position:absolute; top:3px; left:3px; background:#8b5cf6; color:#fff; font-size:9px; font-weight:800; border-radius:3px; padding:1px 4px; z-index:3; }
+/* SDÍLENO subce (zelená) / investorovi (fialová) – „↗" odznak vpravo */
+.gallery-item.gallery-shared img { outline:3px solid #10b981; outline-offset:-3px; }
+.gallery-item.gallery-shared-inv img { outline:3px solid #8b5cf6; outline-offset:-3px; }
+.gallery-shared-badge { position:absolute; right:3px; background:#10b981; color:#fff; font-size:9px; font-weight:800; border-radius:3px; padding:1px 4px; z-index:3; box-shadow:0 1px 3px rgba(0,0,0,.4); }
+.gallery-shared-badge-inv { background:#8b5cf6; }
 .gallery-item-meta { position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.6); color:#fff; font-size:9px; border-radius:0 0 6px 6px; padding:2px 4px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .gallery-note-badge { position:absolute; top:3px; right:3px; background:rgba(233,69,96,0.85); color:#fff; font-size:9px; border-radius:3px; padding:1px 4px; }
 #gallery-empty { text-align:center; color:var(--text2); padding:40px 20px; font-size:14px; }
@@ -8766,10 +8774,30 @@ function _galleryItemEl(item) {
     })(item);
     div.appendChild(badge);
   }
-  if(item.zdroj==='SUB' || item.sub){
+  var _fromSub = (item.zdroj==='SUB' || item.sub);
+  var _fromInv = (item.zdroj==='INVESTOR' || item.investor);
+  if(_fromSub){
     div.classList.add('gallery-sub');
     var subBadge = document.createElement('div'); subBadge.className = 'gallery-sub-badge'; subBadge.textContent = 'SUB';
     div.appendChild(subBadge);
+  } else if(_fromInv){
+    div.classList.add('gallery-inv');
+    var invBadge = document.createElement('div'); invBadge.className = 'gallery-inv-badge'; invBadge.textContent = 'INV';
+    div.appendChild(invBadge);
+  }
+  // Sdíleno (náš tým sdílel fotku ven) – „↗" odznaky vpravo, ať se nepřekrývají s 📌
+  var _shTop = item.noteId ? 22 : 3;
+  if(item.sdilenoSub && !_fromSub){
+    div.classList.add('gallery-shared');
+    var shB = document.createElement('div'); shB.className = 'gallery-shared-badge'; shB.textContent = '↗ SUB';
+    shB.style.top = _shTop + 'px';
+    div.appendChild(shB);
+  }
+  if(item.sdilenoInvestor && !_fromInv){
+    div.classList.add('gallery-shared-inv');
+    var shI = document.createElement('div'); shI.className = 'gallery-shared-badge gallery-shared-badge-inv'; shI.textContent = '↗ INV';
+    shI.style.top = (_shTop + (item.sdilenoSub && !_fromSub ? 19 : 0)) + 'px';   // pod ↗SUB, když je i to
+    div.appendChild(shI);
   }
   var meta = document.createElement('div');
   meta.className = 'gallery-item-meta';
