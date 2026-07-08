@@ -1135,11 +1135,14 @@ document.addEventListener('touchend', function(e){
     <button class="bm-btn" onclick="setBasemap('aerial',this)">Letecká</button>
     <button class="bm-btn active" id="osm-btn" onclick="setBasemap('osm',this)">OSM</button>
   </div>
+  <div data-perm="katastr">
   <div class="layer-row">
     <label>🗺️ Katastr (KN)</label>
     <label class="toggle"><input type="checkbox" id="lyr-katastr" onchange="toggleKatastr(this.checked)"><span class="toggle-slider"></span></label>
   </div>
+  </div>
   <h3>📍 Vrstvy</h3>
+  <div data-perm="trasa">
   <div class="layer-row">
     <label>🛣️ Trasa</label>
     <label class="toggle"><input type="checkbox" id="lyr-trasa" checked onchange="toggleLayer('trasa',this.checked)"><span class="toggle-slider"></span></label>
@@ -1151,6 +1154,7 @@ document.addEventListener('touchend', function(e){
   <div class="layer-row">
     <label>📐 Staničení 20m</label>
     <label class="toggle"><input type="checkbox" id="lyr-st20" onchange="toggleLayer('st20',this.checked)"><span class="toggle-slider"></span></label>
+  </div>
   </div>
   <div data-perm="pripominky">
   <div class="layer-row">
@@ -1204,6 +1208,7 @@ document.addEventListener('touchend', function(e){
   </div>
   </div>
   </div>
+  <div data-perm="objekty">
   <div class="layer-row">
     <label>🔵 Propustky (SO 104, SO 105)</label>
     <label class="toggle"><input type="checkbox" id="lyr-prop" checked onchange="toggleLayer('propustky',this.checked)"><span class="toggle-slider"></span></label>
@@ -1212,13 +1217,18 @@ document.addEventListener('touchend', function(e){
     <label>🧩 Doplňkové SO (000/300/400/500)</label>
     <label class="toggle"><input type="checkbox" id="lyr-doplnky" checked onchange="toggleLayer('doplnky',this.checked)"><span class="toggle-slider"></span></label>
   </div>
+  </div>
+  <div data-perm="zvs">
   <div class="layer-row">
     <label>📐 Vytyčovací body ZVS</label>
     <label class="toggle"><input type="checkbox" id="lyr-zvs" checked onchange="setZvsVisible(this.checked)"><span class="toggle-slider"></span></label>
   </div>
+  </div>
+  <div data-perm="geotech">
   <div class="layer-row">
     <label>🛢️ Vrtné sondy (geotechnika)</label>
     <label class="toggle"><input type="checkbox" id="lyr-sondy" onchange="setSondyVisible(this.checked)"><span class="toggle-slider"></span></label>
+  </div>
   </div>
   <div data-perm="mereni">
   <div class="layer-row">
@@ -1231,6 +1241,7 @@ document.addEventListener('touchend', function(e){
     <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="mshow-datum" onchange="setMereniShow('datum',this.checked)"> datum</label>
   </div>
   </div>
+  <div data-perm="situace">
   <div class="layer-row">
     <label>🗺️ Koordinační situace (DWG) – kresba</label>
     <label class="toggle"><input type="checkbox" id="lyr-situace" onchange="setSituaceVisible(this.checked)"><span class="toggle-slider"></span></label>
@@ -1243,6 +1254,8 @@ document.addEventListener('touchend', function(e){
     <label style="font-size:12px;">↳ průhlednost ploch</label>
     <input type="range" min="20" max="100" value="85" id="plochy-opacity" oninput="setPlochyOpacity(this.value)" style="flex:1;max-width:120px;">
   </div>
+  </div>
+  <div data-perm="objekty">
   <div class="layer-row">
     <label>🌈 Barevné SO pruhy (ekvidistanty)</label>
     <label class="toggle"><input type="checkbox" id="lyr-ekvi" checked onchange="toggleLayer('ekvi',this.checked)"><span class="toggle-slider"></span></label>
@@ -1259,16 +1272,20 @@ document.addEventListener('touchend', function(e){
     <label style="font-size:12px;">↳ 📐 Staničení SO 20m</label>
     <label class="toggle"><input type="checkbox" id="lyr-soSt20" onchange="toggleLayer('soSt20',this.checked)"><span class="toggle-slider"></span></label>
   </div>
+  </div>
+  <div data-perm="gps">
   <div class="layer-row">
     <label>📍 GPS poloha</label>
     <label class="toggle"><input type="checkbox" id="lyr-gps" checked onchange="toggleGPS(this.checked)"><span class="toggle-slider"></span></label>
   </div>
+  </div>
   <h3>📷 Fotky</h3>
-  <div class="layer-row">
+  <div class="layer-row" data-perm="foto">
     <label>🏷️ Razítko (km, datum, jméno)</label>
     <label class="toggle"><input type="checkbox" id="lyr-stamp" onchange="onStampToggle(this.checked)"><span class="toggle-slider"></span></label>
   </div>
-  <div class="layer-row" data-perm="galerie">
+  <div data-perm="fotomapa">
+  <div class="layer-row">
     <label>📍 Fotky v mapě</label>
     <label class="toggle"><input type="checkbox" id="lyr-fotomapa" onchange="setFotoMapaVisible(this.checked)"><span class="toggle-slider"></span></label>
   </div>
@@ -1293,6 +1310,7 @@ document.addEventListener('touchend', function(e){
       <label style="font-size:12px;">↳ 🕘 I starší než měsíc</label>
       <label class="toggle"><input type="checkbox" id="fm-vse" onchange="applyFotoMapaFilter()"><span class="toggle-slider"></span></label>
     </div>
+  </div>
   </div>
   <div class="layer-row" data-perm="zkousky">
     <label>🔬 Zkoušky na stavbě</label>
@@ -4270,7 +4288,25 @@ function resetMapView() {
 function toggleLayers(){document.getElementById('layers-panel').classList.toggle('open');}
 function closeLayersPanel(){document.getElementById('layers-panel').classList.remove('open');}
 
+// Mapa: název vrstvy → právo. Kdo právo nemá, vrstvu nezapne (ani voláním z konzole).
+var LAYER_PERM = {
+  trasa:'trasa', st100:'trasa', st20:'trasa',
+  propustky:'objekty', doplnky:'objekty', ekvi:'objekty', so:'objekty', soSt100:'objekty', soSt20:'objekty',
+  notes0:'pripominky', notes1:'pripominky', notes2:'pripominky', notes3:'pripominky',
+  notes4:'pripominky', notes5:'pripominky', notes6:'pripominky',
+  mereni:'mereni', zkousky:'zkousky'
+};
+var LAYER_CB = { propustky:'lyr-prop' };   // kde se id přepínače liší od 'lyr-'+name
 function toggleLayer(name,en){
+  if(en){
+    var p = LAYER_PERM[name];
+    if(p && !hasPerm(p)){
+      var cb0 = document.getElementById(LAYER_CB[name] || ('lyr-'+name));
+      if(cb0) cb0.checked = false;
+      showToast('🔒 Tuto vrstvu ti administrátor nepovolil', 2800);
+      return;
+    }
+  }
   if(!layerGroups[name])return;
   en?layerGroups[name].addTo(map):map.removeLayer(layerGroups[name]);
 }
@@ -4323,6 +4359,7 @@ function setBasemap(type,btn){
   btn.classList.add('active');
 }
 function toggleKatastr(en) {
+  if(en && !hasPerm('katastr')){ var c=document.getElementById('lyr-katastr'); if(c) c.checked=false; showToast('🔒 Katastr ti administrátor nepovolil', 2800); return; }
   if(!baseLayers.katastr) return;
   if(en) {
     baseLayers.katastr.addTo(map);
@@ -5267,6 +5304,9 @@ var _fsIndex = -1;        // pozice v galleryCurrentItems (procházení tažení
 function openPhotoFs(src, firebaseKey, item) {
   var url = (typeof src === 'string') ? src : src.src;
   var it = item || (typeof src === 'object' ? src : null);
+  // ⛔ Poslední brána: restriktivní kategorie (SUB/investor) nesmí otevřít cizí fotku,
+  // ať se k ní dostane odkudkoliv (galerie, fotomapa, poznámka, přímé volání).
+  if(!canViewPhoto(it)){ showToast('🔒 Tuhle fotku nemáš oprávnění zobrazit', 2800); return; }
   // Index v aktuálně vykreslené galerii (kvůli procházení tažením). -1 = mimo galerii (výkres/poznámka).
   _fsIndex = -1;
   if(it && galleryCurrentItems && galleryCurrentItems.length){
@@ -6050,6 +6090,7 @@ function deleteCurrentNote() {
 function _setLayerSub(id, show){ var el = document.getElementById(id); if(el) el.classList.toggle('open', !!show); }
 
 function toggleNotesLayer(en) {
+  if(en && !hasPerm('pripominky')){ var c=document.getElementById('lyr-notes'); if(c) c.checked=false; _setLayerSub('sub-notes', false); showToast('🔒 Poznámky ti administrátor nepovolil', 2800); return; }
   _setLayerSub('sub-notes', en);
   if(!notesLayer) return;
   en ? notesLayer.addTo(map) : map.removeLayer(notesLayer);
@@ -6634,6 +6675,7 @@ function buildZVS() {
 }
 // Jednotný přepínač (sdílí tlačítko v liště i checkbox v panelu vrstev)
 function setZvsVisible(on) {
+  if(on && !hasPerm('zvs')){ var c=document.getElementById('lyr-zvs'); if(c) c.checked=false; showToast('🔒 Vytyčovací body ti administrátor nepovolil', 2800); return; }
   if(!zvsLayer) buildZVS();
   var cb = document.getElementById('lyr-zvs'); if(cb) cb.checked = !!on;
   var btn = document.getElementById('btn-zvs');
@@ -6656,7 +6698,7 @@ var GEO_SECTIONS = [
   {key:'reserse',         title:'📚 Rešerše'}
 ];
 function openGeotechPanel(){
-  if(typeof _permGuard==='function' && !_permGuard('pdf','Geotechniku')) return;
+  if(typeof _permGuard==='function' && !_permGuard('geotech','Geotechniku')) return;
   var p=document.getElementById('geo-panel'); if(!p) return;
   p.style.display='flex';
   var s=document.getElementById('geo-search');
@@ -6736,6 +6778,7 @@ function buildSondy(){
   });
 }
 function setSondyVisible(on){
+  if(on && !hasPerm('geotech')){ var c=document.getElementById('lyr-sondy'); if(c) c.checked=false; showToast('🔒 Vrtné sondy ti administrátor nepovolil', 2800); return; }
   if(!sondyLayer) buildSondy();
   var cb=document.getElementById('lyr-sondy'); if(cb) cb.checked=!!on;
   if(on) sondyLayer.addTo(map);
@@ -6767,6 +6810,7 @@ function _unbindSituaceText(){ if(_textHandler){ map.off('moveend zoomend', _tex
 function _situaceLineColor(){ var k=document.getElementById('lyr-katastr'); return (k && k.checked) ? '#1565c0' : '#1a1a1a'; }
 function _updateSituaceLineColor(){ var c=_situaceLineColor(); _situaceLines.forEach(function(l){ l.setStyle({color:c}); }); }
 function setSituaceVisible(on){
+  if(on && !hasPerm('situace')){ var c=document.getElementById('lyr-situace'); if(c) c.checked=false; showToast('🔒 Koordinační situaci ti administrátor nepovolil', 2800); return; }
   var cb=document.getElementById('lyr-situace'); if(cb) cb.checked=!!on;
   if(!on){
     if(situaceLayer && map.hasLayer(situaceLayer)) map.removeLayer(situaceLayer);
@@ -6801,6 +6845,7 @@ function setSituaceVisible(on){
 var plochyLayer = null, _plochyLoading = false, _plochyFills = [];
 function _plochyOp(){ var o=document.getElementById('plochy-opacity'); return o ? (+o.value)/100 : 0.85; }
 function setPlochyVisible(on){
+  if(on && !hasPerm('situace')){ var c=document.getElementById('lyr-plochy'); if(c) c.checked=false; showToast('🔒 Podbarvení ploch ti administrátor nepovolil', 2800); return; }
   var cb=document.getElementById('lyr-plochy'); if(cb) cb.checked=!!on;
   if(!on){ if(plochyLayer && map.hasLayer(plochyLayer)) map.removeLayer(plochyLayer); return; }
   if(plochyLayer){ plochyLayer.addTo(map); return; }
@@ -8540,6 +8585,7 @@ function applyGalleryFilters(items){
   var cfBtn = document.getElementById('gallery-clearfilter-btn');
   if(cfBtn) cfBtn.style.display = anyActive ? '' : 'none';
   return items.filter(function(it){
+    if(!canViewPhoto(it)) return false;   // ⛔ tvrdá brána – nezávislá na nastavení selectu
     if(srchWords.length){
       var hay = [ (it.tags||[]).join(' '), it.so, (it.soList||[]).join(' '), it.km, it.author, it.date ].join(' ').toLowerCase();
       if(!srchWords.every(function(w){ return hay.indexOf(w)!==-1; })) return false;
@@ -8996,10 +9042,12 @@ function isBlocked(uid){
 // ── MODEL PRÁV: 3 kategorie (silnice / sub / investor) ───────────────
 // Fallback: chybí-li kategorie, starý subOnly→'sub', jinak 'silnice' (náš tým = plný přístup).
 // Díky tomu existující uživatelé bez kategorie NIKOHO neomezí (žádný lockout).
+// Výchozí práva kategorií. silnice = vždy vše. sub/investor = deny-by-default,
+// povoleno jen tohle (gps je nutná, jinak nejde focení – takeStandalonePhoto vyžaduje GPS fix).
 var DEFAULT_CATEGORY_PERMS = {
   silnice:  {},
-  sub:      { foto:true, galerie:true },
-  investor: { foto:true, galerie:true }
+  sub:      { foto:true, galerie:true, gps:true },
+  investor: { foto:true, galerie:true, gps:true }
 };
 function userCategory(uid){
   var u = uid || (window.currentUser && window.currentUser.uid);
@@ -9021,20 +9069,45 @@ function categoryAllows(cat, feature){
   var d = _catDefaults(cat);
   return d[feature] === true;                // sub/investor: nic, dokud výslovně nepovolíš
 }
+// ── Smí tenhle uživatel VIDĚT tuhle fotku? ───────────────────────────
+// Náš tým (silnice) + admin: vše. SUB: jen fotky od SUB nebo sdílené subce.
+// Investor: jen fotky od investora nebo sdílené investorovi. Používá to galerie,
+// fotomapa I fullscreen – aby se cizí fotka nedala otevřít žádnou cestou.
+function canViewPhoto(it){
+  if(typeof isAdmin==='function' && isAdmin()) return true;
+  if(typeof isRestrictedCategory!=='function' || !isRestrictedCategory()) return true;   // náš tým
+  if(!it) return false;
+  if(isSubOnly())      return !!(it.zdroj==='SUB'      || it.sub      || it.sdilenoSub);
+  if(isInvestorOnly()) return !!(it.zdroj==='INVESTOR' || it.investor || it.sdilenoInvestor);
+  return false;
+}
 // Funkce, které jde adminovi zakázat konkrétnímu uživateli (allow-by-default).
+// Každá funkce I KAŽDÁ VRSTVA v mapě má vlastní klíč → admin může povolit/zakázat cokoliv.
+// POZOR: 'fotomapa' je ZÁMĚRNĚ oddělená od 'galerie' – jinak by si ji restriktivní kategorie
+// (SUB/investor) zapnula přes Vrstvy a proklikla cizí fotky.
 var FEATURES = [
-  {key:'pdf',        label:'Prohlížení výkresů (PDF)',  btns:[]},   // otvírá se klikem na mapu → gating v openerech + data-perm vrstvy
+  // ── Funkce (tlačítka v liště) ──
+  {key:'pdf',        label:'Prohlížení výkresů (PDF)',  btns:[]},   // otvírá se klikem na mapu → gating v openerech
   {key:'foto',       label:'Focení',                   btns:['btn-standalone-foto']},
   {key:'galerie',    label:'Galerie fotek',            btns:['btn-gallery']},
+  {key:'komentare',  label:'Komentáře k fotkám',       btns:[]},
   {key:'vykresy',    label:'Nahrávání výkresů',        btns:['btn-pdf-addvk']},
   {key:'mereni',     label:'Měření',                   btns:['btn-measure','btn-mereni-evidence']},
   {key:'pripominky', label:'Poznámky a úkoly na mapě', btns:['btn-place','btn-notes-evidence']},
   {key:'ukoly',      label:'Úkolníček',                btns:['btn-tasks']},
   {key:'denik',      label:'Deník / sichtovka',        btns:['btn-denik']},
   {key:'kvalita',    label:'Kvalita / KZP',            btns:['btn-kzp']},
-  {key:'komentare',  label:'Komentáře k fotkám',       btns:[]},
   {key:'dokumenty',  label:'Dokumenty (KZP/TePř)',     btns:['btn-dokumenty']},
-  {key:'zkousky',    label:'Zkoušky na stavbě',        btns:['btn-zkousky']}
+  {key:'zkousky',    label:'Zkoušky na stavbě',        btns:['btn-zkousky']},
+  // ── Vrstvy v mapě (každá zvlášť) ──
+  {key:'fotomapa',   label:'🗺️ Vrstva: Fotky v mapě',            btns:[]},
+  {key:'katastr',    label:'🗺️ Vrstva: Katastr (KN)',            btns:[]},
+  {key:'trasa',      label:'🗺️ Vrstva: Trasa a staničení',       btns:[]},
+  {key:'objekty',    label:'🗺️ Vrstva: SO objekty (propustky, doplňkové SO, osy)', btns:[]},
+  {key:'situace',    label:'🗺️ Vrstva: Koordinační situace (DWG)', btns:[]},
+  {key:'zvs',        label:'🗺️ Vrstva: Vytyčovací body ZVS',     btns:['btn-zvs']},
+  {key:'geotech',    label:'🗺️ Geotechnika (vrtné sondy)',       btns:['btn-geo']},
+  {key:'gps',        label:'🗺️ Vrstva: GPS poloha',              btns:['btn-gps']}
 ];
 // Efektivní právo: admin=vše; jinak per-uživatel override (perms[f]) > výchozí práva kategorie.
 function hasPerm(f){
@@ -10441,6 +10514,7 @@ function renderTasksOnMap() {
 }
 
 function toggleTasksLayer(visible) {
+  if(visible && !hasPerm('ukoly')){ var c=document.getElementById('lyr-tasks'); if(c) c.checked=false; _setLayerSub('sub-tasks', false); showToast('🔒 Úkoly ti administrátor nepovolil', 2800); return; }
   window.tasksLayerVisible = visible;
   _setLayerSub('sub-tasks', visible);
   if(!window.tasksLayer) return;
@@ -10655,6 +10729,13 @@ window.addEventListener('load', function(){
 window._fotoMapaLayer = null;
 var _fotoMapaPhotos = null;   // cache načtených fotek (filtrování bez opakovaného čtení DB)
 function setFotoMapaVisible(on){
+  // Tvrdá brána: i kdyby se přepínač objevil (např. voláním z konzole), bez práva se vrstva nezapne.
+  if(on && !hasPerm('fotomapa')){
+    var c0=document.getElementById('lyr-fotomapa'); if(c0) c0.checked=false;
+    _setLayerSub('sub-fotomapa', false);
+    showToast('🔒 Fotky v mapě ti administrátor nepovolil', 2800);
+    return;
+  }
   var cb=document.getElementById('lyr-fotomapa'); if(cb) cb.checked=!!on;
   _setLayerSub('sub-fotomapa', on);   // ukázat/schovat vnořené filtry
   if(window._fotoMapaLayer && map.hasLayer(window._fotoMapaLayer)){ try{ map.removeLayer(window._fotoMapaLayer); }catch(e){} }
@@ -10686,6 +10767,7 @@ function _fillFotoMapaOsoby(arr){
 // Překreslí markery fotek podle filtrů (osoba / SUB-investor / i starší měsíc). Z cache, bez čtení DB.
 function renderFotoMapa(){
   if(!_fotoMapaPhotos) return;
+  if(!hasPerm('fotomapa')) return;   // bez práva se nic nekreslí
   if(window._fotoMapaLayer && map.hasLayer(window._fotoMapaLayer)){ try{ map.removeLayer(window._fotoMapaLayer); }catch(e){} }
   var fOsoba = (document.getElementById('fm-osoba')||{}).value || '';
   var fSub   = (document.getElementById('fm-sub')||{}).value || '';   // '' | od | pro | inv-od | inv-pro
@@ -10697,6 +10779,7 @@ function renderFotoMapa(){
     : L.layerGroup();
   var n = 0;
   _fotoMapaPhotos.forEach(function(v){
+    if(!canViewPhoto(v)) return;   // ⛔ restriktivní kategorie uvidí v mapě jen svoje / sdílené jí
     if(cutoff && photoCreationDate(v).getTime() < cutoff) return;
     if(fOsoba && (v.author||v.autor||'').trim() !== fOsoba) return;
     if(fSub === 'od'      && !(v.sub || v.zdroj==='SUB')) return;
@@ -10719,6 +10802,7 @@ function renderFotoMapa(){
 }
 // Změna filtru → jen překreslit z cache.
 function applyFotoMapaFilter(){
+  if(!hasPerm('fotomapa')) return;
   if(!(document.getElementById('lyr-fotomapa')||{}).checked) return;
   if(!_fotoMapaPhotos){ setFotoMapaVisible(true); return; }
   renderFotoMapa();
