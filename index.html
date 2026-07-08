@@ -5536,10 +5536,10 @@ function _authorInitials(name){
 function photoFilename(item, idx) {
   var d = photoCreationDate(item);
   function clean(s){ return String(s).replace(/\s+/g,'').replace(/[^\w+\-.]/g,''); }
-  var parts = ['stavba'];
-  // 1) SO
+  var parts = ['Martinovice'];
+  // 1) SO – „SO" přidej jen když tam už není (ať nevznikne „SOSO111")
   var so = item && (item.so || (item.soList && item.soList.length ? item.soList[0] : ''));
-  if(so) parts.push('SO' + clean(so));
+  if(so){ var soC = clean(so); if(!/^SO/i.test(soC)) soC = 'SO' + soC; parts.push(soC); }
   // 2) datum
   parts.push(d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate()));
   // 3) čas
