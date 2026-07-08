@@ -4330,6 +4330,7 @@ function _getLayerDefaults(){
   catch(e){ return null; }
 }
 function applyLayerDefaults(){
+  if(!window._usersLoaded) return;   // bez znalosti práv nic neaplikuj (jinak by guardy odškrtaly vrstvy)
   if(typeof isRestrictedCategory==='function' && isRestrictedCategory()) return;   // SUB/investor má vynucený pohled
   var saved = _getLayerDefaults(); if(!saved) return;
   window._applyingDefaults = true;
@@ -9111,10 +9112,16 @@ var FEATURES = [
 ];
 // Efektivní právo: admin=vše; jinak per-uživatel override (perms[f]) > výchozí práva kategorie.
 function hasPerm(f){
-  if(isAdmin()) return true;
   var me = window.currentUser && window.currentUser.uid; if(!me) return false;
+  // ⛔ FAIL-CLOSED: dokud není načtené /uzivatele, NIKDO nemá nic (kromě natvrdo zapsaného admina).
+  // Bez tohohle by `allUsers` bylo {} → userCategory() spadne na 'silnice' → categoryAllows()=true
+  // → restriktivní uživatel by měl v okně mezi loginem a načtením dat PLNÁ PRÁVA. (Reálná díra.)
+  if(!window._usersLoaded) return ADMIN_UIDS.indexOf(me) !== -1;
+  // Záznam zmizel (admin smazal) → zákaz, ne „nejsilnější kategorie".
+  if(!window.allUsers[me]) return ADMIN_UIDS.indexOf(me) !== -1;
+  if(isAdmin()) return true;
   if(isBlocked(me)) return false;
-  var rec = (window.allUsers && window.allUsers[me]) || {};
+  var rec = window.allUsers[me] || {};
   if(rec.perms && rec.perms[f] === true)  return true;    // individuální doplněk práva
   if(rec.perms && rec.perms[f] === false) return false;   // individuální odebrání práva
   return categoryAllows(userCategory(me), f);
@@ -9243,6 +9250,10 @@ function loadCategoryPerms(){
   }, function(){});
 }
 function applyPermsToUI(){
+  // Dokud nevíme, kdo uživatel je, NIC nepřekresluj – jinak by fail-closed hasPerm()
+  // schoval celé UI a odškrtal výchozí vrstvy. Funkce jsou mezitím stejně zamčené
+  // centrální bránou (FN_PERM), takže se nic nedá spustit. loadAllUsers zavolá znovu.
+  if(!window._usersLoaded) return;
   FEATURES.forEach(function(f){
     var vis = hasPerm(f.key);
     (f.btns||[]).forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display = vis ? '' : 'none'; });
@@ -9258,6 +9269,110 @@ function applyPermsToUI(){
     }
   });
 }
+// ══════════════════════════════════════════════════════════════════
+// ÚPLNOST PRÁV: centrální brána nad KAŽDOU funkcí, která něco dělá.
+// Deklarativní mapa `funkce → právo`. Všechny se při startu obalí guardem,
+// takže je NELZE zavolat bez práva – ani z onclicku, ani z konzole, ani
+// vnitřně z jiné funkce (globální function declaration == window.<název>).
+// Ucelené moduly (úkoly, deník, kvalita…) mají jeden klíč – tak to chce uživatel.
+//
+// ZÁMĚRNĚ TU NEJSOU přepínače vrstev (toggleLayer, setFotoMapaVisible, toggleGPS,
+// setSondyVisible, …) – ty mají vlastní guard citlivý na směr (vypnout MUSÍ jít vždy,
+// jinak by po odebrání práva zůstala vrstva viset na mapě).
+// ══════════════════════════════════════════════════════════════════
+var FN_PERM = {
+  // ── Galerie / fotky ──
+  openGallery:'galerie', renderGallery:'galerie', switchGalleryTab:'galerie',
+  toggleGalleryGrouped:'galerie', toggleGallerySelectMode:'galerie',
+  selectAllVisibleGallery:'galerie', clearGallerySelection:'galerie', loadOlderGallery:'galerie',
+  generateMissingThumbs:'galerie', reassignSelectedGalleryPhotos:'galerie',
+  downloadSelectedGalleryPhotosShare:'galerie', downloadSelectedGalleryPhotosZip:'galerie',
+  downloadCurrentFsPhoto:'galerie', editPhotoSO:'galerie', deleteStandalonePhoto:'galerie',
+  shareSelectedGalleryPhotos:'galerie', toggleFsShareSub:'galerie', toggleFsShareInvestor:'galerie',
+  onStampToggle:'foto',
+  editPhotoComment:'komentare',
+  renderFotoMapa:'fotomapa', _fillFotoMapaOsoby:'fotomapa',
+  // ── Výkresy / PDF ──
+  onStaniceniClick:'pdf', openSOVykresy:'pdf', openPdfExternal:'pdf', docNav:'pdf', pdfZoom:'pdf',
+  togglePdfFs:'pdf', openPropPdfExternal:'pdf', togglePropFs:'pdf', handleSOSelectChange:'pdf',
+  addVykresStart:'vykresy', addVykresFilePicked:'vykresy', delCurrentVykres:'vykresy',
+  toggleInvalidateCurrentDoc:'vykresy',
+  // ── Měření ──
+  toggleMeasure:'mereni', measureAddPoint:'mereni', measureUndo:'mereni', measureClear:'mereni',
+  measureSave:'mereni', setMeasureKind:'mereni', setMereniShow:'mereni',
+  openMereniEvidence:'mereni', deleteMereni:'mereni', editMereni:'mereni',
+  editMereniGeometry:'mereni', zoomToMereni:'mereni', hideMereniFromMap:'mereni',
+  toggleMereniHidden:'mereni',
+  // ── Poznámky / propustky ──
+  startPlaceMode:'pripominky', confirmPlace:'pripominky', lpChoose:'pripominky',
+  saveNote:'pripominky', saveEditNote:'pripominky', editCurrentNote:'pripominky',
+  deleteCurrentNote:'pripominky', openNotesEvidence:'pripominky', newNoteFromEvidence:'pripominky',
+  openNoteFromEvidence:'pripominky', deleteNoteFromEvidence:'pripominky',
+  togglePropNoteForm:'pripominky', savePropNote:'pripominky', savePropEdit:'pripominky',
+  addPropPhotos:'pripominky', addPropEditPhotos:'pripominky', setPrikopStav:'pripominky',
+  // ── Úkoly (jeden klíč) ──
+  openTasksPanel:'ukoly', openNewTaskModal:'ukoly', saveTaskFromForm:'ukoly',
+  openTaskDetail:'ukoly', markTaskDone:'ukoly', reopenTask:'ukoly', editTask:'ukoly',
+  deleteTaskConfirm:'ukoly', addComment:'ukoly', addAssigneeFromPick:'ukoly',
+  removeAssignee:'ukoly', addTaskPhotos:'ukoly', removeTnmPhoto:'ukoly',
+  renderTasksList:'ukoly', renderTasksOnMap:'ukoly', setTaskTab:'ukoly', clearTaskFilter:'ukoly',
+  showTaskOnMap:'ukoly', openTaskAppGalleryPicker:'ukoly', _taskAppGalPick:'ukoly',
+  // ── Deník / šichtovka (jeden klíč) ──
+  openDiaryPanel:'denik', diarySaveDay:'denik', sichtovkaSet:'denik', sichtovkaSetNote:'denik',
+  sichtovkaFillAll:'denik', strojSetHours:'denik', strojSetNote:'denik', strojeFillAll:'denik',
+  zaznamAdd:'denik', zaznamDelete:'denik', setDiaryMode:'denik', diaryDateNav:'denik',
+  diaryDateToday:'denik', diaryDatePick:'denik', diaryListOpen:'denik', openDiaryFilter:'denik',
+  applyDiaryFilter:'denik', resetDiaryFilter:'denik', openDiaryExport:'denik',
+  generateDiaryExport:'denik', copyDiaryExport:'denik', generateDenikVytah:'denik',
+  openFirmyModal:'denik', addManualWorker:'denik', deleteManualWorker:'denik',
+  openOsobaEditModal:'denik', saveOsobaEdit:'denik', openStrojeModal:'denik', addStroj:'denik',
+  deleteStroj:'denik', openStrojEditModal:'denik', saveStrojEdit:'denik', expFilterToggleAll:'denik',
+  // ── Kvalita / KZP / podpisy (jeden klíč) ──
+  openKzpPanel:'kvalita', renderKzpList:'kvalita', openKzpItem:'kvalita', openKzpAddModal:'kvalita',
+  openKzpEditModal:'kvalita', saveKzpFromForm:'kvalita', deleteKzpItem:'kvalita',
+  cleanupOldKzp:'kvalita', clearKzpFilters:'kvalita', openKzpPdfInline:'kvalita',
+  openSignModal:'kvalita', saveSignature:'kvalita', signSetLang:'kvalita', signClearCanvas:'kvalita',
+  signDateToday:'kvalita', signAddToFronta:'kvalita', signAddWorkersToFronta:'kvalita',
+  signRemoveFronta:'kvalita', signLoadFronta:'kvalita', signToggleWorkerPicker:'kvalita',
+  openSignEvidence:'kvalita', renderSignEvidence:'kvalita', downloadTeprWithSigs:'kvalita',
+  downloadSignEvidenceCsv:'kvalita', deleteSignature:'kvalita', deleteSignFromEvidence:'kvalita',
+  signFromEvidence:'kvalita',
+  // ── Dokumenty ──
+  openDokumenty:'dokumenty', renderDokumenty:'dokumenty', openDokument:'dokumenty',
+  deleteDokument:'dokumenty', dokPickFile:'dokumenty',
+  // ── Zkoušky ──
+  openZkouskyPanel:'zkousky', saveZkouska:'zkousky', editZkouska:'zkousky', newZkouska:'zkousky',
+  deleteZkouska:'zkousky', zkouskaFillKmFromGps:'zkousky', renderZkouskyMarkers:'zkousky',
+  // ── Geotechnika ──
+  openGeotechPanel:'geotech', renderGeotech:'geotech', openGeoDoc:'geotech',
+  // ── Situace (DWG) ──
+  setPlochyOpacity:'situace'
+};
+// Tyhle se volají z DB listenerů / při vykreslování → při zákazu jen tiše nic (bez otravné hlášky).
+var FN_PERM_SILENT = {
+  renderGallery:1, renderTasksList:1, renderTasksOnMap:1, renderKzpList:1, renderDokumenty:1,
+  renderGeotech:1, renderSignEvidence:1, renderZkouskyMarkers:1, renderFotoMapa:1,
+  _fillFotoMapaOsoby:1, setMereniShow:1, diarySaveDay:1
+};
+var _permToastAt = 0;
+function _permDeniedToast(){
+  if(Date.now() - _permToastAt > 2000){ _permToastAt = Date.now(); showToast('🔒 Tuhle funkci ti administrátor nepovolil', 2800); }
+}
+// Obalí všechny funkce z FN_PERM. Deklarace funkcí jsou hoistované → v tuhle chvíli už existují.
+(function _installPermGates(){
+  var missing = [];
+  Object.keys(FN_PERM).forEach(function(name){
+    var orig = window[name];
+    if(typeof orig !== 'function'){ missing.push(name); return; }
+    var feat = FN_PERM[name], silent = !!FN_PERM_SILENT[name];
+    window[name] = function(){
+      if(!hasPerm(feat)){ if(!silent) _permDeniedToast(); return; }
+      return orig.apply(this, arguments);
+    };
+  });
+  if(missing.length) console.warn('FN_PERM: tyhle funkce neexistují (překlep?):', missing.join(', '));
+})();
+
 // Guard na vstup funkce (backstop k schování tlačítka). Vrací true když SMÍ pokračovat.
 function _permGuard(f, label){
   if(hasPerm(f)) return true;
@@ -9776,9 +9891,11 @@ function savePhoneUserName() {
 }
 
 // ── UŽIVATELÉ - načtení seznamu pro assignee picker ─────────────────
+window._usersLoaded = false;   // dokud je false, hasPerm() nikomu nic nedovolí (fail-closed)
 function loadAllUsers() {
   db.ref('uzivatele').on('value', function(snap) {
     window.allUsers = snap.val() || {};
+    window._usersLoaded = snap.exists();   // ne `!!snap.val()` – prázdná DB nesmí nikoho odhlásit
     rebuildAssigneePicker();
     // Živá blokace: kdyby admin zablokoval právě přihlášeného, vyhoď ho hned.
     if(window.currentUser && isBlocked(window.currentUser.uid)){
@@ -9787,7 +9904,22 @@ function loadAllUsers() {
       setTimeout(function(){ location.reload(); }, 1200);
       return;
     }
+    // Živé smazání účtu adminem → okamžitě ven (jinak by uživatel běžel dál s načtenými daty).
+    if(window.currentUser && snap.exists() && !window.allUsers[window.currentUser.uid]){
+      showToast('⛔ Tvůj účet byl odstraněn administrátorem.', 4000);
+      setTimeout(function(){ try{ fbAuth.signOut().then(function(){ location.reload(); }); }catch(e){ location.reload(); } }, 1500);
+      return;
+    }
     applyPermsToUI();   // živá změna práv (admin zapnul/vypnul funkci)
+    // Vykreslení, které proběhlo DŘÍV než doběhla práva, bylo tiše zablokované (fail-closed)
+    // → jednou po načtení práv ho zopakuj, ať uživatel nepřijde o úkoly/zkoušky/výchozí vrstvy.
+    if(!window._permsFirstLoadDone && window._usersLoaded){
+      window._permsFirstLoadDone = true;
+      try { renderTasksList(); }      catch(e){}
+      try { renderTasksOnMap(); }     catch(e){}
+      try { renderZkouskyMarkers(); } catch(e){}
+      try { applyLayerDefaults(); }   catch(e){}
+    }
     var uam = document.getElementById('user-admin-modal');
     if(uam && uam.style.display === 'flex') _renderUserAdmin();   // živě obnov admin panel
     // Zpřístupni adminovi vstup do správy uživatelů (badge klik → showUserMenu už řeší isAdmin)
