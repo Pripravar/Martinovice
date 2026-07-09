@@ -6472,20 +6472,31 @@ function buildSO() {
     line.bindPopup(pop, {className:'so-tooltip', maxWidth:260});
     line.addTo(subGroup);
 
+    // Široká NEVIDITELNÁ naváděcí čára pro snazší klik – nemusíš se trefit přesně na 4px pruh.
+    // Leží nad viditelným pruhem (přidána později) a nese stejný popup s tlačítkem Výkresy.
+    var hit = L.polyline(pts, {color:so.barva, weight:18, opacity:0, interactive:true});
+    hit.bindPopup(pop, {className:'so-tooltip', maxWidth:260});
+    hit.addTo(subGroup);
+
     // Štítek SO podél pruhu – text vodorovně podél osy, NIKDY vzhůru nohama.
+    // Když má SO výkresy, je štítek KLIKACÍ (otevře výkresy) a má velkou dotykovou plochu.
+    var vkLbl = (vk && SO_VYKRESY[vk]) ? vk : null;
     function placeLabel(plat, plng, bear2) {
       var br = bear2 * Math.PI / 180;
       var theta = Math.atan2(-Math.cos(br), Math.sin(br)) * 180 / Math.PI;
       if(Math.sin(br) < 0) theta += 180;  // čte se zleva doprava
+      var W = 120, H = 30;
       var lbl = L.divIcon({
         className:'',
-        html:'<div style="color:'+so.barva+';font-size:11px;font-weight:700;white-space:nowrap;'+
-             'text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff;'+
-             'transform:translate(-50%,-50%) rotate('+theta.toFixed(1)+'deg);">'+
-             lblTxt+'</div>',
-        iconSize:[0,0], iconAnchor:[0,0],
+        html:'<div style="width:'+W+'px;height:'+H+'px;display:flex;align-items:center;justify-content:center;'+
+             'transform:rotate('+theta.toFixed(1)+'deg);pointer-events:'+(vkLbl?'auto':'none')+';'+(vkLbl?'cursor:pointer;':'')+'">'+
+             '<span style="color:'+so.barva+';font-size:11px;font-weight:700;white-space:nowrap;'+
+             'text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff;">'+lblTxt+'</span></div>',
+        iconSize:[W,H], iconAnchor:[W/2,H/2],
       });
-      L.marker([plat,plng],{icon:lbl,interactive:false}).addTo(subGroup);
+      var lm = L.marker([plat,plng],{icon:lbl,interactive:!!vkLbl,zIndexOffset:120});
+      if(vkLbl){ lm.on('click',function(e){ L.DomEvent.stopPropagation(e); openSOVykresy(vkLbl); }); }
+      lm.addTo(subGroup);
     }
 
     // Popisky co 500 m. Když do úseku žádný násobek 500 m nespadne, dej 1 štítek doprostřed.
