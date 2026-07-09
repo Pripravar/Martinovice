@@ -1283,7 +1283,7 @@ document.addEventListener('touchend', function(e){
   </div>
   <h3>📷 Fotky</h3>
   <div class="layer-row" data-perm="foto">
-    <label>🏷️ Razítko (km, datum, jméno)</label>
+    <label>🏷️ Razítko (SO, km, datum, čas, jméno)</label>
     <label class="toggle"><input type="checkbox" id="lyr-stamp" onchange="onStampToggle(this.checked)"><span class="toggle-slider"></span></label>
   </div>
   <div data-perm="fotomapa">
@@ -4648,8 +4648,16 @@ function openNoteModalManual(){
   var stampToggle = document.getElementById('note-stamp-toggle');
   if(stampToggle) stampToggle.checked = getStampPref();
   selectCat(0);
+  _syncNoteAppGalBtns();
   document.getElementById('note-modal').classList.add('open');
   if(stEl) setTimeout(function(){ stEl.focus(); }, 100);
+}
+// Skryj tlačítko „🏗️ z galerie stavby", pokud uživatel nemá právo galerie (hard gate stejně drží FN_PERM)
+function _syncNoteAppGalBtns(){
+  var ok = (typeof hasPerm==='function') ? hasPerm('galerie') : true;
+  ['btn-note-appgal','btn-edit-appgal'].forEach(function(id){
+    var el = document.getElementById(id); if(el) el.style.display = ok ? '' : 'none';
+  });
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -4876,6 +4884,7 @@ function lpChoose(kind) {
     var stampToggle = document.getElementById('note-stamp-toggle');
     if(stampToggle) stampToggle.checked = getStampPref();
     selectCat(0);
+    _syncNoteAppGalBtns();
     document.getElementById('note-modal').classList.add('open');
   } else if(kind === 'task') {
     var km = null;
@@ -5191,9 +5200,10 @@ function saveNote() {
   var stampToggle = document.getElementById('note-stamp-toggle');
   var useStamp = stampToggle ? stampToggle.checked : getStampPref();
   setStampPref(useStamp);
-  var metaKm = null;
+  var metaKm = null, metaSo = '';
   if(useStamp && newNoteLat && newNoteLng) {
     try { metaKm = fmtKm(gpxCumToRealKm(nearestOnRoute(newNoteLat, newNoteLng).cum)); } catch(e){}
+    metaSo = _autoSOForPoint(newNoteLat, newNoteLng);   // razítko: i SO nejbližšího objektu
   }
   closeNoteModal();
   if(toUpload.length === 0) { finish([]); }
@@ -5202,7 +5212,7 @@ function saveNote() {
     uploadPhotosToGitHub(toUpload,
       function(done,total){ showSync('⏳ Nahrávám fotky (' + done + '/' + total + ')...'); },
       function(urls){ finish(urls); },
-      useStamp ? {km: metaKm, author: author} : null);
+      useStamp ? {km: metaKm, author: author, so: metaSo} : null);
   }
 }
 
@@ -6138,6 +6148,7 @@ function editCurrentNote() {
   var editStampT = document.getElementById('edit-stamp-toggle');
   if(editStampT) editStampT.checked = getStampPref();
   renderEditPhotoPreviews();
+  _syncNoteAppGalBtns();
 
   closeNoteDetail();
   document.getElementById('note-edit-modal').classList.add('open');
@@ -6201,9 +6212,10 @@ function saveEditNote() {
   var editStampToggle = document.getElementById('edit-stamp-toggle');
   var editUseStamp = editStampToggle ? editStampToggle.checked : getStampPref();
   setStampPref(editUseStamp);
-  var editMetaKm = null;
+  var editMetaKm = null, editMetaSo = '';
   if(editUseStamp && note && note.lat && note.lng) {
     try { editMetaKm = fmtKm(gpxCumToRealKm(nearestOnRoute(note.lat, note.lng).cum)); } catch(e){}
+    editMetaSo = _autoSOForPoint(note.lat, note.lng);
   }
   closeEditModal();
   if(toUpload.length === 0) { finish([]); }
@@ -6212,7 +6224,7 @@ function saveEditNote() {
     uploadPhotosToGitHub(toUpload,
       function(done,total){ showSync('⏳ Nahrávám fotky (' + done + '/' + total + ')...'); },
       function(urls){ finish(urls); },
-      editUseStamp ? {km: editMetaKm, author: author} : null);
+      editUseStamp ? {km: editMetaKm, author: author, so: editMetaSo} : null);
   }
 }
 
@@ -7461,6 +7473,12 @@ function soKandidatiGPS(lat,lng){
   var out=[]; for(var k in byId) if(byId.hasOwnProperty(k)) out.push(byId[k]);
   out.sort(function(a,b){return a.dist-b.dist;});
   return out;
+}
+
+// Automatické zařazení bodu k nejbližšímu SO (bez ptaní) – pro razítko poznámek a úkolů.
+// Vrátí id nejbližšího SO/objektu v toleranci, jinak '' (bod na hlavní trase bez konkrétního SO).
+function _autoSOForPoint(lat,lng){
+  try{ var c = soKandidatiGPS(lat,lng); return (c && c[0]) ? c[0].id : ''; }catch(e){ return ''; }
 }
 
 // NN nadzemní vedení - značky ⚡ s popupem "NN nadzemní"
@@ -9310,6 +9328,7 @@ var FN_PERM = {
   downloadSelectedGalleryPhotosShare:'galerie', downloadSelectedGalleryPhotosZip:'galerie',
   downloadCurrentFsPhoto:'galerie', editPhotoSO:'galerie', deleteStandalonePhoto:'galerie',
   shareSelectedGalleryPhotos:'galerie', toggleFsShareSub:'galerie', toggleFsShareInvestor:'galerie',
+  openNoteAppGalleryPicker:'galerie', _noteAppGalPick:'galerie',
   onStampToggle:'foto',
   editPhotoComment:'komentare',
   renderFotoMapa:'fotomapa', _fillFotoMapaOsoby:'fotomapa',
@@ -10215,6 +10234,7 @@ function openNewTaskModal(lat, lng, km) {
   document.getElementById('tnm-prof').value = '';
   _resetPripominkaForm();
   renderTnmPhotos();
+  var _tst = document.getElementById('tnm-stamp-toggle'); if(_tst) _tst.checked = getStampPref();
   document.getElementById('tnm-lat').value = (lat !== null && lat !== undefined) ? lat : '';
   document.getElementById('tnm-lng').value = (lng !== null && lng !== undefined) ? lng : '';
   document.getElementById('tnm-km').value  = (km  !== null && km  !== undefined) ? km  : '';
@@ -10310,10 +10330,57 @@ function openTaskAppGalleryPicker(){
 function closeTaskAppGalleryPicker(){ var m=document.getElementById('task-appgal-modal'); if(m) m.style.display='none'; }
 function _taskAppGalPick(key){
   var it = (window._taskAppGalItems||{})[key]; if(!it || !it.url){ return; }
+  if(typeof canViewPhoto==='function' && !canViewPhoto(it)){ return; }   // práva: restriktivní kategorie jen svoje
   if(window.taskFormPhotos.some(function(p){ return p.url===it.url; })){ showToast('Tahle fotka už je přidaná', 1800); return; }
   window.taskFormPhotos.push({ url: it.url });   // už nahraná – jen odkaz
   renderTnmPhotos();
   showToast('🏗️ Fotka z appky přidána', 1500);
+}
+
+// ── Výběr fotky z galerie stavby → do poznámky (nová i editace) ──
+// target: 'new' (newNotePhotos) | 'edit' (editNotePhotos). Respektuje práva přes canViewPhoto:
+// restriktivní kategorie (SUB/investor) uvidí v pickeru jen svoje fotky.
+function openNoteAppGalleryPicker(target){
+  window._noteAppGalTarget = (target === 'edit') ? 'edit' : 'new';
+  var modal = document.getElementById('note-appgal-modal'); if(!modal) return;
+  modal.style.display = 'flex';
+  var box = document.getElementById('note-appgal-list');
+  box.innerHTML = '<div style="color:var(--text2);padding:16px;text-align:center;">⏳ Načítám…</div>';
+  db.ref('standalone_photos').orderByChild('ts').limitToLast(200).once('value', function(snap){
+    var items=[]; snap.forEach(function(ch){ var v=ch.val(); v.fbKey=ch.key; items.push(v); });
+    items.reverse();
+    if(typeof canViewPhoto==='function'){ items = items.filter(function(it){ return canViewPhoto(it); }); }
+    if(!items.length){ box.innerHTML='<div style="color:var(--text2);padding:16px;text-align:center;">Zatím žádné fotky, které bys mohl vybrat.</div>'; return; }
+    box.innerHTML = items.map(function(it){
+      var thumb = it.thumb || it.url || '';
+      return '<div onclick="_noteAppGalPick(\''+it.fbKey+'\')" style="cursor:pointer;border-radius:6px;overflow:hidden;background:var(--panel2);aspect-ratio:1;position:relative;">'+
+        '<img data-src="'+escapeHtml(thumb)+'" style="width:100%;height:100%;object-fit:cover;display:block;" alt="">'+
+        (it.so?('<span style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,.6);color:#fff;font-size:9px;padding:0 4px;border-radius:3px;">'+escapeHtml(it.so)+'</span>'):'')+
+      '</div>';
+    }).join('');
+    box.querySelectorAll('img[data-src]').forEach(function(img){
+      var p=img.getAttribute('data-src'); if(!p){ return; }
+      resolveFileUrl(p).then(function(u){ img.src=u; }).catch(function(){});
+    });
+    window._noteAppGalItems = {}; items.forEach(function(it){ window._noteAppGalItems[it.fbKey]=it; });
+  });
+}
+function closeNoteAppGalleryPicker(){ var m=document.getElementById('note-appgal-modal'); if(m) m.style.display='none'; }
+function _noteAppGalPick(key){
+  var it = (window._noteAppGalItems||{})[key]; if(!it || !it.url){ return; }
+  if(typeof canViewPhoto==='function' && !canViewPhoto(it)){ return; }   // pojistka i při kliku
+  resolveFileUrl(it.url).then(function(u){
+    if(window._noteAppGalTarget === 'edit'){
+      if(editNotePhotos.indexOf(u) !== -1){ showToast('Tahle fotka už je přidaná', 1800); return; }
+      editNotePhotos.push(u);
+      renderEditPhotoPreviews();
+    } else {
+      if(newNotePhotos.some(function(p){ return (p.dataUrl||p) === u; })){ showToast('Tahle fotka už je přidaná', 1800); return; }
+      newNotePhotos.push({ dataUrl: u, name: (it.so ? ('SO'+it.so) : 'foto') });   // už nahraná – uloží se jako odkaz (není data:)
+      renderNewPhotoPreviews();
+    }
+    showToast('🏗️ Fotka z galerie přidána', 1500);
+  }).catch(function(){ showToast('Fotku se nepodařilo načíst', 2000); });
 }
 
 function renderAssigneeChips() {
@@ -10462,6 +10529,21 @@ function saveTaskFromForm() {
     return;
   }
 
+  // Razítko do nových fotek úkolu (SO · km · datum · čas · jméno) – dle toggle, dědí globální preferenci
+  var tStampT = document.getElementById('tnm-stamp-toggle');
+  var tUseStamp = tStampT ? tStampT.checked : getStampPref();
+  setStampPref(tUseStamp);
+  var tMeta = null;
+  if(tUseStamp){
+    var tKm = null, tSo = '';
+    if(!isNaN(lat) && !isNaN(lng)){
+      try { tKm = fmtKm(gpxCumToRealKm(nearestOnRoute(lat,lng).cum)); } catch(e){}
+      tSo = _autoSOForPoint(lat,lng);
+    }
+    var tAuthor = (window.currentUser && window.currentUser.name) || '';
+    tMeta = {km: tKm, author: tAuthor, so: tSo};
+  }
+
   // Upload nových fotek na GitHub, pak teprve uložit úkol
   showSync('⏳ Nahrávám fotky 0/' + pendingItems.length + '…');
   uploadPhotosToGitHub(
@@ -10471,7 +10553,7 @@ function saveTaskFromForm() {
       hideSync();
       buildAndSaveTask(existingUrls.concat(uploadedUrls));
     },
-    null // bez razítka pro úkoly
+    tMeta
   );
 }
 
@@ -10585,6 +10667,7 @@ function editTask() {
   // Načti existující fotky úkolu jako URL záznamy
   window.taskFormPhotos = (t.photos || []).map(function(url){ return {url: url}; });
   renderTnmPhotos();
+  var _tst2 = document.getElementById('tnm-stamp-toggle'); if(_tst2) _tst2.checked = getStampPref();
   document.getElementById('tnm-title').textContent = '✏️ Upravit úkol';
   document.getElementById('tnm-id').value = t.id;
   document.getElementById('tnm-text-title').value = t.title || '';
@@ -13549,12 +13632,13 @@ function copyDiaryExport(){
     <input type="file" id="note-gallery-input" accept="image/*" multiple style="display:none">
     <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);padding:6px 0;cursor:pointer;">
       <input type="checkbox" id="note-stamp-toggle" checked style="width:18px;height:18px;cursor:pointer;">
-      <span>🏷️ Razítko do fotky (km, datum, jméno)</span>
+      <span>🏷️ Razítko do fotky (SO, km, datum, čas, jméno)</span>
     </label>
     <div class="note-btns">
       <button class="note-btn note-btn-cancel" onclick="closeNoteModal()">Zrušit</button>
       <button class="note-btn note-btn-addphoto" onclick="document.getElementById('note-photo-input').click()" title="Vyfotit (po pořízení rovnou další - ukončit Zrušit v kameře)">📷</button>
-      <button class="note-btn note-btn-addphoto" onclick="document.getElementById('note-gallery-input').click()" title="Vybrat z galerie">🖼️</button>
+      <button class="note-btn note-btn-addphoto" onclick="document.getElementById('note-gallery-input').click()" title="Vybrat z galerie telefonu">🖼️</button>
+      <button id="btn-note-appgal" class="note-btn note-btn-addphoto" onclick="openNoteAppGalleryPicker('new')" title="Vybrat z galerie stavby (už nahrané fotky v appce)">🏗️</button>
       <button class="note-btn note-btn-save" onclick="saveNote()">Uložit</button>
     </div>
   </div>
@@ -13662,6 +13746,18 @@ function copyDiaryExport(){
       <button onclick="closeTaskAppGalleryPicker()" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;padding:2px 8px;">&#x2715;</button>
     </div>
     <div id="task-appgal-list" style="flex:1;overflow-y:auto;padding:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:6px;-webkit-overflow-scrolling:touch;"></div>
+  </div>
+</div>
+
+<!-- Výběr fotky z galerie stavby do poznámky (nová i editace) -->
+<div id="note-appgal-modal" onclick="if(event.target===this)closeNoteAppGalleryPicker()" style="display:none;position:fixed;inset:0;z-index:5100;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;padding:14px;">
+  <div style="background:var(--panel);border-radius:14px;width:min(96vw,520px);max-height:86vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 28px rgba(0,0,0,0.5);">
+    <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border);">
+      <h3 style="margin:0;font-size:15px;color:var(--text);flex:1;">🏗️ Vyber fotku z galerie stavby</h3>
+      <button onclick="closeNoteAppGalleryPicker()" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;padding:2px 8px;">&#x2715;</button>
+    </div>
+    <div style="font-size:11px;color:var(--text2);padding:6px 14px;border-bottom:1px solid var(--border);">Klepni na fotku a připne se k poznámce. Můžeš vybrat víc fotek, pak okno zavři ✕.</div>
+    <div id="note-appgal-list" style="flex:1;overflow-y:auto;padding:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:6px;-webkit-overflow-scrolling:touch;"></div>
   </div>
 </div>
 
@@ -13836,12 +13932,13 @@ function copyDiaryExport(){
     <input type="file" id="edit-gallery-input" accept="image/*" multiple style="display:none">
     <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);padding:6px 0;cursor:pointer;">
       <input type="checkbox" id="edit-stamp-toggle" checked style="width:18px;height:18px;cursor:pointer;">
-      <span>🏷️ Razítko do nových fotek (km, datum, jméno)</span>
+      <span>🏷️ Razítko do nových fotek (SO, km, datum, čas, jméno)</span>
     </label>
     <div class="note-btns">
       <button class="note-btn note-btn-cancel" onclick="closeEditModal()">Zrušit</button>
       <button class="note-btn note-btn-addphoto" onclick="document.getElementById('edit-photo-input').click()" title="Vyfotit (po pořízení rovnou další)">📷</button>
-      <button class="note-btn note-btn-addphoto" onclick="document.getElementById('edit-gallery-input').click()" title="Vybrat z galerie">🖼️</button>
+      <button class="note-btn note-btn-addphoto" onclick="document.getElementById('edit-gallery-input').click()" title="Vybrat z galerie telefonu">🖼️</button>
+      <button id="btn-edit-appgal" class="note-btn note-btn-addphoto" onclick="openNoteAppGalleryPicker('edit')" title="Vybrat z galerie stavby (už nahrané fotky v appce)">🏗️</button>
       <button class="note-btn note-btn-save" onclick="saveEditNote()">Uložit</button>
     </div>
   </div>
@@ -14012,6 +14109,10 @@ function copyDiaryExport(){
     </div>
     <input type="file" id="tnm-photo-input" accept="image/*" capture="environment" multiple style="display:none" onchange="addTaskPhotos(this)">
     <input type="file" id="tnm-photo-input-lib" accept="image/*" multiple style="display:none" onchange="addTaskPhotos(this)">
+    <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);padding:6px 0;cursor:pointer;font-weight:400;">
+      <input type="checkbox" id="tnm-stamp-toggle" checked style="width:18px;height:18px;cursor:pointer;">
+      <span>🏷️ Razítko do nových fotek (SO, km, datum, čas, jméno)</span>
+    </label>
 
     <label>Přiřadit (1+ osob)</label>
     <div id="assignee-list"></div>
