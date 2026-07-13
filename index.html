@@ -1081,10 +1081,11 @@ document.addEventListener('touchend', function(e){
       <button class="auth-back" onclick="showPhoneView()">↩ Změnit číslo</button>
     </div>
 
-    <!-- Pohled 4: první přihlášení – doplnění jména -->
+    <!-- Pohled 4: první přihlášení – doplnění jména + firmy -->
     <div id="auth-view-name" style="display:none;">
-      <p style="text-align:left;">Vítej! Pro ostatní v týmu, jak se jmenuješ?</p>
+      <p style="text-align:left;">Vítej! Pro ostatní v týmu, jak se jmenuješ a za koho jsi?</p>
       <input type="text" id="name-input" class="auth-input" placeholder="Jméno a příjmení" autocapitalize="words">
+      <input type="text" id="firma-input" class="auth-input" placeholder="Firma (za koho jsi)" autocapitalize="words">
       <button class="auth-google" onclick="savePhoneUserName()">Pokračovat →</button>
     </div>
 
@@ -9485,6 +9486,10 @@ function _renderUserAdmin(){
         '<div style="flex:1;min-width:0;"><div style="font-weight:700;color:var(--text);">'+escapeHtml(u.name||'—')+badges+'</div>'+
           '<div style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escapeHtml(u.email||u.phone||'')+' · '+_relTime(u.lastSeen)+'</div></div>'+
       '</div>'+
+      '<div style="display:flex;align-items:center;gap:6px;margin-top:8px;">'+
+        '<span style="font-size:13px;flex-shrink:0;">🏢</span>'+
+        '<input type="text" value="'+escapeHtml(u.firma||'')+'" placeholder="Firma (za koho je)" onchange="adminSetUserFirma(\''+uid+'\',this.value)" style="flex:1;min-width:0;box-sizing:border-box;font-size:12px;padding:6px 9px;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:6px;">'+
+      '</div>'+
       '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">'+ctrl+'</div>'+
       perms+'</div>';
   }).join('');
@@ -9537,6 +9542,15 @@ function setUserCategory(uid, cat){
   db.ref('uzivatele/'+uid+'/kategorie').set(cat)
     .then(function(){ showToast('Kategorie nastavena: '+cat, 1600); _renderUserAdmin(); })
     .catch(function(){ showToast('❌ Chyba (publikoval jsi pravidla?)', 3000); });
+}
+// Admin nastaví/opraví firmu libovolné osobě přímo v přehledu práv.
+function adminSetUserFirma(uid, val){
+  if(!isAdmin()){ return; }
+  var firma = (val || '').trim();
+  var ref = db.ref('uzivatele/'+uid+'/firma');
+  (firma ? ref.set(firma) : ref.remove())
+    .then(function(){ showToast('🏢 Firma uložena', 1400); })
+    .catch(function(){ showToast('❌ Chyba uložení firmy', 2500); });
 }
 // ── Editor výchozích práv kategorií SUB / Investor ───────────────────
 var _catPermsEdit = null, _catPermsTab = 'sub';
@@ -9699,7 +9713,10 @@ function completeLogin(user, nameOverride, phoneOverride) {
       _showPendingApproval(user.uid, displayName);
       return;
     }
+    window.currentUser.firma = rec.firma || '';
     _enterApp(displayName);
+    // Chybí firma (typicky Gmail login, kde se jméno nezadává) → vyskakovací okno na doplnění.
+    if(!rec.firma){ setTimeout(function(){ openFirmaPrompt(); }, 700); }
   }).catch(function(){ _enterApp(displayName); });  // při chybě čtení nech projít (offline apod.)
 }
 // Uživatel čeká na schválení administrátorem. Zůstane přihlášený (admin ho vidí v /uzivatele),
@@ -9939,6 +9956,8 @@ function savePhoneUserName() {
     showAuthError('Zadej prosím jméno a příjmení');
     return;
   }
+  var firmaEl = document.getElementById('firma-input');
+  var firma = firmaEl ? (firmaEl.value || '').trim() : '';
   var u = fbAuth.currentUser;
   if(!u) { showAuthError('Chyba: nejsi přihlášen.'); return; }
   var phone = window._pendingPhone || u.phoneNumber || '';
@@ -9948,6 +9967,7 @@ function savePhoneUserName() {
       return db.ref('uzivatele/' + u.uid).update({
         uid: u.uid,
         name: name,
+        firma: firma || null,
         email: u.email || '',
         phone: phone,
         photo: u.photoURL || '',
@@ -9962,6 +9982,25 @@ function savePhoneUserName() {
       console.error('Save name error:', err);
       showAuthError('Chyba uložení: ' + (err.message || err.code));
     });
+}
+
+// ── Vyskakovací okno: doplnění firmy (po Gmail loginu / když chybí) ──
+// Píše do vlastního záznamu přihlášeného uživatele – nepodléhá právům.
+function openFirmaPrompt(){
+  var u = window.currentUser; if(!u || !u.uid) return;
+  var inp = document.getElementById('firma-prompt-input');
+  if(inp) inp.value = u.firma || '';
+  var m = document.getElementById('firma-prompt-modal');
+  if(m){ m.style.display='flex'; setTimeout(function(){ try{ inp.focus(); }catch(e){} }, 120); }
+}
+function closeFirmaPrompt(){ var m=document.getElementById('firma-prompt-modal'); if(m) m.style.display='none'; }
+function saveFirmaPrompt(){
+  var u = window.currentUser; if(!u || !u.uid){ closeFirmaPrompt(); return; }
+  var firma = (document.getElementById('firma-prompt-input').value || '').trim();
+  if(!firma){ showToast('Napiš prosím firmu', 1800); return; }
+  db.ref('uzivatele/'+u.uid+'/firma').set(firma)
+    .then(function(){ u.firma = firma; showToast('✅ Firma uložena', 1500); closeFirmaPrompt(); })
+    .catch(function(){ showToast('❌ Chyba uložení firmy', 2200); });
 }
 
 // ── UŽIVATELÉ - načtení seznamu pro assignee picker ─────────────────
@@ -14511,6 +14550,19 @@ function copyDiaryExport(){
       <button class="btn-primary" style="flex:1;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px;font-weight:700;cursor:pointer;" onclick="saveStrojEdit()">💾 Uložit</button>
       <button class="btn-secondary" style="background:#ff6b6b;color:#fff;border:none;border-radius:8px;padding:10px 14px;cursor:pointer;" onclick="deleteStroj()">🗑</button>
       <button class="btn-secondary" style="flex:1;background:var(--panel2);color:var(--text2);border:1px solid var(--border);border-radius:8px;padding:10px;cursor:pointer;" onclick="closeStrojEdit()">Zrušit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: doplnění firmy po přihlášení (hlavně Gmail login) -->
+<div id="firma-prompt-modal" style="display:none;position:fixed;inset:0;z-index:5200;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--panel);border-radius:14px;padding:20px 18px;width:min(94vw,380px);display:flex;flex-direction:column;gap:12px;box-shadow:0 8px 28px rgba(0,0,0,0.5);">
+    <div style="font-size:16px;font-weight:800;color:var(--accent2);">🏢 Za jakou firmu jsi?</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.4;">Doplň prosím svou firmu – ukáže se u tebe v týmu, v šichtovce a v přehledu práv.</div>
+    <input type="text" id="firma-prompt-input" placeholder="Firma" autocapitalize="words" style="width:100%;box-sizing:border-box;padding:11px 12px;font-size:15px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text);">
+    <div style="display:flex;gap:8px;">
+      <button onclick="saveFirmaPrompt()" style="flex:1;background:var(--accent2);color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;">Uložit</button>
+      <button onclick="closeFirmaPrompt()" style="background:var(--panel2);color:var(--text2);border:1px solid var(--border);border-radius:8px;padding:11px 14px;font-size:14px;cursor:pointer;">Teď ne</button>
     </div>
   </div>
 </div>
