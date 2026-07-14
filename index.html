@@ -8126,10 +8126,13 @@ function _renderSOPicker(){
   }
   // 1) Blízké objekty
   if(_soPick.kand.length){ html += '<div class="so-pick-sec">📍 Blízké objekty</div>' + _soPick.kand.map(itemBtn).join(''); }
-  // 2) Všechny SO (z katalogu)
   var near = {}; _soPick.kand.forEach(function(o){ near[o.id] = true; });
+  // 1b) Předvybráno mimo blízké kandidáty (#49 – SO z minulé fotky série) → ať je vidět a jde odškrtnout
+  var extraSel = Object.keys(_soPick.sel).filter(function(id){ return !near[id]; });
+  if(extraSel.length){ html += '<div class="so-pick-sec">✅ Vybráno</div>' + extraSel.map(function(id){ return itemBtn({id:id, short:''}); }).join(''); }
+  // 2) Všechny SO (z katalogu) – bez už vybraných (jsou v sekci Vybráno) a bez blízkých
   if(_soPick.showAll){
-    var rest = (typeof SO_OBJEKTY !== 'undefined' ? SO_OBJEKTY : []).filter(function(o){ return !near[o.id]; });
+    var rest = (typeof SO_OBJEKTY !== 'undefined' ? SO_OBJEKTY : []).filter(function(o){ return !near[o.id] && !_soPick.sel[o.id]; });
     rest.sort(function(a,b){ return String(a.id).localeCompare(String(b.id), 'cs', {numeric:true}); });   // podle čísla SO (001,020,101,201…)
     html += '<div class="so-pick-sec">📋 Všechny SO</div>' + rest.map(itemBtn).join('');
   } else {
@@ -8204,6 +8207,7 @@ function takeStandalonePhoto() {
   }
   // Reset série a otevři foťák
   window.photoSession.count = 0;
+  window._lastSeriesSO = null;   // nová série – zapomeň minulý výběr SO (#49)
   document.getElementById('standalone-photo-input').click();
 }
 
@@ -8523,6 +8527,7 @@ window.addEventListener('load', function() {
         chooseSOForPhoto(km, latlng.lat, latlng.lng, function(soArr, opt){
           var meta = window.photoSession.pendingMeta;
           soArr = soArr || [];
+          window._lastSeriesSO = soArr.slice();   // #49 zapamatuj SO pro další fotku v sérii
           meta.soList = soArr;
           meta.so = soArr[0] || '';   // primární (zpětná kompatibilita)
           if(opt && opt.sub)      meta.sdilenoSub = true;        // sdílet subce (volba z pickeru)
@@ -8532,7 +8537,7 @@ window.addEventListener('load', function() {
           var br = branchKmForSO(meta.so, latlng.lat, latlng.lng);
           if(br){ meta.km = fmtKm(br.km); meta.kmAxis = br.id; }
           ppAnswer(true);  // true = v galerii bude razítkovaná verze
-        }, null, function(){
+        }, window._lastSeriesSO || [], function(){   // #49 preset = SO z minulé fotky série
           // 🗑️ Nepoužít – zahoď nenahranou fotku a nabídni vyfotit další
           window.photoSession.pendingPhoto = null;
           window.photoSession.pendingMeta  = null;
@@ -8782,9 +8787,37 @@ function editPhotoSO(){
   chooseSOForPhoto(it.km, it.lat, it.lng, function(arr){
     arr = arr || []; var so = arr[0] || '';
     db.ref('standalone_photos/'+key).update({ so:so, soList:arr })
-      .then(function(){ if(_photoFsItem){ _photoFsItem.so=so; _photoFsItem.soList=arr; } showToast('🏗️ Zatříděno ('+arr.length+' SO)', 2200); if(document.getElementById('gallery-modal').classList.contains('open')) renderGallery(); })
+      .then(function(){
+        if(_photoFsItem){ _photoFsItem.so=so; _photoFsItem.soList=arr; }
+        if(it){ it.so=so; it.soList=arr; }
+        showToast('🏗️ Zatříděno ('+arr.length+' SO)', 2200);
+        if(document.getElementById('gallery-modal').classList.contains('open')) renderGallery();
+        _restampPhotoNow(_photoFsItem || it, key);   // #59 přerazítkuj z čistého originálu na nové SO
+      })
       .catch(function(){ showToast('❌ Chyba zápisu', 2500); });
   }, preset);
+}
+// #59 Přerazítkuje JEDNU fotku z ČISTÉHO originálu (nové SO). Pojistka: bez urlOriginal nedělá (jinak dvojité razítko).
+function _restampPhotoNow(item, key){
+  if(!item || !item.urlOriginal || typeof uploadPhotoToGitHubP!=='function'){ return; }
+  showSync('⏳ Přerazítkovávám na nové SO…');
+  fetchPhotoAsBlob(item.urlOriginal).then(function(blob){ return blobToDataUrl(blob); }).then(function(cleanDataUrl){
+    _burnStampFields(cleanDataUrl, item, {so:true,km:true,datum:true,cas:true,jmeno:true}, photoCreationDate(item), function(stampedDataUrl){
+      uploadPhotoToGitHubP(stampedDataUrl, 'standalone/restamp_'+Date.now()+'.jpg').then(function(url){
+        hideSync();
+        if(!url){ showToast('❌ Přerazítkování selhalo', 2500); return; }
+        var wasStamped = !!(item.stamped || (item.url && item.url === item.urlStamped));
+        var upd = { urlStamped: url, stamped: true };
+        if(wasStamped) upd.url = url;   // v galerii se ukazuje razítkovaná verze → aktualizuj i zobrazovanou url
+        db.ref('standalone_photos/'+key).update(upd).then(function(){
+          if(_photoFsItem && _photoFsItem.fbKey===key){ Object.keys(upd).forEach(function(k){ _photoFsItem[k]=upd[k]; }); }
+          if(typeof _renderFsItem==='function' && _photoFsItem) _renderFsItem(_photoFsItem);
+          if(document.getElementById('gallery-modal').classList.contains('open')) renderGallery();
+          showToast('🏷️ Razítko aktualizováno na nové SO', 2400);
+        }).catch(function(){ showToast('❌ Chyba zápisu razítka', 2500); });
+      }).catch(function(){ hideSync(); showToast('❌ Upload razítka selhal', 2500); });
+    });
+  }).catch(function(){ hideSync(); showToast('❌ Nešlo načíst originál k přerazítkování', 2800); });
 }
 // Hromadné přeřazení vybraných fotek v galerii (multi-výběr).
 // Hromadné sdílení vybraných fotek subce / investorovi (přepíná – když už všechny sdílené, zruší).
@@ -9362,7 +9395,7 @@ var FN_PERM = {
   renderFotoMapa:'fotomapa', _fillFotoMapaOsoby:'fotomapa',
   // ── Výkresy / PDF ──
   onStaniceniClick:'pdf', openSOVykresy:'pdf', openPdfExternal:'pdf', docNav:'pdf', pdfZoom:'pdf',
-  togglePdfFs:'pdf', openPropPdfExternal:'pdf', togglePropFs:'pdf', handleSOSelectChange:'pdf',
+  togglePdfFs:'pdf', openPropPdfExternal:'pdf', togglePropFs:'pdf',
   addVykresStart:'vykresy', addVykresFilePicked:'vykresy', delCurrentVykres:'vykresy',
   toggleInvalidateCurrentDoc:'vykresy',
   // ── Měření ──
@@ -9395,6 +9428,7 @@ var FN_PERM = {
   openFirmyModal:'denik', addManualWorker:'denik', deleteManualWorker:'denik',
   openOsobaEditModal:'denik', saveOsobaEdit:'denik', openStrojeModal:'denik', addStroj:'denik',
   deleteStroj:'denik', openStrojEditModal:'denik', saveStrojEdit:'denik', expFilterToggleAll:'denik',
+  openSichtSoPicker:'denik', _sichtSoSave:'denik', generateDiaryPdf:'denik',
   // ── Kvalita / KZP / podpisy (jeden klíč) ──
   openKzpPanel:'kvalita', renderKzpList:'kvalita', openKzpItem:'kvalita', openKzpAddModal:'kvalita',
   openKzpEditModal:'kvalita', saveKzpFromForm:'kvalita', deleteKzpItem:'kvalita',
@@ -9771,6 +9805,8 @@ function _enterApp(displayName){
   maybeShowIosHint();
   applyPermsToUI();   // schovej funkce, které tomuto uživateli admin zakázal
   setTimeout(_maybeQuickPhoto, 600);   // ?foto/#foto deep-link (iOS zkratka)
+  // Geo připomínky – několik včasných pokusů (GPS fix může přijít pozdě), pak pravidelně (interval výše).
+  [3000, 8000, 16000, 30000].forEach(function(ms){ setTimeout(_checkGeoReminders, ms); });
 }
 
 // Hlavní auth listener - běží automaticky po načtení stránky
@@ -10550,6 +10586,7 @@ function _checkGeoReminders(){
   var me = window.currentUser.uid;
   var here = gpsMarker.getLatLng();
   var today = new Date().toISOString().slice(0,10);
+  var hit = [];
   window.allTasks.forEach(function(t){
     if(!t.pripominka || t.pripominka.typ !== 'geo' || t.stav === 'done') return;
     if(typeof t.lat !== 'number' || typeof t.lng !== 'number') return;
@@ -10558,9 +10595,29 @@ function _checkGeoReminders(){
     if(t._geoNudged === today) return;
     if(haversine(here.lat, here.lng, t.lat, t.lng) > 400) return;   // do 400 m od úkolu
     t._geoNudged = today;
-    showToast('📍 Připomínka na místě: ' + (t.title || 'úkol'), 5000);
+    hit.push(t);
   });
+  if(hit.length) _showGeoRemindModal(hit);
 }
+// Výrazný modal místo přehlédnutelného toastu – zůstane, dokud ho nezavřeš; klik na úkol → detail.
+function _showGeoRemindModal(tasks){
+  try { if(navigator.vibrate) navigator.vibrate([120,60,120]); } catch(e){}
+  var ov = document.getElementById('geo-remind-modal');
+  if(!ov){
+    ov = document.createElement('div'); ov.id='geo-remind-modal';
+    ov.style.cssText='position:fixed;inset:0;z-index:5300;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px;';
+    document.body.appendChild(ov);
+  }
+  var rows = tasks.map(function(t){
+    return '<button type="button" onclick="closeGeoRemind();openTaskDetail(\''+t.id+'\')" style="display:block;width:100%;text-align:left;background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:11px 12px;margin-bottom:8px;font-size:14px;font-weight:600;cursor:pointer;">✅ '+escapeHtml(t.title||'úkol')+'</button>';
+  }).join('');
+  ov.innerHTML = '<div style="background:var(--panel);border:2px solid #f59e0b;border-radius:14px;max-width:420px;width:100%;max-height:86vh;overflow-y:auto;box-shadow:0 8px 28px rgba(0,0,0,.5);">'+
+    '<div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;"><div style="flex:1;font-size:16px;font-weight:800;color:#f59e0b;">📍 Připomínka na místě</div><button onclick="closeGeoRemind()" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;min-width:40px;min-height:40px;">✕</button></div>'+
+    '<div style="padding:12px 16px;"><div style="font-size:12px;color:var(--text2);margin-bottom:10px;">Jsi poblíž místa těchto úkolů:</div>'+rows+'</div>'+
+  '</div>';
+  ov.style.display='flex';
+}
+function closeGeoRemind(){ var m=document.getElementById('geo-remind-modal'); if(m) m.style.display='none'; }
 window.addEventListener('load', function(){
   if(!window._geoRemTimer) window._geoRemTimer = setInterval(_checkGeoReminders, 90000);
 });
@@ -11430,32 +11487,51 @@ function changeSOForDay(id, kind, val){
   else renderSichtovka();
 }
 
+// Tlačítko SO (může jich být víc) → otevře multi-select picker. Hodnota = čárkou oddělený seznam.
 function _soSelectHtml(id, kind, currentValue){
-  var sos = getAllProjectSOs();
-  if(currentValue && sos.indexOf(currentValue) === -1) sos.unshift(currentValue);
-  // První volba: explicitní "Bez SO" (value = "" → uloží prázdný string jako override)
-  // Pokud currentValue je '', tato volba bude vybraná.
-  var isNone = (currentValue === '' || currentValue == null);
-  var opts = '<option value=""' + (isNone ? ' selected' : '') + '>⊘ Bez SO</option>';
-  sos.forEach(function(so){
-    opts += '<option value="' + escapeHtml(so) + '"' + (so === currentValue ? ' selected' : '') + '>' + escapeHtml(so) + '</option>';
-  });
-  opts += '<option value="__custom__">+ jiné…</option>';
-  opts += '<option value="__reset__">↺ Vymazat denní volbu</option>';
-  return '<select class="sht-so-sel" data-id="' + id + '" data-kind="' + kind + '" onchange="handleSOSelectChange(this)" onclick="event.stopPropagation()" title="SO platí od tohohle dne dál">' + opts + '</select>';
+  var lbl = (currentValue && String(currentValue).trim()) ? String(currentValue).trim() : '⊘ Bez SO';
+  return '<button type="button" class="sht-so-sel" data-id="'+id+'" data-kind="'+kind+'" onclick="event.stopPropagation();openSichtSoPicker(\''+id+'\',\''+kind+'\')" title="SO platí od tohohle dne dál – můžeš vybrat víc objektů" style="text-align:left;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">🏗️ '+escapeHtml(lbl)+'</button>';
 }
-
-function handleSOSelectChange(sel){
-  var id   = sel.getAttribute('data-id');
-  var kind = sel.getAttribute('data-kind');
-  var v = sel.value;
-  if(v === '__custom__') {
-    var current = effectiveSOForId(id, window.diaryCurrentDate, kind);
-    var custom = prompt('Zadej nové SO (např. SO 108 nebo "DZ 101"):', current || '');
-    if(custom === null) { sel.value = current || ''; return; }
-    v = (custom || '').trim();
+// Multi-select popup SO pro člověka/stroj v šichtovce (#58). Modal se vytvoří dynamicky.
+function openSichtSoPicker(id, kind){
+  if(!hasPerm('denik')){ showToast('📓 Deník Ti admin nepovolil', 3000); return; }
+  var current = effectiveSOForId(id, window.diaryCurrentDate, kind) || '';
+  var selSet = {};
+  String(current).split(',').map(function(s){return s.trim();}).filter(Boolean).forEach(function(s){ selSet[s]=true; });
+  window._sichtSoCtx = { id:id, kind:kind, selSet:selSet };
+  var ov = document.getElementById('sicht-so-modal');
+  if(!ov){
+    ov=document.createElement('div'); ov.id='sicht-so-modal';
+    ov.style.cssText='position:fixed;inset:0;z-index:4900;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:14px;';
+    ov.innerHTML='<div style="background:var(--panel);border-radius:14px;max-width:440px;width:100%;max-height:88vh;display:flex;flex-direction:column;border:1px solid var(--border);">'
+      +'<div style="display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0;"><div style="flex:1;font-size:15px;font-weight:700;color:var(--accent);">🏗️ Objekty (můžeš vybrat víc)</div><button onclick="document.getElementById(\'sicht-so-modal\').style.display=\'none\'" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;min-width:44px;min-height:44px;">✕</button></div>'
+      +'<div id="sicht-so-list" style="padding:10px 14px;overflow-y:auto;flex:1;"></div>'
+      +'<div style="display:flex;gap:6px;padding:10px 14px;border-top:1px solid var(--border);"><input id="sicht-so-custom" type="text" placeholder="+ jiné SO (např. SO 108)" style="flex:1;padding:9px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text);"><button onclick="_sichtSoAddCustom()" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:0 12px;cursor:pointer;min-height:40px;">Přidat</button></div>'
+      +'<div style="display:flex;gap:6px;padding:0 14px 14px;"><button onclick="_sichtSoClear()" style="flex:0 0 auto;background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text2);padding:11px 12px;cursor:pointer;">⊘ Bez SO</button><button onclick="_sichtSoSave()" style="flex:1;background:var(--accent);border:none;border-radius:8px;color:#fff;padding:11px;font-weight:700;cursor:pointer;">Uložit</button></div></div>';
+    document.body.appendChild(ov);
   }
-  changeSOForDay(id, kind, v);
+  ov.style.display='flex';
+  _renderSichtSoList();
+}
+function _renderSichtSoList(){
+  var box=document.getElementById('sicht-so-list'); if(!box||!window._sichtSoCtx) return;
+  var selSet=window._sichtSoCtx.selSet;
+  var sos=getAllProjectSOs();
+  Object.keys(selSet).forEach(function(s){ if(sos.indexOf(s)===-1) sos.unshift(s); });   // i vybrané mimo seznam
+  if(!sos.length){ box.innerHTML='<div style="color:var(--text2);font-size:12px;padding:10px 2px;">Zatím žádné SO – přidej přes pole níže.</div>'; return; }
+  box.innerHTML=sos.map(function(so){
+    var on=!!selSet[so];
+    return '<button type="button" onclick="_sichtSoToggle(this.getAttribute(\'data-so\'))" data-so="'+escapeHtml(so)+'" style="display:block;width:100%;text-align:left;background:'+(on?'rgba(34,211,238,.15)':'var(--panel2)')+';border:1px solid '+(on?'#22d3ee':'var(--border)')+';border-radius:8px;color:var(--text);padding:11px 12px;margin-bottom:6px;font-size:13px;cursor:pointer;">'+(on?'✅ ':'⬜ ')+escapeHtml(so)+'</button>';
+  }).join('');
+}
+function _sichtSoToggle(so){ var s=window._sichtSoCtx.selSet; if(s[so]) delete s[so]; else s[so]=true; _renderSichtSoList(); }
+function _sichtSoAddCustom(){ var inp=document.getElementById('sicht-so-custom'); var v=(inp.value||'').trim(); if(!v||!window._sichtSoCtx) return; window._sichtSoCtx.selSet[v]=true; inp.value=''; _renderSichtSoList(); }
+function _sichtSoClear(){ if(window._sichtSoCtx){ window._sichtSoCtx.selSet={}; } _sichtSoSave(); }
+function _sichtSoSave(){
+  var ctx=window._sichtSoCtx; if(!ctx) return;
+  var joined=Object.keys(ctx.selSet).join(', ');
+  var m=document.getElementById('sicht-so-modal'); if(m) m.style.display='none';
+  changeSOForDay(ctx.id, ctx.kind, joined);
 }
 
 function loadPracovnici(){
@@ -12144,6 +12220,47 @@ function _getExpStrojeFilter(){
   return ids;
 }
 function closeDiaryExport(){ document.getElementById('diary-export-modal').classList.remove('open'); }
+
+// ── PDF export deníku (#62) – znovupoužije textový export + přidá fotky rozsahu → tisk do PDF ──
+function generateDiaryPdf(){
+  if(!hasPerm('denik')){ showToast('📓 Deník Ti admin nepovolil', 3000); return; }
+  var od = document.getElementById('exp-od').value, doDate = document.getElementById('exp-do').value;
+  if(!od || !doDate){ showToast('Vyber rozsah dat (Od–Do)', 2200); return; }
+  generateDiaryExport();   // naplní #diary-export-text správným textem pro Martinovice
+  var text = (document.getElementById('diary-export-text').value || '');
+  var incFotky = !!(document.getElementById('pdf-inc-fotky') && document.getElementById('pdf-inc-fotky').checked);
+  if(!incFotky){ _openDiaryPdfWindow(text, od, doDate, []); return; }
+  showSync('⏳ Připravuji fotky do PDF…');
+  db.ref('standalone_photos').once('value').then(function(snap){
+    var photos=[];
+    snap.forEach(function(ch){
+      var v=ch.val()||{};
+      var d=''; try { d=ymd(photoCreationDate(v)); } catch(e){}
+      if(d>=od && d<=doDate && (typeof canViewPhoto!=='function' || canViewPhoto(v))) photos.push({v:v, d:d});
+    });
+    Promise.all(photos.map(function(p){
+      return resolveFileUrl(p.v.thumb || p.v.url).then(function(u){ return {u:u, so:p.v.so, km:p.v.km, d:p.d}; }).catch(function(){ return null; });
+    })).then(function(list){ hideSync(); _openDiaryPdfWindow(text, od, doDate, list.filter(Boolean)); });
+  }).catch(function(){ hideSync(); _openDiaryPdfWindow(text, od, doDate, []); });
+}
+function _openDiaryPdfWindow(text, od, doDate, photos){
+  var w = window.open('', '_blank');
+  if(!w){ showToast('Povol vyskakovací okna, ať jde PDF vytisknout', 3800); return; }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+  var photoHtml = photos.length ? ('<h2>Fotky ('+photos.length+')</h2><div class="grid">'+photos.map(function(p){
+    return '<figure><img src="'+esc(p.u)+'"><figcaption>'+esc([p.so,(p.km!=null?('km '+p.km):''),p.d].filter(Boolean).join(' · '))+'</figcaption></figure>';
+  }).join('')+'</div>') : '';
+  var html = '<!doctype html><html lang="cs"><head><meta charset="utf-8"><title>Deník '+esc(od)+' – '+esc(doDate)+'</title>'+
+    '<style>body{font-family:Arial,Helvetica,sans-serif;margin:24px;color:#111;}h1{font-size:18px;margin:0 0 4px;}h2{font-size:15px;margin:18px 0 6px;border-bottom:1px solid #ccc;padding-bottom:4px;}pre{white-space:pre-wrap;font-family:Arial,sans-serif;font-size:12px;line-height:1.55;}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}figure{margin:0;}img{width:100%;height:auto;border:1px solid #ddd;border-radius:4px;}figcaption{font-size:10px;color:#555;margin-top:2px;}@media print{figure{break-inside:avoid;}}</style>'+
+    '</head><body>'+
+    '<h1>📓 Stavební deník — I/16 Mladá Boleslav – Martinovice</h1>'+
+    '<div style="font-size:12px;color:#555;">Rozsah: '+esc(od)+' – '+esc(doDate)+'</div>'+
+    '<h2>Zápis</h2><pre>'+esc(text)+'</pre>'+
+    photoHtml+
+    '</body></html>';
+  w.document.write(html); w.document.close();
+  setTimeout(function(){ try{ w.focus(); w.print(); }catch(e){} }, 700);
+}
 
 // ── Modal: Pracovníci & firmy ──────────────────────────────────────
 function openFirmyModal(){
@@ -14515,6 +14632,11 @@ function copyDiaryExport(){
     <div style="display:flex;gap:8px;">
       <button class="btn-primary" style="flex:1;background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px;font-weight:700;cursor:pointer;" onclick="copyDiaryExport()">📋 Zkopírovat</button>
       <button class="btn-secondary" style="flex:1;background:var(--panel2);color:var(--text2);border:1px solid var(--border);border-radius:8px;padding:10px;cursor:pointer;" onclick="closeDiaryExport()">Zavřít</button>
+    </div>
+    <div style="border-top:1px dashed var(--border);margin-top:8px;padding-top:10px;display:flex;flex-direction:column;gap:8px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer;"><input type="checkbox" id="pdf-inc-fotky" checked style="width:16px;height:16px;"> 📷 Přidat do PDF fotky z rozsahu dat</label>
+      <button class="btn-primary" style="background:#0d9488;color:#fff;border:none;border-radius:8px;padding:11px;font-weight:700;cursor:pointer;" onclick="generateDiaryPdf()">🖨️ Vytvořit PDF (vč. fotek)</button>
+      <div style="font-size:10px;color:var(--text2);font-style:italic;">PDF se vytvoří přes tisk prohlížeče → „Uložit jako PDF". Potřebuje povolené vyskakovací okno.</div>
     </div>
   </div>
 </div>
