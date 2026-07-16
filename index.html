@@ -5227,7 +5227,7 @@ function saveNote() {
       ownerUid: (window.currentUser ? window.currentUser.uid : ''),
       photos:keepUrls.concat(uploadedUrls), time:new Date().toLocaleString('cs-CZ') };
     saveNote_toFirebase(note, null);
-    logActivity('📝', 'přidal/a poznámku' + (noteSo?(' k '+noteSo):(nazev?(' „'+nazev+'"'):'')));
+    logActivity('📝', 'přidal/a poznámku' + (noteSo?(' k '+noteSo):(nazev?(' „'+nazev+'"'):'')), {k:'note'});
   }
   // Razítko: jen pokud uživatel zaškrtl toggle (a uložíme preferenci pro příště)
   var stampToggle = document.getElementById('note-stamp-toggle');
@@ -5517,7 +5517,7 @@ function editPhotoComment(){
     _photoFsItem.komentare[cid] = c;
     _renderFsCommentBar();
     _notifyPhotoComment(_photoFsItem, prev, v);
-    logActivity('💬', 'okomentoval/a fotku' + ((_photoFsItem && _photoFsItem.so)?(' ('+_photoFsItem.so+')'):''));
+    logActivity('💬', 'okomentoval/a fotku' + ((_photoFsItem && _photoFsItem.so)?(' ('+_photoFsItem.so+')'):''), _photoFsKey?{k:'photo', id:_photoFsKey}:null);
     if(document.getElementById('gallery-modal').classList.contains('open')) renderGallery();
     showToast('💬 Komentář přidán', 1500);
   }).catch(function(){ showToast('❌ Nepodařilo se uložit', 2500); });
@@ -7094,7 +7094,7 @@ function measureSave(){
     datumRealizace:dReal, datumMereni:dnes,
     ownerUid:(window.currentUser?window.currentUser.uid:''),
     author:(window.currentUser?window.currentUser.name:''), ts:Date.now() };
-  db.ref('mereni').push(rec).then(function(){ showToast('💾 Měření uloženo', 2000); logActivity('📏', 'uložil/a měření „' + nazev + '"'); stopMeasure(); })
+  db.ref('mereni').push(rec).then(function(){ showToast('💾 Měření uloženo', 2000); logActivity('📏', 'uložil/a měření „' + nazev + '"', {k:'mereni'}); stopMeasure(); })
     .catch(function(){ showToast('❌ Uložení selhalo (přihlášení?)', 3000); });
 }
 // ── Datumy, dílčí štítky a lokální skrývání měření ──
@@ -8599,7 +8599,7 @@ function _processPhotoQueue(){
             db.ref('standalone_photos/' + t).set(entry).then(function(){
               photoPending = Math.max(0, photoPending-1); _photoBadge();
               _tagPhoto(t);   // AI popis obsahu (no-op, dokud AI_TAGS_ENABLED=false)
-              _logPhotoActivity((entry.soList && entry.soList.length) ? entry.soList.join(', ') : (entry.so||''));
+              _logPhotoActivity((entry.soList && entry.soList.length) ? entry.soList.join(', ') : (entry.so||''), t);
               setTimeout(_processPhotoQueue, 400);
             }).catch(function(){ fail('db'); });
           }
@@ -9682,23 +9682,27 @@ function _feedTime(ts){
 }
 // ── 📢 Feed „Co se děje" – centrální log aktivity + changelog novinek ──
 // logActivity(emoji, text): text = věta BEZ jména (jméno = kdo). Spadá pod authed zápis (/aktivita).
-function logActivity(emoji, text){
+// target (nepovinné) = {k:'task'|'photo'|'zkousky'|'note'|'mereni'|'denik'|'gallery', id?:...} → proklik z feedu (#78).
+function logActivity(emoji, text, target){
   try{
     if(!window.db || typeof firebase === 'undefined' || !text) return;
     var kdo = (window.currentUser && window.currentUser.name) || '';
-    db.ref('aktivita').push({ emoji: emoji||'•', kdo: kdo, text: text, ts: firebase.database.ServerValue.TIMESTAMP }).catch(function(){});
+    var rec = { emoji: emoji||'•', kdo: kdo, text: text, ts: firebase.database.ServerValue.TIMESTAMP };
+    if(target && target.k) rec.cil = target;   // ukládej jen když má druh (ať uzel neroste)
+    db.ref('aktivita').push(rec).catch(function(){});
   }catch(e){}
 }
 // Fotky v sérii by feed zaplavily → jedna série na stejné SO = jeden řádek (throttle 90 s).
 window._lastPhotoActLog = { so:null, ts:0 };
-function _logPhotoActivity(so){
+function _logPhotoActivity(so, key){
   var now = Date.now(), last = window._lastPhotoActLog;
   if(last && last.so === so && (now - last.ts) < 90000){ last.ts = now; return; }
   window._lastPhotoActLog = { so: so, ts: now };
-  logActivity('📷', 'přidal/a fotky' + (so?(' k '+so):''));
+  logActivity('📷', 'přidal/a fotky' + (so?(' k '+so):''), key ? {k:'photo', id:key} : null);
 }
 // „🆕 Co je nového" – changelog (developer-maintained; s novou funkcí přidej řádek nahoru + bump verze).
 var APP_NOVINKY = [
+  { datum:'2026-07-16', verze:'v0.35', text:'📢 V aktivitě jde teď kliknout rovnou na tu věc (úkol, fotka, zkouška, poznámka…) – „otevřít →". Otevře se jen to, na co máš právo.' },
   { datum:'2026-07-15', verze:'v0.34', text:'✍️ U TePř lze převzít existující podpis osoby a dopodepsat s vlastním datem.' },
   { datum:'2026-07-15', verze:'v0.33', text:'📷 Import fotek z galerie telefonu rovnou s SO (dávkově). Vícenásobný výběr z galerie appky.' },
   { datum:'2026-07-15', verze:'v0.32', text:'📍 U fotky jde teď změnit i smazat staničení (nejen SO). 🔍 V galerii + zvětšuje, − zmenšuje (prohozeno).' },
@@ -9751,6 +9755,45 @@ function openActivity(){
   _updateActivityBadge();
 }
 function closeActivity(){ var m=document.getElementById('activity-modal'); if(m) m.style.display='none'; }
+// #78 Proklik z feedu na konkrétní úkon – KAŽDÝ cíl projde bránou práv (feed nesmí obejít oprávnění).
+function _activityTargetPerm(cil){
+  var k = cil && cil.k;
+  if(k==='task') return 'ukoly';
+  if(k==='photo' || k==='gallery') return 'galerie';
+  if(k==='zkousky') return 'zkousky';
+  if(k==='note') return 'pripominky';
+  if(k==='mereni') return 'mereni';
+  if(k==='denik') return 'denik';
+  return null;
+}
+function _canOpenActivityTarget(cil){
+  var p = _activityTargetPerm(cil);
+  if(!p) return false;                                   // fail-closed: neznámý druh = ne
+  return (typeof hasPerm!=='function') ? true : hasPerm(p);
+}
+function _openPhotoByKey(key){
+  if(!key) return;
+  db.ref('standalone_photos/'+key).once('value').then(function(snap){
+    var it = snap.val(); if(!it){ showToast('Fotka už neexistuje', 2200); return; }
+    it.fbKey = key;
+    if(typeof canViewPhoto==='function' && !canViewPhoto(it)){ showToast('🔒 Tuhle fotku nemáš oprávnění zobrazit', 2800); return; }
+    resolveFileUrl(it.url).then(function(u){ openPhotoFs(u, key, it); }).catch(function(){ showToast('Fotku se nepodařilo načíst', 2200); });
+  }).catch(function(){ showToast('Fotku se nepodařilo načíst', 2200); });
+}
+function openActivityTarget(idx){
+  var a = (window._activityCache||[])[idx]; if(!a || !a.cil) return;
+  var c = a.cil;
+  if(!_canOpenActivityTarget(c)){ showToast('🔒 Na tohle nemáš oprávnění', 2600); return; }   // brána i pro volání z konzole
+  closeActivity();
+  var k = c.k;
+  if(k==='task' && c.id){ openTaskDetail(c.id); }
+  else if(k==='photo' && c.id){ _openPhotoByKey(c.id); }
+  else if(k==='zkousky'){ openZkouskyPanel(); }
+  else if(k==='note'){ openNotesEvidence(); }
+  else if(k==='mereni'){ openMereniEvidence(); }
+  else if(k==='denik'){ openDiaryPanel(); }
+  else if(k==='gallery'){ openGallery(); }
+}
 function _renderActivity(){
   var box = document.getElementById('activity-list'); if(!box) return;
   var tn=document.getElementById('acttab-novinky'), tf=document.getElementById('acttab-feed');
@@ -9767,12 +9810,16 @@ function _renderActivity(){
   }
   var arr = window._activityCache || [];
   if(!arr.length){ box.innerHTML = '<div style="text-align:center;color:var(--text2);padding:26px;font-size:13px;">Zatím žádná aktivita – jakmile někdo něco udělá (komentář, úkol, fotka…), objeví se to tady.</div>'; return; }
-  box.innerHTML = arr.map(function(a){
-    return '<div style="display:flex;gap:9px;align-items:flex-start;padding:9px 2px;border-bottom:1px solid var(--border);">'
+  box.innerHTML = arr.map(function(a, idx){
+    var clickable = a.cil && _canOpenActivityTarget(a.cil);   // klik jen když má cíl A uživatel na něj má právo
+    var open = clickable ? ' onclick="openActivityTarget('+idx+')"' : '';
+    var cur  = clickable ? 'cursor:pointer;' : '';
+    var hint = clickable ? ' <span style="color:var(--accent2);font-size:10px;white-space:nowrap;">otevřít →</span>' : '';
+    return '<div'+open+' style="display:flex;gap:9px;align-items:flex-start;padding:9px 2px;border-bottom:1px solid var(--border);'+cur+'">'
       + '<span style="font-size:17px;flex-shrink:0;line-height:1.2;">'+escapeHtml(a.emoji||'•')+'</span>'
       + '<div style="flex:1;min-width:0;font-size:13px;color:var(--text);line-height:1.35;">'
       +   '<b>'+escapeHtml(a.kdo||'Někdo')+'</b> '+escapeHtml(a.text||'')
-      +   '<div style="font-size:10px;color:var(--text2);margin-top:1px;">'+escapeHtml(_feedTime(a.ts))+'</div>'
+      +   '<div style="font-size:10px;color:var(--text2);margin-top:1px;">'+escapeHtml(_feedTime(a.ts))+hint+'</div>'
       + '</div></div>';
   }).join('');
 }
@@ -10958,7 +11005,7 @@ function saveTaskFromForm() {
     saveTaskToFirebase(task, function(){
       closeNewTaskModal();
     });
-    if(!existing) logActivity('✅', 'zadal/a úkol „' + title + '"' + (profese?(' pro '+profese):''));
+    if(!existing) logActivity('✅', 'zadal/a úkol „' + title + '"' + (profese?(' pro '+profese):''), {k:'task', id:id});
   }
 
   if(pendingItems.length === 0) {
@@ -11079,7 +11126,7 @@ function markTaskDone() {
   }).then(function(){
     showToast('✅ Úkol označen jako hotový', 1500);
     sendTaskNotificationRequest(t, 'hotovo');
-    logActivity('🎉', 'dokončil/a úkol „' + (t.title||'') + '"');
+    logActivity('🎉', 'dokončil/a úkol „' + (t.title||'') + '"', {k:'task', id:t.id});
   });
 }
 
@@ -11175,7 +11222,7 @@ function addComment() {
   db.ref('ukoly/' + t.id + '/komentare/' + cid).set(cmt).then(function(){
     input.value = '';
     sendTaskNotificationRequest(t, 'komentar');
-    logActivity('💬', 'okomentoval/a úkol „' + (t.title||'') + '"');
+    logActivity('💬', 'okomentoval/a úkol „' + (t.title||'') + '"', {k:'task', id:t.id});
   });
 }
 
@@ -11347,7 +11394,7 @@ function saveZkouska(){
   };
   if(pos){ z.lat=pos[0]; z.lng=pos[1]; }
   showSync('⏳ Ukládám zkoušku…');
-  db.ref('zkousky/'+id).set(z).then(function(){ hideSync(); showToast('✅ Zkouška uložena', 1500); if(!window.editingZkouskaId) logActivity('🔬', 'přidal/a zkoušku „' + (z.nazev||'') + '"' + (z.so?(' · '+z.so):'')); window.editingZkouskaId=null; _fillZkouskaForm({}); renderZkouskyList(); }).catch(function(){ hideSync(); showToast('❌ Chyba uložení', 2500); });
+  db.ref('zkousky/'+id).set(z).then(function(){ hideSync(); showToast('✅ Zkouška uložena', 1500); if(!window.editingZkouskaId) logActivity('🔬', 'přidal/a zkoušku „' + (z.nazev||'') + '"' + (z.so?(' · '+z.so):''), {k:'zkousky'}); window.editingZkouskaId=null; _fillZkouskaForm({}); renderZkouskyList(); }).catch(function(){ hideSync(); showToast('❌ Chyba uložení', 2500); });
 }
 function deleteZkouska(id){
   var z=zkouskyData[id]; if(!z) return;
