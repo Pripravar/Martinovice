@@ -1114,11 +1114,23 @@ document.addEventListener('touchend', function(e){
   </div>
 </div>
 
+<!-- 🔍 Hledáček SO / staničení -->
+<div id="so-search-modal" style="display:none;position:fixed;inset:0;z-index:5250;background:rgba(0,0,0,.6);align-items:flex-start;justify-content:center;padding:10vh 14px 14px;">
+  <div style="background:var(--panel);border-radius:14px;max-width:520px;width:100%;max-height:78vh;display:flex;flex-direction:column;border:1px solid var(--border);">
+    <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <input id="so-search-input" type="text" placeholder="🔍 SO číslo, most, přeložka, název… nebo km (2+350)" oninput="_renderSoSearch()" autocomplete="off" style="flex:1;padding:11px;border-radius:9px;border:1px solid var(--accent);background:var(--panel2);color:var(--text);font-size:15px;">
+      <button onclick="closeSoSearch()" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;min-width:40px;min-height:40px;">✕</button>
+    </div>
+    <div id="so-search-list" style="padding:8px 12px;overflow-y:auto;flex:1;"></div>
+  </div>
+</div>
+
 <div id="header">
   <h1><span class="title-prefix">I/16 </span><span class="title-name">Martinovice</span><span class="title-suffix"></span></h1>
   <div id="km-display">km –</div>
   <!-- ❓ PRVNÍ tlačítko za km. #header se vodorovně roluje → cokoliv důležitého patří doleva. -->
   <button id="btn-help" onclick="openHelp()" title="Nápověda – co appka umí a jak se ovládá" style="background:var(--panel2);border:1px solid var(--accent2);border-radius:8px;color:var(--accent2);padding:6px 10px;font-size:15px;font-weight:700;cursor:pointer;">❓</button>
+  <button id="btn-so-search" onclick="openSoSearch()" title="Najít SO / staničení a přiblížit na mapě" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">🔍</button>
   <button id="btn-activity" onclick="openActivity()" title="Co se děje – novinky a aktivita v aplikaci" style="position:relative;background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">📢<span class="task-badge" id="activity-badge" style="display:none;">0</span></button>
   <button id="btn-tasks" onclick="openTasksPanel()" title="Úkoly" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">✅<span class="task-badge" id="task-badge">0</span></button>
   <button id="btn-denik" onclick="openDiaryPanel()" title="Deník stavby" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">📓</button>
@@ -3468,6 +3480,90 @@ function soVykresyKey(id){
   var base = num.split('.')[0];
   if(SO_VYKRESY[base]) return base;
   return null;
+}
+
+// ── 🔍 Hledáček SO / staničení → přiblížení na mapě + výkresy ──────────
+window._soSearchIndex = null;
+function _soSearchNorm(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
+function _buildSoSearchIndex(){
+  if(window._soSearchIndex) return window._soSearchIndex;
+  var idx = [], seen = {};
+  // 1) Bodové (DOPLNKY_SO): mosty/nadjezdy/IS/VO/plyn – poloha z km
+  (typeof DOPLNKY_SO!=='undefined'?DOPLNKY_SO:[]).forEach(function(d){
+    if(!d || !d.id) return;
+    var pos = (d.km!=null) ? realKmToLatLng(d.km) : null;
+    idx.push({ id:d.id, name:(d.nazev||d.id), kat:(d.kat||''), pos:pos, vk:soVykresyKey(d.id) });
+  });
+  // 2) Lineární (SO_OSY): přeložky/cesty/MÚK – poloha = střed geometrie; dedup po (klíč|název)
+  (typeof SO_OSY!=='undefined'?SO_OSY:[]).forEach(function(o){
+    if(!o || !o.geom || !o.geom.length) return;
+    var vk = soVykresyKey(o.id);
+    var key = (vk||o.id)+'|'+(o.nazev||'');
+    if(seen[key]) return; seen[key]=true;
+    var mid = o.geom[Math.floor(o.geom.length/2)];
+    var baseId = vk ? ('SO '+vk) : o.id;
+    idx.push({ id:baseId, name:(o.nazev||baseId), kat:'osa', pos:[mid[0],mid[1]], vk:vk });
+  });
+  idx.forEach(function(e){ e._h = _soSearchNorm(e.id+' '+e.name+' '+(e.kat||'')); });
+  window._soSearchIndex = idx;
+  return idx;
+}
+function openSoSearch(){
+  _buildSoSearchIndex();
+  var m=document.getElementById('so-search-modal'); if(!m) return;
+  m.style.display='flex';
+  var inp=document.getElementById('so-search-input'); if(inp){ inp.value=''; setTimeout(function(){ try{ inp.focus(); }catch(e){} }, 50); }
+  _renderSoSearch();
+}
+function closeSoSearch(){ var m=document.getElementById('so-search-modal'); if(m) m.style.display='none'; }
+function _soKatIcon(kat){ return kat==='most'?'🌉':(kat==='nadjezd'?'🛤️':(kat==='osa'?'↔️':(kat==='300'?'⚡':(kat==='400'?'💡':(kat==='500'?'🔥':(kat==='000'?'🧨':'🏗️')))))); }
+function _renderSoSearch(){
+  var box=document.getElementById('so-search-list'); if(!box) return;
+  var idx=_buildSoSearchIndex();
+  var qRaw=(document.getElementById('so-search-input').value||'').trim();
+  var html='';
+  // Staničení? např. 2+350 / 2.350 / 2,350
+  if(/^\d+\s*[\+\.,]\s*\d{1,3}$/.test(qRaw)){
+    var rk=parseKmStr(qRaw);
+    if(rk!=null && realKmToLatLng(rk)){
+      html+='<button onclick="_soSearchGoKm('+rk+')" style="display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:rgba(34,211,238,.12);border:1px solid #22d3ee;border-radius:9px;padding:11px;margin-bottom:8px;cursor:pointer;">'
+        +'<span style="font-size:18px;">📍</span><div style="flex:1;color:var(--text);font-size:14px;font-weight:700;">Staničení '+escapeHtml(fmtKm(rk))+'</div><span style="color:var(--accent2);font-size:12px;">jeď →</span></button>';
+    }
+  }
+  var toks=_soSearchNorm(qRaw).split(/\s+/).filter(Boolean);
+  var res=idx.filter(function(e){ return toks.every(function(t){ return e._h.indexOf(t)!==-1; }); });
+  res.sort(function(a,b){ return String(a.id).localeCompare(String(b.id),'cs',{numeric:true}); });
+  res=res.slice(0,60);
+  if(!res.length && !html){ box.innerHTML='<div style="text-align:center;color:var(--text2);padding:22px;font-size:13px;">'+(qRaw?'Nic nenalezeno.':'Piš číslo SO, „most", „přeložka", název… nebo km (např. 2+350).')+'</div>'; return; }
+  html+=res.map(function(e){
+    var i=idx.indexOf(e);
+    return '<button onclick="_soSearchGo('+i+')" style="display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:10px 11px;margin-bottom:6px;cursor:pointer;">'
+      +'<span style="font-size:17px;flex-shrink:0;">'+_soKatIcon(e.kat)+'</span>'
+      +'<div style="flex:1;min-width:0;"><div style="color:var(--text);font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escapeHtml(e.id)+'</div>'
+      +'<div style="color:var(--text2);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escapeHtml(e.name)+'</div></div>'
+      +'<span style="color:var(--accent2);font-size:12px;white-space:nowrap;">'+(e.pos?'jeď →':'výkresy →')+'</span></button>';
+  }).join('');
+  box.innerHTML=html;
+}
+function _soFlyTo(pos){
+  if(!pos) return;
+  try{ map.flyTo(L.latLng(pos[0],pos[1]), 17, {duration:0.8}); }
+  catch(err){ try{ map.setView([pos[0],pos[1]],17); }catch(e2){} }
+  try{ showSelectionRing(L.latLng(pos[0],pos[1])); }catch(err){}
+}
+function _soSearchGo(i){
+  var e=_buildSoSearchIndex()[i]; if(!e) return;
+  closeSoSearch();
+  if(e.pos) _soFlyTo(e.pos);
+  // Po doletu nabídni výkresy (jako klik na značku); openSOVykresy si hlídá právo 'pdf' samo.
+  if(e.vk){ setTimeout(function(){ openSOVykresy(e.vk); }, e.pos?700:0); }
+  else if(!e.pos){ showToast('Tenhle objekt nemá polohu ani výkresy', 2500); }
+}
+function _soSearchGoKm(realKm){
+  closeSoSearch();
+  var pos=realKmToLatLng(realKm);
+  if(!pos){ showToast('Staničení je mimo trasu', 2500); return; }
+  _soFlyTo(pos);
 }
 
 
@@ -9702,6 +9798,7 @@ function _logPhotoActivity(so, key){
 }
 // „🆕 Co je nového" – changelog (developer-maintained; s novou funkcí přidej řádek nahoru + bump verze).
 var APP_NOVINKY = [
+  { datum:'2026-07-16', verze:'v0.36', text:'🔍 Nový hledáček v hlavičce – napiš číslo SO, „most", „přeložka", název nebo km (2+350) a mapa tě na to přiblíží + nabídne výkresy.' },
   { datum:'2026-07-16', verze:'v0.35', text:'📢 V aktivitě jde teď kliknout rovnou na tu věc (úkol, fotka, zkouška, poznámka…) – „otevřít →". Otevře se jen to, na co máš právo.' },
   { datum:'2026-07-15', verze:'v0.34', text:'✍️ U TePř lze převzít existující podpis osoby a dopodepsat s vlastním datem.' },
   { datum:'2026-07-15', verze:'v0.33', text:'📷 Import fotek z galerie telefonu rovnou s SO (dávkově). Vícenásobný výběr z galerie appky.' },
@@ -15658,6 +15755,7 @@ function copyDiaryExport(){
       <div style="font-weight:800;color:var(--accent);margin:14px 0 4px;">🔘 Tlačítka v horní liště</div>
       <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 8px;">
         <b>❓</b><span>Tenhle návod</span>
+        <b>🔍</b><span>Najít SO / staničení – napiš číslo SO, „most", „přeložka", název nebo km (2+350); mapa tě na to přiblíží a nabídne výkresy.</span>
         <b>📢</b><span>Novinky &amp; aktivita – co přibylo v appce (🆕) i co kdo dělá: komentáře, úkoly, fotky… (📢). Číslo = neviděné novinky.</span>
         <b>✅</b><span>Úkoly – zadání, přiřazení lidem, termíny, priorita, připomínky</span>
         <b>📓</b><span>Stavební deník – šichtovka, stroje, záznamy dne, materiály, závěr</span>
