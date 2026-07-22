@@ -695,8 +695,9 @@ textarea.note-field { min-height:80px; resize:vertical; }
 /* -- Standalone foto galerie ----------------------------- */
 #gallery-modal { position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:4800; display:none; flex-direction:column; }
 #gallery-modal.open { display:flex; }
-#gallery-header { background:var(--panel); padding:12px 14px; padding-top:calc(12px + env(safe-area-inset-top)); display:flex; align-items:center; gap:10px; flex-shrink:0; border-bottom:1px solid var(--border); }
-#gallery-header h3 { flex:1; font-size:15px; font-weight:700; color:var(--accent2); }
+#gallery-header { background:var(--panel); padding:12px 14px; padding-top:calc(12px + env(safe-area-inset-top)); display:flex; align-items:center; flex-wrap:wrap; gap:8px; flex-shrink:0; border-bottom:1px solid var(--border); }
+#gallery-header h3 { flex:1 1 100%; font-size:15px; font-weight:700; color:var(--accent2); margin:0; }
+#gallery-close { margin-left:auto; }
 #gallery-close { background:none; border:none; color:var(--text2); font-size:22px; cursor:pointer; padding:4px 8px; }
 #gallery-tabs { display:flex; flex-shrink:0; background:var(--panel2); }
 .gallery-tab { flex:1; padding:10px; text-align:center; font-size:13px; font-weight:700; color:var(--text2); cursor:pointer; border-bottom:2px solid transparent; transition:all .2s; }
