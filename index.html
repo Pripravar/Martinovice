@@ -3488,21 +3488,31 @@ function _soSearchNorm(s){ return String(s||'').toLowerCase().normalize('NFD').r
 function _buildSoSearchIndex(){
   if(window._soSearchIndex) return window._soSearchIndex;
   var idx = [], seen = {};
+  // Sdílený zápis + dedup napříč zdroji podle čísla SO (klíč výkresů, jinak id).
+  // Pořadí zdrojů = priorita polohy: bodové (přesné km) > boční osa (geom) > pruh (střed rozsahu).
+  function add(id, name, kat, pos, vk){
+    var key = (vk || id);
+    if(seen[key]) return; seen[key] = true;
+    idx.push({ id:id, name:name, kat:kat, pos:pos, vk:vk });
+  }
   // 1) Bodové (DOPLNKY_SO): mosty/nadjezdy/IS/VO/plyn – poloha z km
   (typeof DOPLNKY_SO!=='undefined'?DOPLNKY_SO:[]).forEach(function(d){
     if(!d || !d.id) return;
-    var pos = (d.km!=null) ? realKmToLatLng(d.km) : null;
-    idx.push({ id:d.id, name:(d.nazev||d.id), kat:(d.kat||''), pos:pos, vk:soVykresyKey(d.id) });
+    add(d.id, (d.nazev||d.id), (d.kat||''), (d.km!=null ? realKmToLatLng(d.km) : null), soVykresyKey(d.id));
   });
-  // 2) Lineární (SO_OSY): přeložky/cesty/MÚK – poloha = střed geometrie; dedup po (klíč|název)
+  // 2) Boční osy (SO_OSY): přeložky/cesty/MÚK – poloha = střed geometrie
   (typeof SO_OSY!=='undefined'?SO_OSY:[]).forEach(function(o){
     if(!o || !o.geom || !o.geom.length) return;
     var vk = soVykresyKey(o.id);
-    var key = (vk||o.id)+'|'+(o.nazev||'');
-    if(seen[key]) return; seen[key]=true;
     var mid = o.geom[Math.floor(o.geom.length/2)];
-    var baseId = vk ? ('SO '+vk) : o.id;
-    idx.push({ id:baseId, name:(o.nazev||baseId), kat:'osa', pos:[mid[0],mid[1]], vk:vk });
+    add(vk?('SO '+vk):o.id, (o.nazev||o.id), 'osa', [mid[0],mid[1]], vk);
+  });
+  // 3) Barevné pruhy po ose (STAVEBNI_OBJEKTY): odvodnění, meliorace, PHS, příprava území, silnice…
+  //    poloha = bod na hlavní ose ve středu km rozsahu (nebo labelKm, kde sedí popisek)
+  (typeof STAVEBNI_OBJEKTY!=='undefined'?STAVEBNI_OBJEKTY:[]).forEach(function(s){
+    if(!s || !s.id) return;
+    var kmMid = (s.labelKm!=null) ? s.labelKm : (((s.kmOd||0)+(s.kmDo||0))/2);
+    add((s.label||s.id), (s.short||s.label||s.id), 'pas', realKmToLatLng(kmMid), soVykresyKey(s.id));
   });
   idx.forEach(function(e){ e._h = _soSearchNorm(e.id+' '+e.name+' '+(e.kat||'')); });
   window._soSearchIndex = idx;
@@ -3516,7 +3526,7 @@ function openSoSearch(){
   _renderSoSearch();
 }
 function closeSoSearch(){ var m=document.getElementById('so-search-modal'); if(m) m.style.display='none'; }
-function _soKatIcon(kat){ return kat==='most'?'🌉':(kat==='nadjezd'?'🛤️':(kat==='osa'?'↔️':(kat==='300'?'⚡':(kat==='400'?'💡':(kat==='500'?'🔥':(kat==='000'?'🧨':'🏗️')))))); }
+function _soKatIcon(kat){ return kat==='most'?'🌉':(kat==='nadjezd'?'🛤️':(kat==='osa'?'↔️':(kat==='pas'?'📏':(kat==='300'?'⚡':(kat==='400'?'💡':(kat==='500'?'🔥':(kat==='000'?'🧨':'🏗️'))))))); }
 function _renderSoSearch(){
   var box=document.getElementById('so-search-list'); if(!box) return;
   var idx=_buildSoSearchIndex();
@@ -9798,7 +9808,7 @@ function _logPhotoActivity(so, key){
 }
 // „🆕 Co je nového" – changelog (developer-maintained; s novou funkcí přidej řádek nahoru + bump verze).
 var APP_NOVINKY = [
-  { datum:'2026-07-16', verze:'v0.36', text:'🔍 Nový hledáček v hlavičce – napiš číslo SO, „most", „přeložka", název nebo km (2+350) a mapa tě na to přiblíží + nabídne výkresy.' },
+  { datum:'2026-07-16', verze:'v0.37', text:'🔍 Nový hledáček v hlavičce – napiš číslo SO (i pruhy jako 380, 020, 760, 801…), „most", „přeložka", název nebo km (2+350) a mapa tě na to přiblíží + nabídne výkresy.' },
   { datum:'2026-07-16', verze:'v0.35', text:'📢 V aktivitě jde teď kliknout rovnou na tu věc (úkol, fotka, zkouška, poznámka…) – „otevřít →". Otevře se jen to, na co máš právo.' },
   { datum:'2026-07-15', verze:'v0.34', text:'✍️ U TePř lze převzít existující podpis osoby a dopodepsat s vlastním datem.' },
   { datum:'2026-07-15', verze:'v0.33', text:'📷 Import fotek z galerie telefonu rovnou s SO (dávkově). Vícenásobný výběr z galerie appky.' },
