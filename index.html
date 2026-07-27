@@ -1242,7 +1242,7 @@ document.addEventListener('touchend', function(e){
   </div>
   <div data-perm="objekty">
   <div class="layer-row">
-    <label>🔵 Propustky (SO 104, SO 105)</label>
+    <label>🔵 Propustky (SO 101)</label>
     <label class="toggle"><input type="checkbox" id="lyr-prop" checked onchange="toggleLayer('propustky',this.checked)"><span class="toggle-slider"></span></label>
   </div>
   <div class="layer-row">
@@ -3515,6 +3515,12 @@ function _buildSoSearchIndex(){
     var kmMid = (s.labelKm!=null) ? s.labelKm : (((s.kmOd||0)+(s.kmDo||0))/2);
     add((s.label||s.id), (s.short||s.label||s.id), 'pas', realKmToLatLng(kmMid), soVykresyKey(s.id));
   });
+  // 4) Propustky SO 101 (PROPUSTKY) – bod na ose, klik = JEN ten jeden PDF (openPropPanel)
+  (typeof PROPUSTKY!=='undefined'?PROPUSTKY:[]).forEach(function(p){
+    if(!p || p.km==null) return;
+    var pos = realKmToLatLng(p.km); if(!pos) return;
+    idx.push({ id:('Propustek '+fmtKm(p.km)), name:(p.nazev||''), kat:'propustek', pos:pos, vk:null, prop:p });
+  });
   idx.forEach(function(e){ e._h = _soSearchNorm(e.id+' '+e.name+' '+(e.kat||'')); });
   window._soSearchIndex = idx;
   return idx;
@@ -3527,7 +3533,7 @@ function openSoSearch(){
   _renderSoSearch();
 }
 function closeSoSearch(){ var m=document.getElementById('so-search-modal'); if(m) m.style.display='none'; }
-function _soKatIcon(kat){ return kat==='most'?'🌉':(kat==='nadjezd'?'🛤️':(kat==='osa'?'↔️':(kat==='pas'?'📏':(kat==='300'?'⚡':(kat==='400'?'💡':(kat==='500'?'🔥':(kat==='000'?'🧨':'🏗️'))))))); }
+function _soKatIcon(kat){ return kat==='most'?'🌉':(kat==='nadjezd'?'🛤️':(kat==='osa'?'↔️':(kat==='pas'?'📏':(kat==='propustek'?'🔵':(kat==='300'?'⚡':(kat==='400'?'💡':(kat==='500'?'🔥':(kat==='000'?'🧨':'🏗️')))))))); }
 function _renderSoSearch(){
   var box=document.getElementById('so-search-list'); if(!box) return;
   var idx=_buildSoSearchIndex();
@@ -3566,8 +3572,9 @@ function _soSearchGo(i){
   var e=_buildSoSearchIndex()[i]; if(!e) return;
   closeSoSearch();
   if(e.pos) _soFlyTo(e.pos);
-  // Po doletu nabídni výkresy (jako klik na značku); openSOVykresy si hlídá právo 'pdf' samo.
-  if(e.vk){ setTimeout(function(){ openSOVykresy(e.vk); }, e.pos?700:0); }
+  // Po doletu nabídni výkresy (jako klik na značku); otvírací fce si hlídají právo 'pdf' samy.
+  if(e.prop){ setTimeout(function(){ openPropPanel(e.prop); }, e.pos?700:0); }
+  else if(e.vk){ setTimeout(function(){ openSOVykresy(e.vk); }, e.pos?700:0); }
   else if(!e.pos){ showToast('Tenhle objekt nemá polohu ani výkresy', 2500); }
 }
 function _soSearchGoKm(realKm){
@@ -4533,6 +4540,7 @@ function init() {
   buildSOLinie();
   if(ETAPY.length) buildEtapy();
   if(CISTENI_PRIKOPY.vpravo.length || CISTENI_PRIKOPY.vlevo.length) buildPrikopy();
+  _seedPropustky();
   buildPropustky();
   buildDoplnky();
   buildVedeniNN();
@@ -6837,6 +6845,35 @@ function buildDoplnky() {
   });
 }
 
+// ── PROPUSTKY: naplní pole PROPUSTKY (renderuje se existující buildPropustky + openPropPanel) ──
+// Data se derivují z SO_VYKRESY['101'] (položky s „PROPUSTEK"): km = poslední X,XXX v názvu.
+// POZOR: jen SO 101 = hlavní osa. Propustky pod bočními SO (111/124/125…) mají LOKÁLNÍ km → sem nepatří.
+function _propKmFromName(n){
+  var all = String(n||'').match(/\d+,\d{3}/g);
+  if(!all || !all.length) return null;
+  var km = parseFloat(all[all.length-1].replace(',','.'));
+  return isNaN(km) ? null : km;
+}
+function _propTypFromName(n){
+  var s = String(n||'');
+  var dn = s.match(/DN\s*(\d+)/i);
+  if(dn) return 'DN ' + dn[1];
+  if(/RAM/i.test(s)){ var r = s.match(/RAM\s*(\d+)\s*x\s*(\d+)/i); return 'RÁM ' + (r ? (r[1]+'×'+r[2]+' m') : ''); }
+  return '';
+}
+function _seedPropustky(){
+  if(typeof PROPUSTKY==='undefined' || PROPUSTKY.length) return;   // idempotentní
+  var list = (typeof SO_VYKRESY!=='undefined' && SO_VYKRESY['101']) ? SO_VYKRESY['101'] : [];
+  var n = 0;
+  list.forEach(function(v){
+    if(!v || !v.soubor || !/PROPUSTEK/i.test(v.nazev||'')) return;
+    var km = _propKmFromName(v.nazev); if(km == null) return;
+    var typ = _propTypFromName(v.nazev);
+    n++;
+    PROPUSTKY.push({ id:'P'+n, km:km, nazev:'Propustek '+(typ?(typ+' '):'')+'· km '+fmtKm(km)+' (SO 101)', soubor:v.soubor });
+  });
+}
+
 // ── ZVS – vytyčovací body (vrstva zapínaná tlačítkem 📐 ZVS) ──────────
 // Oranžový trojúhelníkový bod s číslem; po kliknutí popup: číslo + výška Z (+ Y/X JTSK, staničení).
 var zvsLayer = null;
@@ -7689,6 +7726,7 @@ function buildPropustky() {
 }
 
 function openPropPanel(prop) {
+  if(typeof _permGuard==='function' && !_permGuard('pdf','Prohlížení výkresů')) return;
   var pPos = realKmToLatLng(prop.km); if(pPos) showSelectionRing(L.latLng(pPos[0],pPos[1]));
   currentPropId = prop.id;
   // Varianta A: každý propustek má pole 'vykresy' s kompletní sadou (situace, PP, vzor.řezy, ...)
@@ -9677,7 +9715,7 @@ var FN_PERM = {
   editPhotoComment:'komentare',
   renderFotoMapa:'fotomapa', _fillFotoMapaOsoby:'fotomapa',
   // ── Výkresy / PDF ──
-  onStaniceniClick:'pdf', openSOVykresy:'pdf', openPdfExternal:'pdf', docNav:'pdf', pdfZoom:'pdf',
+  onStaniceniClick:'pdf', openSOVykresy:'pdf', openPropPanel:'pdf', openPdfExternal:'pdf', docNav:'pdf', pdfZoom:'pdf',
   togglePdfFs:'pdf', openPropPdfExternal:'pdf', togglePropFs:'pdf',
   addVykresStart:'vykresy', addVykresFilePicked:'vykresy', delCurrentVykres:'vykresy',
   toggleInvalidateCurrentDoc:'vykresy',
@@ -9809,6 +9847,7 @@ function _logPhotoActivity(so, key){
 }
 // „🆕 Co je nového" – changelog (developer-maintained; s novou funkcí přidej řádek nahoru + bump verze).
 var APP_NOVINKY = [
+  { datum:'2026-07-16', verze:'v0.39', text:'🔵 Propustky SO 101 jsou teď jako body na mapě (ve svém km) – klik otevře přímo výkres toho propustku. Jdou vypnout ve ☰ Vrstvy a najít v 🔍 hledáčku.' },
   { datum:'2026-07-16', verze:'v0.37', text:'🔍 Nový hledáček v hlavičce – napiš číslo SO (i pruhy jako 380, 020, 760, 801…), „most", „přeložka", název nebo km (2+350) a mapa tě na to přiblíží + nabídne výkresy.' },
   { datum:'2026-07-16', verze:'v0.35', text:'📢 V aktivitě jde teď kliknout rovnou na tu věc (úkol, fotka, zkouška, poznámka…) – „otevřít →". Otevře se jen to, na co máš právo.' },
   { datum:'2026-07-15', verze:'v0.34', text:'✍️ U TePř lze převzít existující podpis osoby a dopodepsat s vlastním datem.' },
@@ -15766,7 +15805,7 @@ function copyDiaryExport(){
       <div style="font-weight:800;color:var(--accent);margin:14px 0 4px;">🔘 Tlačítka v horní liště</div>
       <div style="display:grid;grid-template-columns:auto 1fr;gap:3px 8px;">
         <b>❓</b><span>Tenhle návod</span>
-        <b>🔍</b><span>Najít SO / staničení – napiš číslo SO, „most", „přeložka", název nebo km (2+350); mapa tě na to přiblíží a nabídne výkresy.</span>
+        <b>🔍</b><span>Najít SO / staničení – napiš číslo SO, „most", „přeložka", „propustek", název nebo km (2+350); mapa tě na to přiblíží a nabídne výkresy. 🔵 Propustky SO 101 jsou i jako body na mapě (klik = jejich výkres).</span>
         <b>📢</b><span>Novinky &amp; aktivita – co přibylo v appce (🆕) i co kdo dělá: komentáře, úkoly, fotky… (📢). Číslo = neviděné novinky.</span>
         <b>✅</b><span>Úkoly – zadání, přiřazení lidem, termíny, priorita, připomínky</span>
         <b>📓</b><span>Stavební deník – šichtovka, stroje, záznamy dne, materiály, závěr</span>
