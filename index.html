@@ -5511,6 +5511,7 @@ function openPhotoFs(src, firebaseKey, item) {
 // Vykreslí jednu fotku do fullscreenu (sdílí openPhotoFs i navigace tažením). Vždy plná verze (url).
 function _renderFsItem(url, firebaseKey, item) {
   closeFsMenu();
+  if(typeof _closePhotoCmtBox === 'function') _closePhotoCmtBox();   // #64 zavři komentářové pole při přepnutí fotky
   var imgEl = document.getElementById('photo-fs-img');
   var ob = document.getElementById('photo-fs-open');
   resolveFileUrl(url).then(function(u){ if(imgEl) imgEl.src = u; if(ob) ob.href = u; });   // cesta → Storage URL
@@ -5625,34 +5626,51 @@ function _renderFsCommentBar(){
   }).join('');
   cEl.style.display='block';
 }
+// #64 Komentář fotky – inline pole (kvůli @zmínkám; prompt() picker neumí).
 function editPhotoComment(){
   if(!_photoFsKey || !window.currentUser){ showToast('Komentovat lze jen fotky po přihlášení', 2500); return; }
   if(!hasPerm('komentare')){ showToast('💬 Komentování Ti admin nepovolil', 2800); return; }
+  if(typeof closeFsMenu === 'function') closeFsMenu();
+  var box = document.getElementById('photo-fs-cmt-box'), inp = document.getElementById('photo-fs-cmt-input');
+  if(!box || !inp) return;
+  inp.value = ''; window._mentionPicks = {};
+  box.style.display = 'flex';
+  setTimeout(function(){ try { inp.focus(); } catch(e){} }, 60);
+}
+function _closePhotoCmtBox(){
+  var box = document.getElementById('photo-fs-cmt-box'); if(box) box.style.display='none';
+  window._mentionPicks = {}; _hideMentionPop();
+}
+function submitPhotoComment(){
+  var inp = document.getElementById('photo-fs-cmt-input'); if(!inp) return;
+  var v = (inp.value||'').trim(); if(!v) return;
+  if(!_photoFsKey || !window.currentUser){ showToast('Komentovat lze jen fotky po přihlášení', 2500); return; }
   trackEvent('foto_komentar');
-  var v = prompt('Napiš komentář k fotce:');
-  if(v === null) return;
-  v = v.trim(); if(!v) return;
+  var mentions = _extractMentions(v);
   var prev = _photoComments(_photoFsItem);   // kdo už komentoval (pro upozornění)
   var cid = 'c_' + Date.now() + '_' + Math.random().toString(36).substr(2,4);
   var c = { text: v, author: (window.currentUser.name||''), uid: window.currentUser.uid, ts: Date.now() };
+  if(mentions.length) c.mentions = mentions;
   db.ref('standalone_photos/'+_photoFsKey+'/komentare/'+cid).set(c).then(function(){
     if(!_photoFsItem.komentare) _photoFsItem.komentare = {};
     _photoFsItem.komentare[cid] = c;
+    _closePhotoCmtBox();
     _renderFsCommentBar();
-    _notifyPhotoComment(_photoFsItem, prev, v);
+    _notifyPhotoComment(_photoFsItem, prev, v, mentions.map(function(m){ return m.uid; }));
     logActivity('💬', 'okomentoval/a fotku' + ((_photoFsItem && _photoFsItem.so)?(' ('+_photoFsItem.so+')'):''), _photoFsKey?{k:'photo', id:_photoFsKey}:null);
     if(document.getElementById('gallery-modal').classList.contains('open')) renderGallery();
     showToast('💬 Komentář přidán', 1500);
   }).catch(function(){ showToast('❌ Nepodařilo se uložit', 2500); });
 }
 // Zařadí upozornění na komentář do fronty (Cloud Function pošle push). Příjemci = autor fotky
-// + dřívější komentující (mimo mě). Pokud CF komentáře neumí, prostě nic nepřijde.
-function _notifyPhotoComment(item, prevComments, text){
+// + dřívější komentující + @zmínění (mimo mě). Pokud CF komentáře neumí, prostě nic nepřijde.
+function _notifyPhotoComment(item, prevComments, text, mentionUids){
   try {
     var me = window.currentUser ? window.currentUser.uid : '';
     var recips = {};
     if(item && item.uid && item.uid !== me) recips[item.uid] = true;
     (prevComments||[]).forEach(function(c){ if(c.uid && c.uid !== me) recips[c.uid] = true; });
+    (mentionUids||[]).forEach(function(u){ if(u && u !== me) recips[u] = true; });   // @zmínění dostanou push, i když fotku nekomentovali
     var uids = Object.keys(recips);
     if(!uids.length) return;
     var rec = {
@@ -9902,7 +9920,7 @@ var FN_PERM = {
   openNoteAppGalleryPicker:'galerie', _noteAppGalPick:'galerie',
   onStampToggle:'foto',
   openLibraryImport:'foto', submitLibImport:'foto', libApplyBulk:'foto',
-  editPhotoComment:'komentare',
+  editPhotoComment:'komentare', submitPhotoComment:'komentare',
   renderFotoMapa:'fotomapa', _fillFotoMapaOsoby:'fotomapa',
   // ── Výkresy / PDF ──
   onStaniceniClick:'pdf', openSOVykresy:'pdf', openPropPanel:'pdf', openPdfExternal:'pdf', docNav:'pdf', pdfZoom:'pdf',
@@ -10038,6 +10056,7 @@ function _logPhotoActivity(so, key){
 }
 // „🆕 Co je nového" – changelog (developer-maintained; s novou funkcí přidej řádek nahoru + bump verze).
 var APP_NOVINKY = [
+  { datum:'2026-07-28', verze:'v0.42', text:'💬 Označování osob přes @ – v komentářích úkolů i fotek a v poli „detail" úkolu. Napíšeš @ a vybereš člověka; ten dostane upozornění, i když není přiřazený.' },
   { datum:'2026-07-28', verze:'v0.41', text:'🖼️ Galerie: filtr objektů (SO) je teď VÍCE‑výběr (checklist). 📅 Změna data pořízení fotky (i hromadně, čas zůstane) + 📍 hromadné přenastavení km. 🖱️ Na počítači jde fotky označit TAHEM MYŠI (guma); „Vše (N)" ukáže, kolik odfiltrovaných vybere (na měsíční ZIP).' },
   { datum:'2026-07-28', verze:'v0.40', text:'✅ Úkoly mají průběh: 🙋 „Převzít / Řeším" (vidíš kdo úkol aktivně řeší), 🔄 „Předat" na jinou osobu, 📋 „Průběh úkolu" (kdo/kdy/komu) a u Hotovo se dá připsat výsledek. Nový řadič seznamu (hotové dle data vyřešení, ne náhodně).' },
   { datum:'2026-07-16', verze:'v0.39', text:'🔵 Propustky SO 101 jsou teď jako body na mapě (ve svém km) – klik otevře přímo výkres toho propustku. Jdou vypnout ve ☰ Vrstvy a najít v 🔍 hledáčku.' },
@@ -10842,8 +10861,8 @@ function saveTaskToFirebase(task, cb) {
   db.ref('ukoly/' + task.id).set(task).then(function(){
     hideSync();
     showToast('✅ Úkol uložen', 1500);
-    // Notifikační záznam pro Cloud Function
-    sendTaskNotificationRequest(task, 'novy');
+    // Notifikační záznam pro Cloud Function (+ @zmínky z detailu úkolu #84b)
+    sendTaskNotificationRequest(task, 'novy', (task.mentions && task.mentions.length) ? { mentions: task.mentions.map(function(m){return m.uid;}), mentionBy: task.zadalName||'', mentionText: task.title||'' } : null);
     if(cb) cb();
   }).catch(function(e){
     console.error('Chyba uložení úkolu:', e);
@@ -10864,7 +10883,7 @@ function deleteTaskFromFirebase(taskId, cb) {
   });
 }
 
-function sendTaskNotificationRequest(task, typ) {
+function sendTaskNotificationRequest(task, typ, extra) {
   // Cloud Function (viz cloud-function/) sleduje uzel /notifikace_fronta
   // a pošle FCM zprávu příslušným uživatelům. Pokud Cloud Function neexistuje,
   // notifikace prostě nepřijdou - úkolníček ale funguje normálně.
@@ -10880,6 +10899,12 @@ function sendTaskNotificationRequest(task, typ) {
     priorita:   task.priorita || 'normalni',   // řídí důraz upozornění (CF: vysoká → hlasitěji/opakovaně)
     time:       Date.now()
   };
+  // #50/#84b @zmínky: zmíněné uid + kdo/co – CF je přidá k příjemcům (i když nejsou přiřazení).
+  if(extra && extra.mentions && extra.mentions.length){
+    rec.mentions   = extra.mentions;
+    rec.mentionBy  = extra.mentionBy || '';
+    rec.mentionText= (extra.mentionText || '').slice(0, 140);
+  }
   db.ref('notifikace_fronta/' + rec.id).set(rec).catch(function(e){
     console.warn('Notifikace nemohly být zařazeny:', e);
   });
@@ -11375,7 +11400,10 @@ function saveTaskFromForm() {
       task.lat = lat; task.lng = lng;
       if(!isNaN(km)) task.km = km;
     }
+    var _detMentions = _extractMentions(detail);   // #84b @zmínky v poli „detail" úkolu
+    if(_detMentions.length) task.mentions = _detMentions;
     saveTaskToFirebase(task, function(){
+      window._mentionPicks = {}; _hideMentionPop();
       closeNewTaskModal();
     });
     if(!existing) logActivity('✅', 'zadal/a úkol „' + title + '"' + (profese?(' pro '+profese):''), {k:'task', id:id});
@@ -11672,12 +11700,69 @@ function renderComments(t) {
   box.scrollTop = box.scrollHeight;
 }
 
+// ── #50/#64/#84b @zmínky lidí (WhatsApp styl) – sdílené pro komentáře úkolů, fotek i detail úkolu ──
+window._mentionPicks = {};   // "@Celé Jméno" → uid (co uživatel vybral přes picker)
+function _hideMentionPop(){ var p=document.getElementById('mention-pop'); if(p) p.style.display='none'; }
+function _mentionCandidates(q){
+  q = (q||'').toLowerCase();
+  var users = window.allUsers || {}, out = [];
+  Object.keys(users).forEach(function(uid){
+    var u = users[uid]; if(!u || !u.name) return;
+    if(typeof isBlocked==='function' && isBlocked(uid)) return;
+    if(q && u.name.toLowerCase().indexOf(q) === -1) return;
+    out.push({ uid: uid, name: u.name, firma: u.firma||'' });
+  });
+  out.sort(function(a,b){ return a.name.localeCompare(b.name, undefined, {sensitivity:'base'}); });
+  return out.slice(0, 8);
+}
+function _onCommentInput(inp){
+  var val = inp.value, pos = inp.selectionStart || val.length;
+  var before = val.slice(0, pos);
+  var m = before.match(/@([\p{L}\w]*)$/u);   // @ + slovo těsně před kurzorem
+  if(!m){ _hideMentionPop(); return; }
+  var cands = _mentionCandidates(m[1]);
+  if(!cands.length){ _hideMentionPop(); return; }
+  var pop = document.getElementById('mention-pop');
+  if(!pop){ pop = document.createElement('div'); pop.id='mention-pop'; pop.style.cssText='position:fixed;z-index:9650;background:var(--panel);border:1px solid var(--border);border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.5);max-height:230px;overflow-y:auto;'; document.body.appendChild(pop); }
+  pop.innerHTML='';
+  cands.forEach(function(c){
+    var b=document.createElement('button');
+    b.style.cssText='display:block;width:100%;text-align:left;background:none;border:none;border-bottom:1px solid var(--border);color:var(--text);padding:10px 12px;font-size:13px;cursor:pointer;min-height:42px;';
+    b.innerHTML='<b>@'+escapeHtml(c.name)+'</b>'+(c.firma?(' <span style="color:var(--text2);font-size:11px;">· '+escapeHtml(c.firma)+'</span>'):'');
+    b.onmousedown=function(e){ e.preventDefault(); _insertMention(inp, m.index, pos, c); };
+    pop.appendChild(b);
+  });
+  var r = inp.getBoundingClientRect();
+  pop.style.left = r.left+'px'; pop.style.width = r.width+'px'; pop.style.display='block';
+  pop.style.top = Math.max(6, r.top - pop.offsetHeight - 4) + 'px';   // nad inputem
+}
+function _insertMention(inp, atIdx, cursorPos, c){
+  var val = inp.value, tag = '@'+c.name+' ';
+  inp.value = val.slice(0, atIdx) + tag + val.slice(cursorPos);
+  window._mentionPicks['@'+c.name] = c.uid;
+  var np = atIdx + tag.length;
+  try { inp.setSelectionRange(np, np); } catch(e){}
+  inp.focus(); _hideMentionPop();
+}
+// Z textu vytáhne skutečně zmíněné osoby (které picker vybral A v textu zůstaly).
+function _extractMentions(text){
+  var out = [], seen = {};
+  Object.keys(window._mentionPicks||{}).forEach(function(tag){
+    if(text.indexOf(tag) !== -1){
+      var uid = window._mentionPicks[tag];
+      if(uid && !seen[uid]){ seen[uid]=1; out.push({ uid: uid, name: tag.slice(1) }); }
+    }
+  });
+  return out;
+}
+
 function addComment() {
   var input = document.getElementById('td-cmt-input');
   var txt = input.value.trim();
   if(!txt) return;
   var t = window.allTasks.filter(function(x){ return x.id === window.openTaskId; })[0];
   if(!t || !window.currentUser) return;
+  var mentions = _extractMentions(txt);
   var cid = 'c_' + Date.now() + '_' + Math.random().toString(36).substr(2,4);
   var cmt = {
     id:   cid,
@@ -11686,9 +11771,11 @@ function addComment() {
     text: txt,
     time: Date.now()
   };
+  if(mentions.length) cmt.mentions = mentions;
   db.ref('ukoly/' + t.id + '/komentare/' + cid).set(cmt).then(function(){
     input.value = '';
-    sendTaskNotificationRequest(t, 'komentar');
+    window._mentionPicks = {}; _hideMentionPop();
+    sendTaskNotificationRequest(t, 'komentar', mentions.length ? { mentions: mentions.map(function(m){return m.uid;}), mentionBy: window.currentUser.name, mentionText: txt } : null);
     logActivity('💬', 'okomentoval/a úkol „' + (t.title||'') + '"', {k:'task', id:t.id});
   });
 }
@@ -14927,6 +15014,10 @@ function copyDiaryExport(){
     <button id="photo-fs-dateedit" onclick="editPhotoDate()" title="Změnit datum pořízení fotky (čas zůstane)" style="display:none;text-align:left;background:var(--panel2);color:var(--text);border:1px solid var(--border);padding:12px 14px;border-radius:9px;font-size:15px;font-weight:700;cursor:pointer;min-height:48px;">📅 Změnit datum pořízení</button>
     <button id="photo-fs-delete" onclick="deleteStandalonePhoto()" style="display:none;text-align:left;background:rgba(233,69,96,0.15);color:#e94560;border:1px solid #e94560;padding:12px 14px;border-radius:9px;font-size:15px;font-weight:700;cursor:pointer;min-height:48px;">&#128465; Smazat</button>
   </div>
+  <div id="photo-fs-cmt-box" onclick="event.stopPropagation()" ontouchstart="event.stopPropagation()" style="display:none;position:absolute;left:0;right:0;bottom:calc(60px + env(safe-area-inset-bottom));background:rgba(12,14,20,0.98);padding:8px 12px;z-index:9;border-top:1px solid rgba(255,255,255,0.16);align-items:center;gap:8px;">
+    <input id="photo-fs-cmt-input" type="text" placeholder="Komentář… (@ označí osobu)" autocomplete="off" oninput="_onCommentInput(this)" onblur="setTimeout(_hideMentionPop,180)" onkeydown="if(event.key==='Enter')submitPhotoComment()" style="flex:1;background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 11px;font-size:14px;">
+    <button onclick="submitPhotoComment()" style="background:var(--accent);border:none;border-radius:8px;color:#fff;padding:10px 14px;font-weight:700;cursor:pointer;min-height:42px;">Odeslat</button>
+  </div>
   <div id="photo-fs-bar" style="position:absolute;bottom:0;left:0;right:0;display:flex;gap:10px;justify-content:center;padding:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom));background:rgba(0,0,0,0.6);" onclick="event.stopPropagation()">
     <button id="photo-fs-menu-btn" onclick="toggleFsMenu()" style="flex:1;max-width:240px;background:var(--accent2);color:#0f3460;border:none;padding:13px 14px;border-radius:11px;font-size:15px;font-weight:700;cursor:pointer;min-height:48px;">⋯ Možnosti</button>
     <button onclick="closePhotoFs()" style="flex:1;max-width:150px;background:#333;color:#fff;border:none;padding:13px 14px;border-radius:11px;font-size:15px;cursor:pointer;min-height:48px;">✕ Zavřít</button>
@@ -15342,7 +15433,7 @@ function copyDiaryExport(){
     <input type="text" class="task-field" id="tnm-text-title" placeholder="Krátký název (např. Vytyčit šachtu)" maxlength="80">
 
     <label>Detail (volitelně)</label>
-    <textarea class="task-field" id="tnm-text-detail" placeholder="Popis, kontext, čísla bodů…"></textarea>
+    <textarea class="task-field" id="tnm-text-detail" placeholder="Popis, kontext, čísla bodů… (@ označí osobu)" oninput="_onCommentInput(this)" onblur="setTimeout(_hideMentionPop,180)"></textarea>
 
     <div class="tf-row">
       <div>
@@ -15434,7 +15525,7 @@ function copyDiaryExport(){
     <label style="margin-top:6px;">Komentáře</label>
     <div id="td-comments"></div>
     <div style="display:flex;gap:6px;">
-      <input type="text" class="task-field" id="td-cmt-input" placeholder="Napsat komentář…" onkeydown="if(event.key==='Enter')addComment()">
+      <input type="text" class="task-field" id="td-cmt-input" placeholder="Napsat komentář… (@ označí osobu)" autocomplete="off" oninput="_onCommentInput(this)" onblur="setTimeout(_hideMentionPop,180)" onkeydown="if(event.key==='Enter')addComment()">
       <button class="btn-primary" style="flex:0 0 auto;padding:0 14px;" onclick="addComment()">Odeslat</button>
     </div>
 
