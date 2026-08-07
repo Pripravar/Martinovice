@@ -112,6 +112,21 @@ body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui
 
 #btn-gps { position:fixed; bottom:24px; right:16px; width:48px; height:48px; border-radius:50%; background:var(--panel2); border:2px solid var(--border); color:var(--text); font-size:22px; cursor:pointer; z-index:1500; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px rgba(0,0,0,.4); transition:all .2s; }
 #btn-gps.active { border-color:var(--green); color:var(--green); box-shadow:0 0 16px rgba(72,187,120,.4); }
+/* ── FAB roh (#89 v144–v147): foťák, ⋯ speed-dial, 🗂️ carousel, domeček vlevo ── */
+#btn-foto-fab { position:fixed; bottom:84px; right:16px; width:48px; height:48px; border-radius:50%; background:var(--panel2); border:2px solid var(--border); color:var(--text); font-size:22px; cursor:pointer; z-index:1500; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px rgba(0,0,0,.4); transition:all .2s; }
+#btn-fabmore { position:fixed; bottom:144px; right:16px; width:48px; height:48px; border-radius:50%; background:var(--panel2); border:2px solid var(--border); color:var(--text); font-size:26px; cursor:pointer; z-index:1502; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px rgba(0,0,0,.4); transition:transform .22s, border-color .2s, color .2s; }
+#btn-place { position:fixed; bottom:144px; right:16px; width:48px; height:48px; border-radius:50%; background:var(--accent); border:2px solid var(--border); color:#fff; font-size:24px; cursor:pointer; z-index:1501; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px rgba(0,0,0,.4); opacity:0; transform:scale(.4); pointer-events:none; transition:transform .22s cubic-bezier(.2,.7,.3,1), opacity .18s; }
+#btn-place.active { background:var(--accent2); color:#0f3460; }
+#btn-blok { position:fixed; bottom:144px; right:16px; width:48px; height:48px; border-radius:50%; background:var(--panel2); border:2px solid var(--border); color:var(--text); font-size:22px; cursor:pointer; z-index:1501; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px rgba(0,0,0,.4); opacity:0; transform:scale(.4); pointer-events:none; transition:transform .22s cubic-bezier(.2,.7,.3,1), opacity .18s; }
+body.fab-open #btn-fabmore { transform:rotate(90deg); border-color:var(--accent2); color:var(--accent2); }
+body.fab-open #btn-place   { opacity:1; pointer-events:auto; transform:translate(0,-80px) scale(1); }
+body.fab-open #btn-measure { opacity:1; pointer-events:auto; transform:translate(-57px,-57px) scale(1); }
+body.fab-open #btn-blok    { opacity:1; pointer-events:auto; transform:translate(-80px,0) scale(1); }
+#btn-home-fab { position:fixed; bottom:24px; left:16px; width:48px; height:48px; border-radius:50%; background:var(--panel2); border:2px solid var(--border); color:var(--text); font-size:22px; cursor:pointer; z-index:1500; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px rgba(0,0,0,.4); transition:all .2s; }
+#fabgrid-trigger { position:fixed; bottom:204px; right:16px; width:48px; height:48px; border-radius:50%; background:var(--panel2); border:2px solid var(--border); color:var(--text); font-size:22px; cursor:pointer; z-index:1500; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px rgba(0,0,0,.4); transition:all .2s; }
+body.grid-open #btn-gps, body.grid-open #btn-foto-fab, body.grid-open #btn-fabmore, body.grid-open #btn-home-fab { opacity:0; pointer-events:none; }
+body.grid-open #fabgrid-trigger { border-color:var(--accent2); color:var(--accent2); }
+.fabgrid-item { position:fixed; right:16px; bottom:204px; width:46px; height:46px; border-radius:50%; background:var(--panel2); border:2px solid var(--border); color:var(--text); font-size:21px; cursor:pointer; z-index:1501; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px rgba(0,0,0,.45); opacity:0; transform:translate(0,0) scale(.4); transition:transform .2s cubic-bezier(.2,.7,.3,1), opacity .18s; }
 
 #toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:8px 16px; font-size:13px; z-index:3000; opacity:0; transition:all .3s; white-space:nowrap; pointer-events:none; }
 #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
@@ -1139,6 +1154,7 @@ document.addEventListener('touchend', function(e){
   <button id="btn-help" onclick="openHelp()" title="Nápověda – co appka umí a jak se ovládá" style="background:var(--panel2);border:1px solid var(--accent2);border-radius:8px;color:var(--accent2);padding:6px 10px;font-size:15px;font-weight:700;cursor:pointer;">❓</button>
   <button id="btn-so-search" onclick="openSoSearch()" title="Najít SO / staničení a přiblížit na mapě" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">🔍</button>
   <button id="btn-activity" onclick="openActivity()" title="Co se děje – novinky a aktivita v aplikaci" style="position:relative;background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">📢<span class="task-badge" id="activity-badge" style="display:none;">0</span></button>
+  <button id="btn-body" onclick="openBody()" title="Žebříček aktivity – měsíční soutěž týmu M - SILNICE" style="position:relative;background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">🏆<span class="task-badge" id="body-badge" style="display:none;background:#f5a623;color:#0f3460;min-width:16px;">0</span></button>
   <button id="btn-tasks" onclick="openTasksPanel()" title="Úkoly" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">✅<span class="task-badge" id="task-badge">0</span></button>
   <button id="btn-denik" onclick="openDiaryPanel()" title="Deník stavby" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">📓</button>
   <button id="btn-kzp"   onclick="openKzpPanel()"   title="Kvalita / KZP"   style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">🧪</button>
@@ -1148,7 +1164,6 @@ document.addEventListener('touchend', function(e){
   <button id="btn-gallery" onclick="openGallery()" title="Fotogalerie" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">🖼️</button>
   <button id="btn-mereni-evidence" onclick="openMereniEvidence()" title="Evidence měření" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">📐</button>
   <button id="btn-notes-evidence" onclick="openNotesEvidence()" title="Evidence poznámek" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">📝</button>
-  <button id="btn-place" onclick="startPlaceMode()" title="Přidat poznámku/úkol na mapu" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">📍➕</button>
   <button id="btn-zvs" onclick="toggleZvsLayer()" title="Vytyčovací body ZVS (číslo, Y/X, výška Z)" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">📐 ZVS</button>
   <button id="btn-geo" onclick="openGeotechPanel()" title="Geotechnický průzkum – vrtné sondy, zprávy, výkresy" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">🪨</button>
   <button id="btn-reset-view" onclick="resetMapView()" title="Reset pohledu" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:6px 10px;font-size:15px;cursor:pointer;">⌂</button>
@@ -1168,10 +1183,10 @@ document.addEventListener('touchend', function(e){
   </div>
   <h3>🗺️ Podklady</h3>
   <div id="basemap-row">
-    <button class="bm-btn" onclick="setBasemap('outdoor',this)">Outdoor</button>
+    <button class="bm-btn active" id="outdoor-btn" onclick="setBasemap('outdoor',this)">Outdoor</button>
     <button class="bm-btn" onclick="setBasemap('basic',this)">Basic</button>
     <button class="bm-btn" onclick="setBasemap('aerial',this)">Letecká</button>
-    <button class="bm-btn active" id="osm-btn" onclick="setBasemap('osm',this)">OSM</button>
+    <button class="bm-btn" id="osm-btn" onclick="setBasemap('osm',this)">OSM</button>
   </div>
   <div data-perm="katastr">
   <div class="layer-row">
@@ -1357,6 +1372,46 @@ document.addEventListener('touchend', function(e){
 </div>
 
 <button id="btn-gps" onclick="toggleGpsBtn()" title="GPS zapnout/vypnout / centrovat">📍</button>
+<button id="btn-foto-fab" onclick="takeStandalonePhoto()" title="Vyfotit (rychlý přístup)">📷</button>
+<button id="btn-fabmore" onclick="toggleFabMore()" title="Další nástroje – poznámka/úkol, měření, zápisník">⋯</button>
+<button id="btn-place" onclick="closeFabMore();startPlaceMode()" title="Vložit poznámku/úkol na mapu">➕</button>
+<button id="btn-blok" onclick="closeFabMore();openBlok()" title="Poznámkový blok">📝</button>
+<button id="btn-home-fab" onclick="resetMapView()" title="Domů – reset pohledu">⌂</button>
+<button id="fabgrid-trigger" onclick="toggleFabGrid()" title="Vše – panely z lišty (listuj jak ciferník)">🗂️</button>
+<div id="fabgrid"></div>
+
+<!-- 🏆 Žebříček aktivity (#88) -->
+<div id="body-modal" style="display:none;position:fixed;inset:0;z-index:5200;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:14px;">
+  <div style="background:var(--panel);border-radius:14px;max-width:480px;width:100%;max-height:86vh;display:flex;flex-direction:column;border:1px solid var(--border);">
+    <div style="display:flex;align-items:center;gap:8px;padding:14px 16px 8px;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <div style="flex:1;font-size:15px;font-weight:700;color:var(--accent);">🏆 Žebříček aktivity</div>
+      <button onclick="closeBody()" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;min-width:44px;min-height:44px;">✕</button>
+    </div>
+    <div id="body-list" style="padding:10px 14px;overflow-y:auto;flex:1;"></div>
+  </div>
+</div>
+<!-- 🏆 Měsíční souhrn (vyskakovací, jednou za měsíc) -->
+<div id="recap-modal" style="display:none;position:fixed;inset:0;z-index:5400;background:rgba(0,0,0,.72);align-items:center;justify-content:center;padding:20px;">
+  <div id="recap-body" style="background:var(--panel);border-radius:16px;max-width:360px;width:100%;border:1px solid var(--border);padding:22px;"></div>
+</div>
+<!-- 📝 Poznámkový blok – osobní zápisník (veřejné/soukromé) -->
+<div id="blok-panel" style="display:none;position:fixed;inset:0;z-index:3600;background:var(--bg);flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:8px;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;border-bottom:1px solid var(--border);flex-shrink:0;">
+    <div style="flex:1;font-size:16px;font-weight:700;color:var(--accent);">📝 Poznámkový blok</div>
+    <button onclick="closeBlok()" title="Zavřít" style="background:none;border:none;color:var(--text2);font-size:24px;cursor:pointer;min-width:44px;min-height:44px;">✕</button>
+  </div>
+  <div style="padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0;">
+    <textarea id="blok-new-text" rows="3" placeholder="Napiš poznámku… (jen pro tebe, dokud nezaškrtneš „veřejná")" style="width:100%;box-sizing:border-box;background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px;font-size:14px;resize:vertical;"></textarea>
+    <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer;flex:1;">
+        <input type="checkbox" id="blok-new-public" style="width:18px;height:18px;"> 🌐 Veřejná (uvidí všichni)
+      </label>
+      <button onclick="addBlok()" style="background:var(--accent);border:none;border-radius:8px;color:#fff;padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;">Přidat</button>
+    </div>
+  </div>
+  <div id="blok-list" style="padding:12px 14px;overflow-y:auto;flex:1;"></div>
+</div>
+
 <div id="toast"></div>
 
 <div id="pdf-panel" style="touch-action:pan-x pan-y pinch-zoom;">
@@ -3711,9 +3766,11 @@ function initMap() {
   baseLayers.aerial =L.tileLayer(mUrl('aerial'), {maxZoom:23,maxNativeZoom:20,attribution:'© Mapy.cz'});
   baseLayers.osm    =L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
     {maxZoom:23,maxNativeZoom:19,attribution:'© OpenStreetMap'});
-  // OSM jako výchozí – Mapy.cz vyžaduje registraci domény na api.mapy.cz
-  baseLayers.osm.addTo(map);
-  currentBasemap='osm';
+  // Výchozí podklad = Mapy.com Outdoor (#89 v146 – konvence pro všechny appky; doména
+  // pripravar.github.io je registrovaná na api.mapy.cz, stejně jako u Sulice). OSM zůstává
+  // jako záloha jedním ťuknutím v přepínači podkladů, kdyby Mapy.cz nejely.
+  baseLayers.outdoor.addTo(map);
+  currentBasemap='outdoor';
 
   // Katastrální mapa ČÚZK - WMS overlay
   baseLayers.katastr = L.tileLayer.wms('https://services.cuzk.cz/wms/wms.asp', {
@@ -7321,7 +7378,7 @@ function measureSave(){
     datumRealizace:dReal, datumMereni:dnes,
     ownerUid:(window.currentUser?window.currentUser.uid:''),
     author:(window.currentUser?window.currentUser.name:''), ts:Date.now() };
-  db.ref('mereni').push(rec).then(function(){ showToast('💾 Měření uloženo', 2000); logActivity('📏', 'uložil/a měření „' + nazev + '"', {k:'mereni'}); stopMeasure(); })
+  db.ref('mereni').push(rec).then(function(){ showToast('💾 Měření uloženo', 2000); if(typeof trackEvent==='function') trackEvent('mereni_ulozeno'); logActivity('📏', 'uložil/a měření „' + nazev + '"', {k:'mereni'}); stopMeasure(); })
     .catch(function(){ showToast('❌ Uložení selhalo (přihlášení?)', 3000); });
 }
 // ── Datumy, dílčí štítky a lokální skrývání měření ──
@@ -8826,6 +8883,7 @@ function _processPhotoQueue(){
           function saveEntry(){
             db.ref('standalone_photos/' + t).set(entry).then(function(){
               photoPending = Math.max(0, photoPending-1); _photoBadge();
+              if(typeof trackEvent==='function') trackEvent('foto_ulozeno');   // #88 body: skutečně uložená fotka (ne stisk tlačítka)
               _tagPhoto(t);   // AI popis obsahu (no-op, dokud AI_TAGS_ENABLED=false)
               _logPhotoActivity((entry.soList && entry.soList.length) ? entry.soList.join(', ') : (entry.so||''), t);
               setTimeout(_processPhotoQueue, 400);
@@ -9715,7 +9773,7 @@ function canViewPhoto(it){
 var FEATURES = [
   // ── Funkce (tlačítka v liště) ──
   {key:'pdf',        label:'Prohlížení výkresů (PDF)',  btns:[]},   // otvírá se klikem na mapu → gating v openerech
-  {key:'foto',       label:'Focení',                   btns:['btn-standalone-foto']},
+  {key:'foto',       label:'Focení',                   btns:['btn-standalone-foto','btn-foto-fab']},
   {key:'galerie',    label:'Galerie fotek',            btns:['btn-gallery']},
   {key:'komentare',  label:'Komentáře k fotkám',       btns:[]},
   {key:'vykresy',    label:'Nahrávání výkresů',        btns:['btn-pdf-addvk']},
@@ -9726,6 +9784,8 @@ var FEATURES = [
   {key:'kvalita',    label:'Kvalita / KZP',            btns:['btn-kzp']},
   {key:'dokumenty',  label:'Dokumenty (KZP/TePř)',     btns:['btn-dokumenty']},
   {key:'zkousky',    label:'Zkoušky na stavbě',        btns:['btn-zkousky']},
+  {key:'blok',       label:'Poznámkový blok (zápisník)', btns:['btn-blok']},
+  {key:'body',       label:'Žebříček aktivity (soutěž)', btns:['btn-body']},
   // ── Vrstvy v mapě (každá zvlášť) ──
   {key:'fotomapa',   label:'🗺️ Vrstva: Fotky v mapě',            btns:[]},
   {key:'katastr',    label:'🗺️ Vrstva: Katastr (KN)',            btns:[]},
@@ -9781,9 +9841,366 @@ function trackEvent(key){
     if(uid){
       db.ref('statistiky_uzivatele/'+uid).update({ n: SV.increment(1), last: SV.TIMESTAMP }).catch(function(){});
       db.ref('statistiky_uzivatele/'+uid+'/akce/'+key).set(SV.increment(1)).catch(function(){});
+      // #88 Žebříček: měsíční + denní rozpad (fire-and-forget, stejná pravidla $other).
+      // mesic/{YYYY-MM}/{key} = počet akcí v měsíci · dny/{YYYYMMDD}=true = pro sérii (streak).
+      var _d = new Date();
+      var _ym  = _d.getFullYear()+'-'+('0'+(_d.getMonth()+1)).slice(-2);
+      var _ymd = ''+_d.getFullYear()+('0'+(_d.getMonth()+1)).slice(-2)+('0'+_d.getDate()).slice(-2);
+      db.ref('statistiky_uzivatele/'+uid+'/mesic/'+_ym+'/'+key).set(SV.increment(1)).catch(function(){});
+      db.ref('statistiky_uzivatele/'+uid+'/dny/'+_ymd).set(true).catch(function(){});
     }
   }catch(e){}
 }
+// ══════════════════════════════════════════════════════════════════
+// 🏆 ŽEBŘÍČEK AKTIVITY (#88) – měsíční soutěž (jen tým M - SILNICE)
+// Body z /statistiky_uzivatele (měsíční rozpad doplňuje trackEvent). Váhy v JS → nic se
+// nemigruje. Žádná nová pravidla ($other auth!=null). Vyhlášení = reuse logActivity.
+// SKÓRUJE SE JEN SKUTEČNÉ DOKONČENÍ (uložení), NE otevření panelu → vlastní klíče
+// (foto_ulozeno/mereni_ulozeno/denik_zapis/ukol_hotovo/ukol_prevzato).
+// ══════════════════════════════════════════════════════════════════
+var SCORE_WEIGHTS = { ukol_hotovo:10, denik_zapis:5, ukol_prevzato:3, mereni_ulozeno:3, pin:2, foto_ulozeno:1, foto_komentar:0.5 };
+var SCORE_LABELS = {
+  ukol_hotovo:{e:'✅',t:'dokončené úkoly'}, denik_zapis:{e:'📒',t:'vyplněné dny v deníku'},
+  ukol_prevzato:{e:'🙋',t:'převzaté úkoly'}, mereni_ulozeno:{e:'📐',t:'uložená měření'},
+  pin:{e:'📝',t:'poznámky/úkoly'}, foto_ulozeno:{e:'📷',t:'fotky'}, foto_komentar:{e:'💬',t:'komentáře'}
+};
+var SCORE_FOTO_CAP = 250;   // strop scórovaných fotek/měsíc (proti farmení)
+var BODY_BADGES = [
+  {key:'ukol_hotovo', need:10,  e:'🥉', label:'10 úkolů'},
+  {key:'ukol_hotovo', need:50,  e:'🥈', label:'50 úkolů'},
+  {key:'ukol_hotovo', need:200, e:'🥇', label:'200 úkolů'},
+  {key:'foto_ulozeno',   need:100, e:'📷', label:'100 fotek'},
+  {key:'foto_ulozeno',   need:500, e:'📸', label:'500 fotek'},
+  {key:'denik_zapis',    need:30,  e:'📒', label:'30 vyplněných dnů'},
+  {key:'mereni_ulozeno', need:50,  e:'📐', label:'50 měření'}
+];
+var _statsAll = {};
+var _CZ_MONTHS = ['ledna','února','března','dubna','května','června','července','srpna','září','října','listopadu','prosince'];
+function _ym(d){ return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2); }
+function _ymNow(){ return _ym(new Date()); }
+function _ymPrev(){ var d=new Date(); d.setDate(1); d.setMonth(d.getMonth()-1); return _ym(d); }
+function _ymLabel(ym){ var p=(ym||'').split('-'); if(p.length<2) return ym||''; return _CZ_MONTHS[(+p[1])-1]+' '+p[0]; }
+function _isTeamUser(uid){
+  var u=(window.allUsers||{})[uid]; if(!u||!u.name) return false;
+  if(u.tym===true) return true; if(u.tym===false) return false;
+  return ((u.firma||'').toLowerCase().indexOf('silnice')!==-1);   // M - SILNICE a.s. dle firmy
+}
+function _monthScore(uid, ym){
+  var s=_statsAll[uid]; var m=(s&&s.mesic&&s.mesic[ym])||null;
+  if(!m) return {body:0, akce:{}};
+  var total=0, akce={};
+  for(var k in SCORE_WEIGHTS){ if(!SCORE_WEIGHTS.hasOwnProperty(k)) continue;
+    var n=+m[k]||0; if(!n) continue;
+    if(k==='foto_ulozeno') n=Math.min(n, SCORE_FOTO_CAP);
+    akce[k]=n; total += n*SCORE_WEIGHTS[k];
+  }
+  return {body:Math.round(total), akce:akce};
+}
+function _streakDays(uid){
+  var s=_statsAll[uid]; var dny=(s&&s.dny)||null; if(!dny) return 0;
+  var d=new Date(), cnt=0;
+  for(var i=0;i<420;i++){
+    var key=''+d.getFullYear()+('0'+(d.getMonth()+1)).slice(-2)+('0'+d.getDate()).slice(-2);
+    if(dny[key]){ cnt++; d.setDate(d.getDate()-1); }
+    else if(i===0){ d.setDate(d.getDate()-1); }   // dnešek ještě nemusí být hotový → série se kvůli němu nezruší
+    else break;
+  }
+  return cnt;
+}
+function _leaderboard(ym){
+  var rows=[], seen={}; var us=window.allUsers||{};
+  for(var uid in _statsAll){ if(!_statsAll.hasOwnProperty(uid)) continue;
+    if(!_isTeamUser(uid)) continue;
+    var sc=_monthScore(uid, ym); var u=us[uid]||{};
+    rows.push({uid:uid, name:u.name||'?', photo:u.photo, body:sc.body, streak:_streakDays(uid)}); seen[uid]=1;
+  }
+  for(var uid2 in us){ if(!us.hasOwnProperty(uid2)||seen[uid2]) continue;   // i členové bez záznamu (0 b)
+    if(!_isTeamUser(uid2)) continue;
+    rows.push({uid:uid2, name:(us[uid2].name||'?'), photo:us[uid2].photo, body:0, streak:0});
+  }
+  rows.sort(function(a,b){ return b.body-a.body || (a.name||'').localeCompare(b.name||''); });
+  return rows;
+}
+function _userBadges(uid){
+  var s=_statsAll[uid]||{}, ak=s.akce||{}, out=[];
+  BODY_BADGES.forEach(function(b){ if((+ak[b.key]||0)>=b.need) out.push(b); });
+  var st=_streakDays(uid);
+  if(st>=30) out.push({e:'🔥',label:'30denní série'});
+  else if(st>=7) out.push({e:'🔥',label:'7denní série'});
+  return out;
+}
+function _medal(i){ return i===0?'🥇':i===1?'🥈':i===2?'🥉':((i+1)+'.'); }
+function updateBodyBadge(){
+  var badge=document.getElementById('body-badge'); if(!badge) return;
+  var me=window.currentUser&&window.currentUser.uid;
+  if(!me){ badge.style.display='none'; return; }
+  var rows=_leaderboard(_ymNow()); var idx=-1;
+  for(var i=0;i<rows.length;i++){ if(rows[i].uid===me){ idx=i; break; } }
+  if(idx<0 || !rows[idx].body){ badge.style.display='none'; return; }
+  badge.textContent=_medal(idx); badge.style.display='';
+}
+function openBody(){
+  if(!window.currentUser){ showToast('Nejdřív se přihlas', 2000); return; }
+  if(typeof hasPerm==='function' && !hasPerm('body')){ showToast('🏆 Žebříček Ti admin nepovolil', 3000); return; }
+  document.getElementById('body-modal').style.display='flex';
+  renderBody();
+}
+function closeBody(){ var m=document.getElementById('body-modal'); if(m) m.style.display='none'; }
+function renderBody(){
+  var box=document.getElementById('body-list'); if(!box) return;
+  var ym=_ymNow(), rows=_leaderboard(ym), me=window.currentUser&&window.currentUser.uid, h='';
+  h+='<div style="font-size:13px;color:var(--text2);margin:2px 0 10px;">Soutěž '+_ymLabel(ym)+' · body za dokumentaci a řešení úkolů</div>';
+  if(!rows.length){
+    h+='<div style="text-align:center;color:var(--text2);padding:22px;font-size:13px;">Zatím nikdo v soutěži.<br>Admin zařadí lidi z M - SILNICE ve „Správě uživatelů" (🏆) nebo doplněním firmy.</div>';
+  } else {
+    rows.forEach(function(r,i){
+      var meRow=(r.uid===me);
+      var av=(r.photo&&/^https?:\/\//.test(r.photo))
+        ? '<img src="'+escapeHtml(r.photo)+'" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;">'
+        : '<div style="width:34px;height:34px;border-radius:50%;background:var(--panel2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">👤</div>';
+      var bdg=_userBadges(r.uid).map(function(b){ return '<span title="'+escapeHtml(b.label)+'">'+b.e+'</span>'; }).join('');
+      h+='<div style="display:flex;align-items:center;gap:10px;padding:8px 6px;'+(meRow?'background:rgba(34,211,238,.10);border-radius:10px;':'')+'border-bottom:1px solid var(--border);">'+
+        '<div style="font-size:17px;min-width:30px;text-align:center;font-weight:800;">'+_medal(i)+'</div>'+ av+
+        '<div style="flex:1;min-width:0;">'+
+          '<div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+escapeHtml(r.name)+(meRow?' <span style="font-size:11px;color:#22d3ee;">(ty)</span>':'')+' '+bdg+'</div>'+
+          (r.streak>0?'<div style="font-size:11px;color:var(--text2);">🔥 '+r.streak+' dní v řadě</div>':'')+
+        '</div>'+
+        '<div style="text-align:right;flex-shrink:0;"><div style="font-weight:800;font-size:16px;color:var(--accent);">'+r.body+'</div><div style="font-size:10px;color:var(--text2);">bodů</div></div>'+
+      '</div>';
+    });
+  }
+  var prow=_leaderboard(_ymPrev());
+  if(prow.length && prow[0].body){
+    h+='<div style="margin-top:14px;padding:10px 12px;border-radius:10px;background:var(--panel2);">'+
+      '<div style="font-size:12px;color:var(--text2);">🏆 Vítěz – '+_ymLabel(_ymPrev())+'</div>'+
+      '<div style="font-weight:800;font-size:15px;margin-top:2px;">'+escapeHtml(prow[0].name)+' · '+prow[0].body+' bodů</div>'+
+      ((typeof isAdmin==='function'&&isAdmin())?'<button onclick="announceWinner()" style="margin-top:8px;background:var(--accent);border:none;border-radius:8px;color:#fff;padding:8px 12px;font-size:13px;font-weight:700;cursor:pointer;">📢 Vyhlásit v aktivitě</button>':'')+
+    '</div>';
+  }
+  h+='<details style="margin-top:12px;"><summary style="cursor:pointer;font-size:12px;color:var(--text2);">Jak se počítají body</summary><div style="font-size:12px;color:var(--text2);padding:8px 2px;line-height:1.8;">';
+  for(var k in SCORE_WEIGHTS){ if(!SCORE_WEIGHTS.hasOwnProperty(k)) continue; var L=SCORE_LABELS[k]||{e:'•',t:k}; h+=L.e+' '+L.t+' – <b>'+SCORE_WEIGHTS[k]+'</b> b<br>'; }
+  h+='<span style="opacity:.7;">Fotky se počítají do stropu '+SCORE_FOTO_CAP+'/měsíc (proti farmení). Soutěží jen tým M - SILNICE.</span></div></details>';
+  box.innerHTML=h;
+}
+function announceWinner(){
+  if(typeof isAdmin!=='function' || !isAdmin()) return;
+  var ym=_ymPrev(), rows=_leaderboard(ym);
+  if(!rows.length || !rows[0].body){ showToast('Minulý měsíc nemá vítěze', 2500); return; }
+  var w=rows[0];
+  if(!confirm('Vyhlásit vítěze za '+_ymLabel(ym)+': '+w.name+' ('+w.body+' bodů)?')) return;
+  if(typeof logActivity==='function') logActivity('🏆', 'vyhlásil/a vítěze soutěže za '+_ymLabel(ym)+': '+w.name+' – '+w.body+' bodů! 🎉');
+  showToast('🏆 Vyhlášeno v aktivitě', 2200);
+}
+function maybeShowMonthlyRecap(){
+  try{
+    var me=window.currentUser&&window.currentUser.uid; if(!me) return;
+    if(typeof hasPerm==='function' && !hasPerm('body')) return;
+    var ym=_ymPrev();
+    if(localStorage.getItem('bodyRecapShown')===ym) return;
+    var rows=_leaderboard(ym);
+    localStorage.setItem('bodyRecapShown', ym);        // ukázat max 1× za měsíc i kdyby data nebyla
+    if(!rows.length || !rows[0].body) return;
+    var myIdx=-1; for(var i=0;i<rows.length;i++){ if(rows[i].uid===me){ myIdx=i; break; } }
+    var w=rows[0];
+    var h='<div style="font-size:22px;font-weight:800;text-align:center;">🏆 Souhrn měsíce</div>'+
+      '<div style="text-align:center;color:var(--text2);font-size:13px;margin:2px 0 14px;">'+_ymLabel(ym)+'</div>'+
+      '<div style="text-align:center;font-size:15px;margin-bottom:12px;">Vítěz: <b>'+escapeHtml(w.name)+'</b><br><span style="color:var(--accent);font-weight:800;font-size:20px;">'+w.body+' bodů</span></div>';
+    if(myIdx>=0){
+      h+='<div style="text-align:center;background:var(--panel2);border-radius:10px;padding:10px;font-size:14px;">Ty ses umístil/a <b>'+_medal(myIdx)+'</b> · '+rows[myIdx].body+' bodů'+(rows[myIdx].streak>0?(' · 🔥 '+rows[myIdx].streak+' dní'):'')+'</div>';
+    }
+    h+='<button onclick="closeRecap()" style="margin-top:16px;width:100%;background:var(--accent);border:none;border-radius:10px;color:#fff;padding:12px;font-size:15px;font-weight:700;cursor:pointer;">Super, jdeme dál 🚀</button>';
+    document.getElementById('recap-body').innerHTML=h;
+    document.getElementById('recap-modal').style.display='flex';
+  }catch(e){}
+}
+function closeRecap(){ var m=document.getElementById('recap-modal'); if(m) m.style.display='none'; }
+function initBodySystem(){
+  if(window._bodyInited || !window.db) return; window._bodyInited=true;
+  try{
+    db.ref('statistiky_uzivatele').on('value', function(snap){
+      _statsAll = snap.val() || {};
+      updateBodyBadge();
+      var m=document.getElementById('body-modal');
+      if(m && m.style.display==='flex') renderBody();
+    });
+  }catch(e){}
+  setTimeout(maybeShowMonthlyRecap, 2600);
+}
+function toggleUserTeam(uid, on){
+  if(typeof isAdmin!=='function' || !isAdmin()) return;
+  db.ref('uzivatele/'+uid+'/tym').set(on?true:false)
+    .then(function(){ showToast(on?'🏆 Zařazen do soutěže':'Vyřazen ze soutěže', 1600); if(typeof _renderUserAdmin==='function') _renderUserAdmin(); })
+    .catch(function(e){ showToast('❌ '+((e&&e.message)||'chyba'), 3000); });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 📝 POZNÁMKOVÝ BLOK (#89) – osobní zápisník (veřejné / soukromé)
+// /blok_poznamky/{id} = {text, uid, author, ts, verejne}. Default SOUKROMÉ (vidí jen autor).
+// Viditelnost je klient-side (jako soukromé úkoly) – pro odhlučnění. $other → beze změny pravidel.
+// ══════════════════════════════════════════════════════════════════
+window.blokData = {};
+function loadBlok(){
+  try{
+    db.ref('blok_poznamky').on('value', function(snap){
+      window.blokData = snap.val() || {};
+      var p=document.getElementById('blok-panel'); if(p && p.style.display==='flex') renderBlok();
+    }, function(e){ console.warn('loadBlok:', e&&e.message); });
+  }catch(e){}
+}
+function openBlok(){
+  if(!window.currentUser){ showToast('Nejdřív se přihlas', 2000); return; }
+  if(typeof hasPerm==='function' && !hasPerm('blok')){ showToast('📝 Poznámkový blok Ti admin nepovolil', 3000); return; }
+  document.getElementById('blok-panel').style.display='flex';
+  renderBlok();
+}
+function closeBlok(){ var p=document.getElementById('blok-panel'); if(p) p.style.display='none'; }
+function addBlok(){
+  var ta=document.getElementById('blok-new-text'); var v=(ta&&ta.value||'').trim();
+  if(!v){ showToast('Napiš text poznámky', 1800); return; }
+  if(!window.currentUser) return;
+  var pub=!!((document.getElementById('blok-new-public')||{}).checked);
+  var id='b_'+Date.now()+'_'+Math.random().toString(36).substr(2,5);
+  db.ref('blok_poznamky/'+id).set({ text:v, uid:window.currentUser.uid, author:window.currentUser.name||'', ts:Date.now(), verejne:pub })
+    .then(function(){ ta.value=''; var c=document.getElementById('blok-new-public'); if(c) c.checked=false; showToast(pub?'🌐 Uloženo (veřejná)':'🔒 Uloženo (soukromá)', 1600); })
+    .catch(function(e){ showToast('❌ '+((e&&e.message)||'chyba'), 3000); });
+}
+function toggleBlokPublic(id){
+  var n=window.blokData[id]; if(!n || !window.currentUser || n.uid!==window.currentUser.uid) return;
+  db.ref('blok_poznamky/'+id+'/verejne').set(!n.verejne)
+    .then(function(){ showToast(!n.verejne?'🌐 Zveřejněno':'🔒 Skryto', 1400); });
+}
+function deleteBlok(id){
+  var n=window.blokData[id]; if(!n || !window.currentUser || n.uid!==window.currentUser.uid){ showToast('Smazat můžeš jen svoje', 2000); return; }
+  if(!confirm('Smazat tuhle poznámku?')) return;
+  db.ref('blok_poznamky/'+id).remove().then(function(){ showToast('🗑️ Smazáno', 1400); });
+}
+function renderBlok(){
+  var box=document.getElementById('blok-list'); if(!box) return;
+  var me=window.currentUser&&window.currentUser.uid;
+  var arr=Object.keys(window.blokData).map(function(k){ var n=window.blokData[k]; if(n) n._id=k; return n; })
+    .filter(function(n){ return n && (n.uid===me || n.verejne===true); })
+    .sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+  if(!arr.length){ box.innerHTML='<div style="text-align:center;color:var(--text2);padding:24px;font-size:13px;">Zatím žádné poznámky – napiš první nahoře.<br>Soukromé vidíš jen ty, po zaškrtnutí „veřejná" je uvidí všichni.</div>'; return; }
+  box.innerHTML=arr.map(function(n){
+    var mine=(n.uid===me);
+    var when=new Date(n.ts||0).toLocaleString('cs-CZ',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'});
+    var tag = n.verejne ? '<span style="color:#48bb78;">🌐 veřejná</span>' : '<span>🔒 soukromá</span>';
+    return '<div style="border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--panel);">'+
+      '<div style="white-space:pre-wrap;word-break:break-word;font-size:14px;color:var(--text);">'+escapeHtml(n.text||'')+'</div>'+
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;font-size:11px;color:var(--text2);">'+
+        tag+'<span>'+escapeHtml(when)+'</span>'+(mine?'':('<span>· '+escapeHtml(n.author||'')+'</span>'))+
+        (mine?('<span style="flex:1;min-width:8px;"></span>'+
+          '<button onclick="toggleBlokPublic(\''+n._id+'\')" style="background:var(--panel2);border:1px solid var(--border);border-radius:7px;color:var(--text);padding:5px 9px;font-size:12px;cursor:pointer;">'+(n.verejne?'🔒 Skrýt':'🌐 Zveřejnit')+'</button>'+
+          '<button onclick="deleteBlok(\''+n._id+'\')" style="background:var(--panel2);border:1px solid #e57373;border-radius:7px;color:#e57373;padding:5px 9px;font-size:12px;cursor:pointer;">🗑️</button>')
+          :'')+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// 🧭 FAB ROH (#89 v144–v147): ⋯ speed-dial + 🗂️ „Vše" ciferník
+// ══════════════════════════════════════════════════════════════════
+// Radiální FAB (⋯): rozbalí ➕ / 📏 / 📝 do půlkola. Výběr položky i klik mimo = zavřít.
+function toggleFabMore(){ document.body.classList.toggle('fab-open'); }
+function closeFabMore(){ document.body.classList.remove('fab-open'); }
+document.addEventListener('click', function(e){
+  if(!document.body.classList.contains('fab-open')) return;
+  var t = e.target;
+  if(t && t.closest && (t.closest('#btn-fabmore') || t.closest('#btn-place') || t.closest('#btn-measure') || t.closest('#btn-blok'))) return;
+  closeFabMore();
+}, true);
+// 🗂️ „Vše" – listovatelný půlkruh se VŠEMI panely z horní lišty. Staví se přímo z tlačítek
+// #header → automaticky respektuje práva (applyPermsToUI je skryje) i budoucí přírůstky.
+var _gridCenter = 0;
+var _FABGRID_SKIP = { 'btn-standalone-foto':1, 'btn-reset-view':1, 'btn-layers':1 };  // foto=FAB, ⌂=vlevo dole, Vrstvy zvlášť
+function _fabgridItems(){
+  var out = [];
+  var btns = document.querySelectorAll('#header button');
+  for(var i=0;i<btns.length;i++){
+    var b = btns[i];
+    if(_FABGRID_SKIP[b.id]) continue;
+    try { if(getComputedStyle(b).display === 'none') continue; } catch(e){}   // skryté právem
+    var ico = '';
+    for(var j=0;j<b.childNodes.length;j++){ var n=b.childNodes[j]; if(n.nodeType===3 && n.nodeValue.trim()){ ico=n.nodeValue.trim(); break; } }
+    if(!ico) ico = (b.textContent||'').replace(/[0-9]/g,'').trim();
+    out.push({ ico:ico, label:b.title||'', btn:b });
+  }
+  return out;
+}
+var _FABGRID_POS = [ [0,-84], [-59,-59], [-84,0], [-59,59], [0,84] ];   // 5 slotů: nahoře → doleva → dole
+function toggleFabGrid(){ if(document.body.classList.contains('grid-open')) closeFabGrid(); else openFabGrid(); }
+function openFabGrid(){
+  if(typeof closeFabMore==='function') closeFabMore();   // ať nejsou oba vějíře naráz
+  document.body.classList.add('grid-open');
+  try { if(window.map && map.dragging) map.dragging.disable(); } catch(e){}   // ať kroužení nepohne mapou
+  _gridCenter = 2;
+  renderFabGrid();
+}
+function closeFabGrid(){
+  document.body.classList.remove('grid-open');
+  try { if(window.map && map.dragging) map.dragging.enable(); } catch(e){}
+  var g=document.getElementById('fabgrid'); if(g){ var o=g.querySelectorAll('.fabgrid-item'); for(var q=0;q<o.length;q++) o[q].remove(); }
+}
+function renderFabGrid(){
+  var g=document.getElementById('fabgrid'); if(!g) return;
+  var old=g.querySelectorAll('.fabgrid-item'); for(var q=0;q<old.length;q++) old[q].remove();
+  var items=_fabgridItems(), M=items.length; if(!M) return;
+  var dialing = M>5, count = dialing?5:M, CEN=2;
+  var start = dialing ? 0 : Math.floor((5-count)/2);   // malé sady vycentruj mezi 5 pozic
+  for(var k=0;k<count;k++){
+    var slot = dialing ? k : (start+k);
+    var pos = _FABGRID_POS[slot];
+    var idx = dialing ? (((_gridCenter+(k-CEN))%M+M)%M) : k;
+    var it = items[idx];
+    var edge = dialing && (k===0 || k===count-1);   // krajní malé = „listovat tím směrem"
+    var el = document.createElement('button');
+    el.className='fabgrid-item'; el.textContent=it.ico; el.title=it.label;
+    g.appendChild(el);
+    (function(item, isEdge, dir, DX, DY, elm){
+      requestAnimationFrame(function(){ elm.style.opacity = isEdge ? '0.5' : '1'; elm.style.transform = 'translate('+DX+'px,'+DY+'px) scale(1)'; });
+      elm.onclick = function(ev){ ev.stopPropagation();
+        if(window._gridSwiped) return;   // po kroužení/tažení neaktivovat položku
+        if(isEdge){ _gridCenter = ((_gridCenter+dir)%M+M)%M; renderFabGrid(); }
+        else { closeFabGrid(); if(item.btn) item.btn.click(); }
+      };
+    })(it, edge, k<CEN?-1:1, pos[0], pos[1], el);
+  }
+}
+function _fabgridDial(d){ var M=_fabgridItems().length; if(M>5){ _gridCenter=((_gridCenter+d)%M+M)%M; renderFabGrid(); } }
+(function(){
+  // Víc způsobů listování: (1) KROUŽENÍ prstem/myší kolem dialu, (2) tah nahoru/dolů,
+  // (3) kolečko myši, (4) ťuk na krajní vybledlou ikonu, (5) tap prostřední = spustit.
+  var dragging=false, lastAng=0, acc=0, cx=0, cy=0, moved=0;
+  function centerXY(){ var t=document.getElementById('fabgrid-trigger'); if(t){ var r=t.getBoundingClientRect(); return [r.left+r.width/2, r.top+r.height/2]; } return [window.innerWidth-40, window.innerHeight-228]; }
+  function angleAt(x,y){ return Math.atan2(y-cy, x-cx)*180/Math.PI; }
+  function norm(d){ while(d>180)d-=360; while(d<-180)d+=360; return d; }
+  document.addEventListener('pointerdown', function(e){
+    if(!document.body.classList.contains('grid-open')) return;
+    var c=centerXY(); cx=c[0]; cy=c[1];
+    lastAng=angleAt(e.clientX,e.clientY); acc=0; moved=0; dragging=true; window._gridSwiped=false;
+  }, true);
+  document.addEventListener('pointermove', function(e){
+    if(!dragging) return;
+    var a=angleAt(e.clientX,e.clientY), d=norm(a-lastAng); lastAng=a; acc+=d; moved+=Math.abs(d);
+    var STEP=40;   // ~40° otočení kolem dialu = posun o 1 položku (ciferník)
+    while(acc>=STEP){ _fabgridDial(1);  acc-=STEP; }
+    while(acc<=-STEP){ _fabgridDial(-1); acc+=STEP; }
+    if(moved>10) window._gridSwiped=true;   // byl to tah/kroužení → tap nespustí položku ani nezavře
+  }, true);
+  document.addEventListener('pointerup', function(){ dragging=false; if(window._gridSwiped) setTimeout(function(){ window._gridSwiped=false; }, 80); }, true);
+  document.addEventListener('pointercancel', function(){ dragging=false; }, true);
+  document.addEventListener('wheel', function(e){ if(!document.body.classList.contains('grid-open')) return; e.preventDefault(); _fabgridDial(e.deltaY>0?1:-1); }, {passive:false});
+  document.addEventListener('click', function(e){
+    if(!document.body.classList.contains('grid-open')) return;
+    if(window._gridSwiped) return;   // po kroužení/tažení nezavírat
+    var t=e.target;
+    if(t && t.closest && (t.closest('.fabgrid-item') || t.closest('#fabgrid-trigger'))) return;
+    closeFabGrid();
+  }, true);
+  window.addEventListener('resize', function(){ if(document.body.classList.contains('grid-open')) renderFabGrid(); });
+})();
+
 var _statsCache = null;
 var _statsTab = 'funkce';
 function openStats(){
@@ -9982,7 +10399,10 @@ var FN_PERM = {
   // ── Geotechnika ──
   openGeotechPanel:'geotech', renderGeotech:'geotech', openGeoDoc:'geotech',
   // ── Situace (DWG) ──
-  setPlochyOpacity:'situace'
+  setPlochyOpacity:'situace',
+  // ── Zápisník (#89) / Žebříček aktivity (#88) ──
+  openBlok:'blok', addBlok:'blok', toggleBlokPublic:'blok', deleteBlok:'blok',
+  openBody:'body', announceWinner:'body'
 };
 // Tyhle se volají z DB listenerů / při vykreslování → při zákazu jen tiše nic (bez otravné hlášky).
 var FN_PERM_SILENT = {
@@ -10056,7 +10476,7 @@ function _logPhotoActivity(so, key){
 }
 // „🆕 Co je nového" – changelog (developer-maintained; s novou funkcí přidej řádek nahoru + bump verze).
 var APP_NOVINKY = [
-  { datum:'2026-07-28', verze:'v0.42', text:'💬 Označování osob přes @ – v komentářích úkolů i fotek a v poli „detail" úkolu. Napíšeš @ a vybereš člověka; ten dostane upozornění, i když není přiřazený.' },
+  { datum:'2026-08-07', verze:'v0.43', text:'📷 Foťák teď i vpravo dole (rychlý přístup). ⋯ „Další nástroje" rozbalí poznámku/úkol, měření a 📝 zápisník; 🗂️ „Vše" prolistuje všechny panely z lišty jak ciferník; ⌂ Domů je i vlevo dole. Výchozí mapa je nově Outdoor (přehlednější terén). 🔒 Úkol jde označit jako „jen můj" (soukromý – vidíš ho jen ty). 📝 Nový osobní poznámkový blok (soukromé/veřejné poznámky). 🏆 Žebříček aktivity – měsíční soutěž týmu M - SILNICE (body za dokumentaci a řešení úkolů, série, odznaky).' },
   { datum:'2026-07-28', verze:'v0.41', text:'🖼️ Galerie: filtr objektů (SO) je teď VÍCE‑výběr (checklist). 📅 Změna data pořízení fotky (i hromadně, čas zůstane) + 📍 hromadné přenastavení km. 🖱️ Na počítači jde fotky označit TAHEM MYŠI (guma); „Vše (N)" ukáže, kolik odfiltrovaných vybere (na měsíční ZIP).' },
   { datum:'2026-07-28', verze:'v0.40', text:'✅ Úkoly mají průběh: 🙋 „Převzít / Řeším" (vidíš kdo úkol aktivně řeší), 🔄 „Předat" na jinou osobu, 📋 „Průběh úkolu" (kdo/kdy/komu) a u Hotovo se dá připsat výsledek. Nový řadič seznamu (hotové dle data vyřešení, ne náhodně).' },
   { datum:'2026-07-16', verze:'v0.39', text:'🔵 Propustky SO 101 jsou teď jako body na mapě (ve svém km) – klik otevře přímo výkres toho propustku. Jdou vypnout ve ☰ Vrstvy a najít v 🔍 hledáčku.' },
@@ -10223,6 +10643,7 @@ function _renderUserAdmin(){
       '<button onclick="toggleBlockUser(\''+uid+'\','+(!blocked)+')" style="'+bs+(blocked?'background:#22c55e;color:#fff;':'background:#ef4444;color:#fff;')+'">'+(blocked?'✅ Odblokovat':'🚫 Blokovat')+'</button>'+
       '<button onclick="deleteUserAccount(\''+uid+'\')" title="Smazat záznam (duplicitní účet). NENÍ to ban – účet se po přihlášení obnoví." style="'+bs+'background:var(--panel);color:#ef4444;border:1px solid #ef4444;">🗑</button>'+
       '<button onclick="toggleUserAdmin(\''+uid+'\','+(!admin)+')" style="'+bs+(admin?'background:var(--panel);color:var(--text);border:1px solid var(--border);':'background:#f59e0b;color:#111;')+'">'+(admin?'⭐ Zrušit admina':'⭐ Udělat admina')+'</button>'+
+      '<button onclick="toggleUserTeam(\''+uid+'\','+(!_isTeamUser(uid))+')" title="Zařadit do žebříčku aktivity (soutěž jen tým M - SILNICE)" style="'+bs+(_isTeamUser(uid)?'background:#f5a623;color:#0f3460;':'background:var(--panel);color:var(--text);border:1px solid var(--border);')+'">'+(_isTeamUser(uid)?'🏆 V soutěži':'🏆 Do soutěže')+'</button>'+
       catSel;
     return '<div style="border:1px solid '+(pending?'#0ea5e9':'var(--border)')+';border-radius:8px;padding:9px 11px;margin-bottom:8px;background:'+(pending?'rgba(14,165,233,0.10)':'var(--panel2)')+';">'+
       '<div style="display:flex;align-items:center;gap:8px;">'+
@@ -10494,6 +10915,8 @@ function _enterApp(displayName){
   loadActivity();
   loadPracovnici();
   loadStroje();
+  initBodySystem();   // #88 žebříček aktivity (listener na statistiky_uzivatele + měsíční souhrn)
+  loadBlok();         // #89 poznámkový blok (osobní zápisník)
   setupFcmIfPossible();
   maybeShowIosHint();
   applyPermsToUI();   // schovej funkce, které tomuto uživateli admin zakázal
@@ -10795,6 +11218,7 @@ function loadAllUsers() {
       return;
     }
     applyPermsToUI();   // živá změna práv (admin zapnul/vypnul funkci)
+    if(typeof updateBodyBadge==='function') updateBodyBadge();   // #88 pořadí v žebříčku (změna týmu/firmy)
     // Vykreslení, které proběhlo DŘÍV než doběhla práva, bylo tiše zablokované (fail-closed)
     // → jednou po načtení práv ho zopakuj, ať uživatel nepřijde o úkoly/zkoušky/výchozí vrstvy.
     if(!window._permsFirstLoadDone && window._usersLoaded){
@@ -10861,8 +11285,8 @@ function saveTaskToFirebase(task, cb) {
   db.ref('ukoly/' + task.id).set(task).then(function(){
     hideSync();
     showToast('✅ Úkol uložen', 1500);
-    // Notifikační záznam pro Cloud Function (+ @zmínky z detailu úkolu #84b)
-    sendTaskNotificationRequest(task, 'novy', (task.mentions && task.mentions.length) ? { mentions: task.mentions.map(function(m){return m.uid;}), mentionBy: task.zadalName||'', mentionText: task.title||'' } : null);
+    // Notifikační záznam pro Cloud Function (+ @zmínky z detailu úkolu #84b). 🔒 Soukromý úkol se nikam neposílá.
+    if(!task.soukromy) sendTaskNotificationRequest(task, 'novy', (task.mentions && task.mentions.length) ? { mentions: task.mentions.map(function(m){return m.uid;}), mentionBy: task.zadalName||'', mentionText: task.title||'' } : null);
     if(cb) cb();
   }).catch(function(e){
     console.error('Chyba uložení úkolu:', e);
@@ -10932,12 +11356,20 @@ function clearTaskFilter() {
   renderTasksList();
 }
 
+// #89 🔒 Soukromý úkol: vidí ho jen zadavatel. Klient-side skrytí (odhlučnění, ne tvrdá
+// bezpečnost) – centrální helper, guard do VŠECH cest zobrazení (seznam, mapa, badge, detail).
+function _taskVisible(t){
+  if(!t || !t.soukromy) return true;
+  var uid = window.currentUser ? window.currentUser.uid : null;
+  return !!uid && t.zadalUid === uid;
+}
 function filterTasksForTab(tab) {
   var uid = window.currentUser ? window.currentUser.uid : null;
   var profFilter = (document.getElementById('tasks-filter-prof') || {}).value || '';
   profFilter = profFilter.trim().toLowerCase();
   var now = Date.now();
   return window.allTasks.filter(function(t) {
+    if(!_taskVisible(t)) return false;   // 🔒 soukromý úkol jen pro zadavatele
     if(profFilter && (!t.profese || t.profese.toLowerCase().indexOf(profFilter) === -1)) return false;
     if(tab === 'moje') {
       if(t.stav === 'done') return false;
@@ -11030,7 +11462,7 @@ function renderTasksList() {
     var stateHtml = (t.stav === 'inprogress') ? ('<span class="tc-prog">🔵 Řeší: ' + escapeHtml(t.resiName || '') + '</span>') : '';
     var doneHtml = (t.stav === 'done' && t.hotovo) ? ('<span>✅ ' + new Date(t.hotovo).toLocaleDateString('cs-CZ') + (t.hotovilName ? (' · ' + escapeHtml(t.hotovilName)) : '') + '</span>') : '';
     return '<div class="' + cls + '" onclick="openTaskDetail(\'' + t.id + '\')">'
-      + '<div class="tc-title">' + escapeHtml(t.title || '(bez názvu)') + '</div>'
+      + '<div class="tc-title">' + (t.soukromy ? '🔒 ' : '') + escapeHtml(t.title || '(bez názvu)') + '</div>'
       + '<div class="tc-meta">'
       +   profHtml
       +   stateHtml
@@ -11049,7 +11481,7 @@ function updateTaskBadge() {
   var uid = window.currentUser ? window.currentUser.uid : null;
   if(!uid) return;
   var mine = window.allTasks.filter(function(t){
-    return t.stav !== 'done' && Array.isArray(t.prirazeno) && t.prirazeno.some(function(p){ return p.uid === uid; });
+    return _taskVisible(t) && t.stav !== 'done' && Array.isArray(t.prirazeno) && t.prirazeno.some(function(p){ return p.uid === uid; });
   }).length;
   var badge = document.getElementById('task-badge');
   if(!badge) return;
@@ -11092,6 +11524,7 @@ function openNewTaskModal(lat, lng, km) {
   document.getElementById('tnm-deadline').value = '';
   document.getElementById('tnm-priority').value = 'normalni';
   document.getElementById('tnm-prof').value = '';
+  var sk0=document.getElementById('tnm-soukromy'); if(sk0) sk0.checked = false;   // 🔒 reset „jen můj úkol"
   _resetPripominkaForm();
   renderTnmPhotos();
   var _tst = document.getElementById('tnm-stamp-toggle'); if(_tst) _tst.checked = getStampPref();
@@ -11362,6 +11795,7 @@ function saveTaskFromForm() {
   var deadline = document.getElementById('tnm-deadline').value || '';
   var priority = document.getElementById('tnm-priority').value || 'normalni';
   var profese = document.getElementById('tnm-prof').value.trim();
+  var soukromy = !!((document.getElementById('tnm-soukromy')||{}).checked);   // 🔒 jen zadavatel vidí
   var lat = parseFloat(document.getElementById('tnm-lat').value);
   var lng = parseFloat(document.getElementById('tnm-lng').value);
   var km  = parseFloat(document.getElementById('tnm-km').value);
@@ -11390,6 +11824,7 @@ function saveTaskFromForm() {
       priorita:   priority,
       profese:    profese,
       stav:       existing ? existing.stav : 'open',
+      soukromy:   soukromy || false,   // 🔒 jen zadavatel vidí (klient-side skrytí)
       vytvoreno:  existing ? existing.vytvoreno : Date.now(),
       upraveno:   Date.now(),
       komentare:  existing ? (existing.komentare || null) : null,
@@ -11406,7 +11841,7 @@ function saveTaskFromForm() {
       window._mentionPicks = {}; _hideMentionPop();
       closeNewTaskModal();
     });
-    if(!existing) logActivity('✅', 'zadal/a úkol „' + title + '"' + (profese?(' pro '+profese):''), {k:'task', id:id});
+    if(!existing && !soukromy) logActivity('✅', 'zadal/a úkol „' + title + '"' + (profese?(' pro '+profese):''), {k:'task', id:id});   // 🔒 soukromý úkol se do feedu nepíše
   }
 
   if(pendingItems.length === 0) {
@@ -11448,6 +11883,7 @@ window.openTaskId = null;
 function openTaskDetail(id) {
   var t = window.allTasks.filter(function(x){ return x.id === id; })[0];
   if(!t) return;
+  if(!_taskVisible(t)){ showToast('Tenhle úkol je soukromý', 2000); return; }   // 🔒 obrana i přes přímý odkaz / deep-link
   window.openTaskId = id;
   renderTaskDetail(t);
   document.getElementById('task-detail').classList.add('open');
@@ -11535,6 +11971,7 @@ function takeTask(){
     stav:'inprogress', resiUid:me.uid, resiName:me.name, prevzatoTs:Date.now(), historie:hist
   }).then(function(){
     showToast('🙋 Převzal/a jsi úkol – je v řešení', 1600);
+    if(typeof trackEvent==='function') trackEvent('ukol_prevzato');   // #88 body
     logActivity('🙋', 'začal/a řešit úkol „' + (t.title||'') + '"', {k:'task', id:t.id});
   });
 }
@@ -11596,6 +12033,7 @@ function doneConfirm(){
     closeDoneModal();
     Object.assign(t, upd);
     showToast('✅ Úkol označen jako hotový', 1500);
+    if(typeof trackEvent==='function') trackEvent('ukol_hotovo');   // #88 body
     sendTaskNotificationRequest(t, 'hotovo');
     logActivity('🎉', 'dokončil/a úkol „' + (t.title||'') + '"' + (note ? (' – ' + note) : ''), {k:'task', id:t.id});
   });
@@ -11655,6 +12093,7 @@ function editTask() {
   document.getElementById('tnm-deadline').value = t.termin || '';
   document.getElementById('tnm-priority').value = t.priorita || 'normalni';
   document.getElementById('tnm-prof').value = t.profese || '';
+  var skE=document.getElementById('tnm-soukromy'); if(skE) skE.checked = !!t.soukromy;   // 🔒 přenes stav při editaci
   _fillPripominka(t.pripominka);
   document.getElementById('tnm-lat').value = (t.lat !== undefined && t.lat !== null) ? t.lat : '';
   document.getElementById('tnm-lng').value = (t.lng !== undefined && t.lng !== null) ? t.lng : '';
@@ -11794,6 +12233,7 @@ function renderTasksOnMap() {
   window.tasksLayer.clearLayers();
   var now = Date.now();
   window.allTasks.forEach(function(t){
+    if(!_taskVisible(t)) return;   // 🔒 soukromý úkol se cizím na mapě nezobrazí
     if(t.lat === undefined || t.lat === null) return;
     var isDone = t.stav === 'done';
     if(isDone && !window.taskSubLayers.done) return;
@@ -13006,8 +13446,12 @@ function diarySaveDay(){
   if(_diarySaveTimer) clearTimeout(_diarySaveTimer);
   _diarySaveTimer = setTimeout(function(){
     showSync('⏳ Ukládám deník…');
+    var _denikDate = window.diaryCurrentDate;
     db.ref('denik/' + window.diaryCurrentDate).set(window.diaryCurrentData)
-      .then(function(){ hideSync(); })
+      .then(function(){ hideSync();
+        // #88 body: max 1× za dokumentovaný den (ne za každou editaci pole), jen skutečné uložení
+        try{ var _dk='denikScored_'+_denikDate; if(window.currentUser && !localStorage.getItem(_dk)){ localStorage.setItem(_dk,'1'); if(typeof trackEvent==='function') trackEvent('denik_zapis'); } }catch(_e){}
+      })
       .catch(function(e){ hideSync(); console.error('Diary save err:', e); showToast('❌ Chyba uložení', 2500); });
   }, 500);
 }
@@ -15477,6 +15921,10 @@ function copyDiaryExport(){
     <input type="text" class="task-field" id="tnm-prof" placeholder="geodet / beton / výkop / asfalt / TDS …" list="prof-suggestions">
     <datalist id="prof-suggestions"></datalist>
 
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);padding:8px 0;cursor:pointer;font-weight:400;">
+      <input type="checkbox" id="tnm-soukromy" style="width:18px;height:18px;flex-shrink:0;cursor:pointer;"> 🔒 Jen můj úkol (soukromý – uvidíš jen ty)
+    </label>
+
     <label>Fotky (volitelně)</label>
     <div id="tnm-photos-preview" style="display:flex;flex-wrap:wrap;gap:6px;min-height:6px;"></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -16167,7 +16615,8 @@ function copyDiaryExport(){
 <!-- Long-press na mapě: Poznámka NEBO Úkol -->
 <div id="map-crosshair"></div>
 <style>
-#btn-measure{position:fixed;bottom:24px;left:16px;width:48px;height:48px;border-radius:50%;background:var(--panel2);border:2px solid var(--border);color:var(--text);font-size:20px;cursor:pointer;z-index:1500;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.4);}
+#btn-measure{position:fixed;bottom:144px;right:16px;width:48px;height:48px;border-radius:50%;background:var(--panel2);border:2px solid var(--border);color:var(--text);font-size:22px;cursor:pointer;z-index:1501;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,.4);opacity:0;transform:scale(.4);pointer-events:none;transition:transform .22s cubic-bezier(.2,.7,.3,1), opacity .18s;}
+#btn-measure.active{background:#0e7490;border-color:#22d3ee;color:#fff;box-shadow:0 0 16px rgba(34,211,238,.5);}
 #measure-cross{display:none;position:fixed;z-index:1200;width:0;height:0;pointer-events:none;}
 #measure-cross.open{display:block;}
 #measure-cross::before,#measure-cross::after{content:'';position:absolute;background:#16a34a;box-shadow:0 0 2px rgba(255,255,255,.95);}
@@ -16180,7 +16629,7 @@ function copyDiaryExport(){
 #measure-hud button{flex:1;min-width:84px;min-height:44px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text);font-size:14px;cursor:pointer;}
 #measure-hud button.mprimary{background:var(--accent);color:#fff;border:none;}
 </style>
-<button id="btn-measure" onclick="toggleMeasure()" title="Měřit délku / plochu na mapě">📏</button>
+<button id="btn-measure" onclick="closeFabMore();toggleMeasure()" title="Měřit délku / plochu na mapě">📏</button>
 <div id="measure-cross"></div>
 <div id="measure-hud">
   <div class="mrow" style="margin-bottom:4px;">
@@ -16263,6 +16712,23 @@ function copyDiaryExport(){
           <text x="210" y="184" font-size="8.5" fill="var(--text2)">GPS · měřit →</text>
         </svg>
       </div>
+
+      <h3 style="font-size:14px;margin:14px 0 6px;color:var(--accent2);">🧭 Tlačítka v rozích mapy</h3>
+      <ul style="margin:0 0 10px;padding-left:18px;">
+        <li><b>Vpravo dole:</b> 📍 GPS · 📷 Foťák (rychlý) · <b>⋯</b> Další nástroje (rozbalí ➕ poznámku/úkol, 📏 měření, 📝 zápisník) · 🗂️ „Vše" (prolistuj všechny panely z lišty jak ciferník – tahem, kolečkem nebo ťukem na krajní ikonu).</li>
+        <li><b>Vlevo dole:</b> ⌂ Domů (vrátí pohled na celou stavbu).</li>
+        <li>Výchozí podklad je <b>Outdoor</b> (terén); přepnout jde v ☰ Vrstvy → Podklady.</li>
+      </ul>
+      <h3 style="font-size:14px;margin:14px 0 6px;color:var(--accent2);">🔒 Soukromý úkol &amp; 📝 zápisník</h3>
+      <ul style="margin:0 0 10px;padding-left:18px;">
+        <li>Při zadání úkolu zaškrtni <b>„Jen můj úkol"</b> – takový úkol vidíš jen ty (v seznamu, na mapě, ve feedu se neobjeví).</li>
+        <li><b>📝 Poznámkový blok</b> (v ⋯) je tvůj osobní zápisník. Poznámka je defaultně soukromá; zaškrtnutím „veřejná" ji uvidí všichni.</li>
+      </ul>
+      <h3 style="font-size:14px;margin:14px 0 6px;color:var(--accent2);">🏆 Žebříček aktivity</h3>
+      <ul style="margin:0 0 10px;padding-left:18px;">
+        <li>Měsíční přátelská soutěž týmu M - SILNICE – body za dokumentaci a řešení úkolů (✅ hotové úkoly, 📒 deník, 📷 fotky, 📐 měření…), série a odznaky. Klikni na 🏆 v liště.</li>
+        <li>Kdo soutěží, řídí admin ve „Správě uživatelů" (🏆); lidi s firmou „M - SILNICE" se zařadí sami. Jen prohlížení panelů body nedává.</li>
+      </ul>
 
       <!-- Rychlý start -->
       <div style="background:rgba(34,211,238,0.08);border:1px solid #22d3ee;border-radius:10px;padding:10px 12px;margin:10px 0;">
