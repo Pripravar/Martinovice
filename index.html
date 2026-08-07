@@ -1279,8 +1279,16 @@ document.addEventListener('touchend', function(e){
   </div>
   <div data-perm="geotech">
   <div class="layer-row">
-    <label>🛢️ Vrtné sondy (geotechnika)</label>
-    <label class="toggle"><input type="checkbox" id="lyr-sondy" onchange="setSondyVisible(this.checked)"><span class="toggle-slider"></span></label>
+    <label>🟣 Vrty – PředGTP (předběžný)</label>
+    <label class="toggle"><input type="checkbox" id="lyr-sondy-pre" onchange="setSondyVisible('pre',this.checked)"><span class="toggle-slider"></span></label>
+  </div>
+  <div class="layer-row">
+    <label>🔵 Vrty – PoGTP (podrobný)</label>
+    <label class="toggle"><input type="checkbox" id="lyr-sondy-pod" onchange="setSondyVisible('pod',this.checked)"><span class="toggle-slider"></span></label>
+  </div>
+  <div class="layer-row">
+    <label>🪨 Pasporty B/C/D (PoGTP)</label>
+    <label class="toggle"><input type="checkbox" id="lyr-geopasport" onchange="setGeoPasportVisible(this.checked)"><span class="toggle-slider"></span></label>
   </div>
   </div>
   <div data-perm="mereni">
@@ -3582,6 +3590,16 @@ function _buildSoSearchIndex(){
     var pos = realKmToLatLng(p.km); if(!pos) return;
     idx.push({ id:('Propustek '+fmtKm(p.km)), name:(p.nazev||''), kat:'propustek', pos:pos, vk:null, prop:p });
   });
+  // 5) Geotechnické pasporty B/C/D (PoGTP) → flyTo + otevře tu část PDF (openGeoDoc)
+  (typeof GEO_PASPORT_B!=='undefined'?GEO_PASPORT_B:[]).forEach(function(b){
+    idx.push({ id:('Geo pasport B'+b.n), name:(b.label+' · km '+fmtKm(b.kmOd)+'–'+fmtKm(b.kmDo)), kat:'geo', pos:realKmToLatLng((b.kmOd+b.kmDo)/2), vk:null, geoDoc:{s:b.soubor, n:'Pasport B'+b.n+' – '+b.label} });
+  });
+  (typeof GEO_PASPORT_C!=='undefined'?GEO_PASPORT_C:[]).forEach(function(c){
+    idx.push({ id:('Geo pasport C SO '+c.so), name:(c.label||''), kat:'geo', pos:_geoSOPos(c.so, c.km), vk:null, geoDoc:{s:c.soubor, n:'Pasport C – SO '+c.so} });
+  });
+  (typeof GEO_PASPORT_D!=='undefined'?GEO_PASPORT_D:[]).forEach(function(d){
+    idx.push({ id:('Geo mostní zpráva '+d.dn+' SO '+d.so), name:(d.label||''), kat:'geo', pos:_geoSOPos(d.so, null), vk:null, geoDoc:{s:d.soubor, n:'Mostní zpráva '+d.dn+' – SO '+d.so} });
+  });
   idx.forEach(function(e){ e._h = _soSearchNorm(e.id+' '+e.name+' '+(e.kat||'')); });
   window._soSearchIndex = idx;
   return idx;
@@ -3594,7 +3612,7 @@ function openSoSearch(){
   _renderSoSearch();
 }
 function closeSoSearch(){ var m=document.getElementById('so-search-modal'); if(m) m.style.display='none'; }
-function _soKatIcon(kat){ return kat==='most'?'🌉':(kat==='nadjezd'?'🛤️':(kat==='osa'?'↔️':(kat==='pas'?'📏':(kat==='propustek'?'🔵':(kat==='300'?'⚡':(kat==='400'?'💡':(kat==='500'?'🔥':(kat==='000'?'🧨':'🏗️')))))))); }
+function _soKatIcon(kat){ return kat==='most'?'🌉':(kat==='nadjezd'?'🛤️':(kat==='osa'?'↔️':(kat==='pas'?'📏':(kat==='propustek'?'🔵':(kat==='geo'?'🪨':(kat==='300'?'⚡':(kat==='400'?'💡':(kat==='500'?'🔥':(kat==='000'?'🧨':'🏗️'))))))))); }
 function _renderSoSearch(){
   var box=document.getElementById('so-search-list'); if(!box) return;
   var idx=_buildSoSearchIndex();
@@ -3635,6 +3653,7 @@ function _soSearchGo(i){
   if(e.pos) _soFlyTo(e.pos);
   // Po doletu nabídni výkresy (jako klik na značku); otvírací fce si hlídají právo 'pdf' samy.
   if(e.prop){ setTimeout(function(){ openPropPanel(e.prop); }, e.pos?700:0); }
+  else if(e.geoDoc){ setTimeout(function(){ openGeoDoc(e.geoDoc.s, e.geoDoc.n); }, e.pos?700:0); }   // geotechnický pasport
   else if(e.vk){ setTimeout(function(){ openSOVykresy(e.vk); }, e.pos?700:0); }
   else if(!e.pos){ showToast('Tenhle objekt nemá polohu ani výkresy', 2500); }
 }
@@ -7071,23 +7090,56 @@ function openGeotechPanel(){
   renderGeotech(s ? s.value : '');
 }
 function closeGeotechPanel(){ var p=document.getElementById('geo-panel'); if(p) p.style.display='none'; }
+// Panel rozdělen do dvou skupin: PředGTP a PoGTP (pasporty B/C/D patří pod PoGTP).
+var GEO_GROUPS=[
+  {grp:'pred', title:'🟣 Předběžný průzkum (PředGTP)', keys:['sondy_predbezne','sondy_archivni','reserse']},
+  {grp:'po',   title:'🔵 Podrobný průzkum (PoGTP)',    keys:['zpravy','sondy_podrobne']}
+];
+function _geoPasportPanelRows(q){
+  var out=''; var cnt=0;
+  function match(s){ return !q || s.toLowerCase().indexOf(q)>=0; }
+  function grpBox(title, arr, mk){
+    if(!arr.length) return;
+    out+='<div style="margin:10px 0 5px;font-weight:800;font-size:13px;color:var(--accent);">'+title+' <span style="color:var(--text2);font-weight:400;">('+arr.length+')</span></div><div style="display:flex;flex-wrap:wrap;gap:6px;">';
+    arr.forEach(function(x){ var m=mk(x); cnt++;
+      out+='<button onclick="openGeoDoc(this.dataset.s,this.dataset.n)" data-s="'+m.s+'" data-n="'+m.n.replace(/"/g,'&quot;')+'" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 11px;font-size:13px;cursor:pointer;text-align:left;">🪨 '+escapeHtml(m.t)+'</button>';
+    });
+    out+='</div>';
+  }
+  var B=(typeof GEO_PASPORT_B!=='undefined'?GEO_PASPORT_B:[]).filter(function(x){ return match('B'+x.n+' '+x.label+' '+fmtKm(x.kmOd)); });
+  var C=(typeof GEO_PASPORT_C!=='undefined'?GEO_PASPORT_C:[]).filter(function(x){ return match('C SO '+x.so+' '+x.label); });
+  var D=(typeof GEO_PASPORT_D!=='undefined'?GEO_PASPORT_D:[]).filter(function(x){ return match(x.dn+' SO '+x.so+' '+x.label); });
+  grpBox('🪨 Pasporty B – hlavní trasa', B, function(x){ return {s:x.soubor, n:'Pasport B'+x.n+' – '+x.label, t:'B'+x.n+' · '+fmtKm(x.kmOd)+'–'+fmtKm(x.kmDo)+' · '+x.label}; });
+  grpBox('🪨 Pasporty C – přeložky/MÚK', C, function(x){ return {s:x.soubor, n:'Pasport C – SO '+x.so, t:'C · SO '+x.so+' · '+x.label}; });
+  grpBox('🪨 Pasporty D – mosty', D, function(x){ return {s:x.soubor, n:'Mostní zpráva '+x.dn+' – SO '+x.so, t:x.dn+' · SO '+x.so+' · '+x.label}; });
+  return {html:out, count:cnt};
+}
 function renderGeotech(filter){
-  var box=document.getElementById('geo-list'); if(!box || typeof GEOTECH==='undefined') return;
+  var box=document.getElementById('geo-list'); if(!box) return;
   var q=(filter||'').trim().toLowerCase();
   var html=''; var total=0;
-  GEO_SECTIONS.forEach(function(sec){
-    var items=(GEOTECH[sec.key]||[]).filter(function(it){ return !q || it.n.toLowerCase().indexOf(q)>=0; });
-    if(!items.length) return;
-    total+=items.length;
-    html+='<div style="margin:12px 0 5px;font-weight:800;font-size:14px;color:var(--accent);">'+sec.title+' <span style="color:var(--text2);font-weight:400;">('+items.length+')</span></div>';
-    html+='<div style="display:flex;flex-wrap:wrap;gap:6px;">';
-    var isSonda = sec.key.indexOf('sondy_')===0;
-    items.forEach(function(it){
-      var label = it.n + (isSonda ? sondaKmSuffix(it.n) : '');
-      html+='<button onclick="openGeoDoc(this.dataset.s,this.dataset.n)" data-s="'+it.s+'" data-n="'+label.replace(/"/g,'&quot;')+'" '
-        +'style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 11px;font-size:13px;cursor:pointer;text-align:left;">📄 '+escapeHtml(label)+'</button>';
+  var secByKey={}; GEO_SECTIONS.forEach(function(s){ secByKey[s.key]=s; });
+  GEO_GROUPS.forEach(function(g){
+    var grpHtml=''; var grpCount=0;
+    g.keys.forEach(function(key){
+      var sec=secByKey[key]; if(!sec) return;
+      var items=((typeof GEOTECH!=='undefined'&&GEOTECH[key])||[]).filter(function(it){ return !q || it.n.toLowerCase().indexOf(q)>=0; });
+      if(!items.length) return;
+      grpCount+=items.length;
+      grpHtml+='<div style="margin:10px 0 5px;font-weight:800;font-size:13px;color:var(--accent);">'+sec.title+' <span style="color:var(--text2);font-weight:400;">('+items.length+')</span></div>';
+      grpHtml+='<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+      var isSonda = key.indexOf('sondy_')===0;
+      items.forEach(function(it){
+        var label = it.n + (isSonda ? sondaKmSuffix(it.n) : '');
+        grpHtml+='<button onclick="openGeoDoc(this.dataset.s,this.dataset.n)" data-s="'+it.s+'" data-n="'+label.replace(/"/g,'&quot;')+'" '
+          +'style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 11px;font-size:13px;cursor:pointer;text-align:left;">📄 '+escapeHtml(label)+'</button>';
+      });
+      grpHtml+='</div>';
     });
-    html+='</div>';
+    if(g.grp==='po'){ var pr=_geoPasportPanelRows(q); if(pr.count){ grpCount+=pr.count; grpHtml+=pr.html; } }
+    if(!grpCount) return;
+    total+=grpCount;
+    html+='<div style="margin:14px 0 4px;padding:7px 9px;background:var(--panel2);border-radius:8px;font-weight:800;font-size:14px;color:var(--text);">'+g.title+'</div>'+grpHtml;
   });
   if(!total) html='<div style="padding:24px 8px;color:var(--text2);">Nic nenalezeno.</div>';
   box.innerHTML=html;
@@ -7115,40 +7167,178 @@ function sondaKmSuffix(nazev){
   return (km==null) ? '' : '  ·  km '+Math.abs(km).toFixed(3).replace('.',',');
 }
 var SONDA_BARVA = {pod:'#1f78b4', pre:'#6a3d9a', arch:'#777'};
-var sondyLayer = null;
+// Vrty rozdělené na dvě samostatně přepínatelné vrstvy: 🟣 PředGTP (sek 'pre'/'arch') a 🔵 PoGTP (sek 'pod').
+var sondyPreLayer = null, sondyPodLayer = null;
+function _sondyMarker(b){
+  var col=SONDA_BARVA[b.sek]||'#1f78b4';
+  var icon=L.divIcon({className:'', iconSize:[0,0],
+    html:'<div style="position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;">'
+      +'<div style="width:9px;height:9px;border-radius:50%;background:'+col+';border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.5);"></div>'
+      +'<div style="margin-top:1px;background:rgba(255,255,255,.85);color:#222;font-size:9px;font-weight:700;line-height:1;padding:0 3px;border-radius:4px;white-space:nowrap;">'+b.c+'</div></div>'});
+  var m=L.marker([b.lat,b.lng],{icon:icon, interactive:true, zIndexOffset:150});
+  var km=(typeof gpsToKm==='function') ? gpsToKm(b.lat,b.lng) : null;
+  var kmTxt=(km==null)?'':('staničení ~ km '+Math.abs(km).toFixed(3).replace('.',',')+'<br>');
+  var sekTxt={pod:'podrobný GTP',pre:'předběžný GTP',arch:'archivní'}[b.sek]||'';
+  var btns=(b.f||[]).map(function(p,i){
+    var lbl=(b.f.length>1)?('📄 Profil '+(i+1)):'📄 Vrtný profil (PDF)';
+    return '<button onclick="openGeoDoc(this.dataset.s,this.dataset.n)" data-s="'+p+'" data-n="Vrt '+b.c+'" style="margin-top:6px;background:#0f3460;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;">'+lbl+'</button>';
+  }).join('<br>');
+  m.bindPopup('<div style="font-size:13px;min-width:160px;">'
+    +'<div style="font-weight:800;font-size:15px;">🛢️ Vrt '+b.c+'</div>'
+    +'<div style="margin-top:3px;">'+kmTxt+'výška <b>Z = '+b.z.toFixed(2)+' m</b> Bpv</div>'
+    +(sekTxt?'<div style="color:#888;font-size:12px;">'+sekTxt+'</div>':'')
+    +btns+'</div>');
+  return m;
+}
 function buildSondy(){
-  if(sondyLayer) return;
-  sondyLayer = L.layerGroup();          // NEpřidávat na mapu – default vypnuto
-  layerGroups.sondy = sondyLayer;
+  if(sondyPreLayer) return;
+  sondyPreLayer = L.layerGroup();       // NEpřidávat na mapu – default vypnuto
+  sondyPodLayer = L.layerGroup();
+  layerGroups.sondy_pre = sondyPreLayer;
+  layerGroups.sondy_pod = sondyPodLayer;
   (typeof SONDY_BODY!=='undefined' ? SONDY_BODY : []).forEach(function(b){
     if(b.lat==null||b.lng==null) return;
-    var col=SONDA_BARVA[b.sek]||'#1f78b4';
-    var icon=L.divIcon({className:'', iconSize:[0,0],
-      html:'<div style="position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;">'
-        +'<div style="width:9px;height:9px;border-radius:50%;background:'+col+';border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.5);"></div>'
-        +'<div style="margin-top:1px;background:rgba(255,255,255,.85);color:#222;font-size:9px;font-weight:700;line-height:1;padding:0 3px;border-radius:4px;white-space:nowrap;">'+b.c+'</div></div>'});
-    var m=L.marker([b.lat,b.lng],{icon:icon, interactive:true, zIndexOffset:150});
-    var km=(typeof gpsToKm==='function') ? gpsToKm(b.lat,b.lng) : null;
-    var kmTxt=(km==null)?'':('staničení ~ km '+Math.abs(km).toFixed(3).replace('.',',')+'<br>');
-    var sekTxt={pod:'podrobný GTP',pre:'předběžný GTP',arch:'archivní'}[b.sek]||'';
-    var btns=(b.f||[]).map(function(p,i){
-      var lbl=(b.f.length>1)?('📄 Profil '+(i+1)):'📄 Vrtný profil (PDF)';
-      return '<button onclick="openGeoDoc(this.dataset.s,this.dataset.n)" data-s="'+p+'" data-n="Vrt '+b.c+'" style="margin-top:6px;background:#0f3460;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;">'+lbl+'</button>';
-    }).join('<br>');
-    m.bindPopup('<div style="font-size:13px;min-width:160px;">'
-      +'<div style="font-weight:800;font-size:15px;">🛢️ Vrt '+b.c+'</div>'
-      +'<div style="margin-top:3px;">'+kmTxt+'výška <b>Z = '+b.z.toFixed(2)+' m</b> Bpv</div>'
-      +(sekTxt?'<div style="color:#888;font-size:12px;">'+sekTxt+'</div>':'')
-      +btns+'</div>');
-    m.addTo(sondyLayer);
+    _sondyMarker(b).addTo(b.sek==='pod' ? sondyPodLayer : sondyPreLayer);   // 'pre'/'arch' → PředGTP
   });
 }
-function setSondyVisible(on){
-  if(on && !hasPerm('geotech')){ var c=document.getElementById('lyr-sondy'); if(c) c.checked=false; showToast('🔒 Vrtné sondy ti administrátor nepovolil', 2800); return; }
-  if(!sondyLayer) buildSondy();
-  var cb=document.getElementById('lyr-sondy'); if(cb) cb.checked=!!on;
-  if(on) sondyLayer.addTo(map);
-  else if(map.hasLayer(sondyLayer)) map.removeLayer(sondyLayer);
+// sek: 'pre' (PředGTP) | 'pod' (PoGTP)
+function setSondyVisible(sek, on){
+  var cbId = (sek==='pod') ? 'lyr-sondy-pod' : 'lyr-sondy-pre';
+  if(on && !hasPerm('geotech')){ var c=document.getElementById(cbId); if(c) c.checked=false; showToast('🔒 Vrtné sondy ti administrátor nepovolil', 2800); return; }
+  if(!sondyPreLayer) buildSondy();
+  var lyr = (sek==='pod') ? sondyPodLayer : sondyPreLayer;
+  var cb=document.getElementById(cbId); if(cb) cb.checked=!!on;
+  if(on) lyr.addTo(map);
+  else if(map.hasLayer(lyr)) map.removeLayer(lyr);
+}
+
+// ══ GEOTECHNICKÉ PASPORTY B / C / D (PoGTP) ══════════════════════════════
+// B = hlavní trasa I/16 lineárně po km (24 úseků, rozřezané PDF na úsek).
+// C = přeložky/MÚK po SO (🪨 značka + PDF té části). D = mostní zprávy po SO (🪨 + PDF).
+// PDF v repu pdf/geotechnika/pasporty/. Otevírání přes stávající openGeoDoc → openDocPanel.
+var GEO_PASPORT_B=[
+ {n:1,kmOd:0.000,kmDo:0.218,typ:'nasyp',label:'Násyp N1',soubor:'pdf/geotechnika/pasporty/B01.pdf'},
+ {n:2,kmOd:0.252,kmDo:0.865,typ:'nasyp',label:'Násyp N2',soubor:'pdf/geotechnika/pasporty/B02.pdf'},
+ {n:3,kmOd:0.865,kmDo:1.270,typ:'zarez',label:'Zářez Z3',soubor:'pdf/geotechnika/pasporty/B03.pdf'},
+ {n:4,kmOd:1.270,kmDo:1.795,typ:'nasyp',label:'Násyp N4',soubor:'pdf/geotechnika/pasporty/B04.pdf'},
+ {n:5,kmOd:1.795,kmDo:2.105,typ:'zarez',label:'Zářez Z5',soubor:'pdf/geotechnika/pasporty/B05.pdf'},
+ {n:6,kmOd:2.105,kmDo:2.685,typ:'nasyp',label:'Násyp N6',soubor:'pdf/geotechnika/pasporty/B06.pdf'},
+ {n:7,kmOd:2.703,kmDo:2.745,typ:'nasyp',label:'Násyp N7',soubor:'pdf/geotechnika/pasporty/B07.pdf'},
+ {n:8,kmOd:2.745,kmDo:3.035,typ:'zarez',label:'Zářez Z8',soubor:'pdf/geotechnika/pasporty/B08.pdf'},
+ {n:9,kmOd:3.035,kmDo:3.235,typ:'nasyp',label:'Násyp N9',soubor:'pdf/geotechnika/pasporty/B09.pdf'},
+ {n:10,kmOd:3.235,kmDo:3.415,typ:'ut',label:'Úroveň terénu ÚT10',soubor:'pdf/geotechnika/pasporty/B10.pdf'},
+ {n:11,kmOd:3.415,kmDo:3.784,typ:'nasyp',label:'Násyp N11',soubor:'pdf/geotechnika/pasporty/B11.pdf'},
+ {n:12,kmOd:3.798,kmDo:4.480,typ:'nasyp',label:'Násyp N12',soubor:'pdf/geotechnika/pasporty/B12.pdf'},
+ {n:13,kmOd:4.480,kmDo:4.920,typ:'zarez',label:'Zářez Z13',soubor:'pdf/geotechnika/pasporty/B13.pdf'},
+ {n:14,kmOd:4.920,kmDo:5.041,typ:'nasyp',label:'Násyp N14',soubor:'pdf/geotechnika/pasporty/B14.pdf'},
+ {n:15,kmOd:5.055,kmDo:5.150,typ:'nasyp',label:'Násyp N15',soubor:'pdf/geotechnika/pasporty/B15.pdf'},
+ {n:16,kmOd:5.150,kmDo:5.440,typ:'ut',label:'úsek ÚT16',soubor:'pdf/geotechnika/pasporty/B16.pdf'},
+ {n:17,kmOd:5.440,kmDo:6.061,typ:'nasyp',label:'Násyp N17',soubor:'pdf/geotechnika/pasporty/B17.pdf'},
+ {n:18,kmOd:6.077,kmDo:6.680,typ:'nasyp',label:'Násyp N18',soubor:'pdf/geotechnika/pasporty/B18.pdf'},
+ {n:19,kmOd:6.716,kmDo:6.780,typ:'nasyp',label:'Násyp N19',soubor:'pdf/geotechnika/pasporty/B19.pdf'},
+ {n:20,kmOd:6.780,kmDo:6.960,typ:'zarez',label:'Zářez Z20',soubor:'pdf/geotechnika/pasporty/B20.pdf'},
+ {n:21,kmOd:6.960,kmDo:7.150,typ:'nasyp',label:'Násyp N21',soubor:'pdf/geotechnika/pasporty/B21.pdf'},
+ {n:22,kmOd:7.150,kmDo:7.370,typ:'zarez',label:'Zářez Z22',soubor:'pdf/geotechnika/pasporty/B22.pdf'},
+ {n:23,kmOd:7.370,kmDo:7.861,typ:'nasyp',label:'Násyp N23',soubor:'pdf/geotechnika/pasporty/B23.pdf'},
+ {n:24,kmOd:7.877,kmDo:8.200,typ:'ut',label:'Úroveň terénu ÚT24',soubor:'pdf/geotechnika/pasporty/B24.pdf'}
+];
+var GEO_PASPORT_C=[
+ {so:'121',km:2.200,soubor:'pdf/geotechnika/pasporty/C_SO121.pdf',label:'Přeložka III/2768 (km 2,200)'},
+ {so:'122',km:6.080,soubor:'pdf/geotechnika/pasporty/C_SO122.pdf',label:'Přeložka III/27612 (km 6,080)'},
+ {so:'123',km:0.228,soubor:'pdf/geotechnika/pasporty/C_SO123.pdf',label:'Přeložka MK (km 0,228)'},
+ {so:'124',km:7.320,soubor:'pdf/geotechnika/pasporty/C_SO124.pdf',label:'Přeložka MK (km 7,320–7,835)'},
+ {so:'125',soubor:'pdf/geotechnika/pasporty/C_SO125.pdf',label:'Napojení I/16 do MÚK Židněves'},
+ {so:'126',soubor:'pdf/geotechnika/pasporty/C_SO126.pdf',label:'Napojení I/16 MÚK Martinovice'},
+ {so:'127',soubor:'pdf/geotechnika/pasporty/C_SO127.pdf',label:'Napojení ČSPH'},
+ {so:'111',soubor:'pdf/geotechnika/pasporty/C_SO111.pdf',label:'MÚK Židněves (4 větve)'},
+ {so:'112',soubor:'pdf/geotechnika/pasporty/C_SO112.pdf',label:'MÚK Martinovice (4 větve)'}
+];
+var GEO_PASPORT_D=[
+ {so:'201',dn:'D1',soubor:'pdf/geotechnika/pasporty/D01_SO201.pdf',label:'Most přes MK a Zalužanskou vodoteč'},
+ {so:'202',dn:'D2',soubor:'pdf/geotechnika/pasporty/D02_SO202.pdf',label:'Most přes Valskou svodnici'},
+ {so:'203',dn:'D3',soubor:'pdf/geotechnika/pasporty/D03_SO203.pdf',label:'Most přes přeložku polní cesty'},
+ {so:'204',dn:'D4',soubor:'pdf/geotechnika/pasporty/D04_SO204.pdf',label:'Most přes Sukoradskou stoku'},
+ {so:'205',dn:'D5',soubor:'pdf/geotechnika/pasporty/D05_SO205.pdf',label:'Most přes přeložku III/27612'},
+ {so:'206',dn:'D6',soubor:'pdf/geotechnika/pasporty/D06_SO206.pdf',label:'Most přes přeložku polní cesty'},
+ {so:'207',dn:'D7',soubor:'pdf/geotechnika/pasporty/D07_SO207.pdf',label:'Most přes Přepeřský potok'},
+ {so:'221',dn:'D8',soubor:'pdf/geotechnika/pasporty/D08_SO221.pdf',label:'Nadjezd přeložky III/2768'},
+ {so:'222',dn:'D9',soubor:'pdf/geotechnika/pasporty/D09_SO222.pdf',label:'Nadjezd MÚK Židněves'},
+ {so:'223',dn:'D10',soubor:'pdf/geotechnika/pasporty/D10_SO223.pdf',label:'Nadjezd MÚK Martinovice'}
+];
+var GEO_PAS_BARVA={nasyp:'#ea580c', zarez:'#2563eb', ut:'#6b7280'};   // Násyp / Zářez / Úroveň terénu
+var geoPasportLayer = null;
+// Bod na pásu B pro dané km (kolmý offset offM metrů od osy) – stejný mechanismus jako STAVEBNI_OBJEKTY.
+function _geoPtAtKm(km, offM){
+  var pos = realKmToLatLng(km); if(!pos) return null;
+  var bear = bearingAtGpxM(interp(calibSorted,'realKm','gpxM',km));
+  var perpRad = (bear - 90) * Math.PI / 180;
+  var off = offM / 6371000;
+  return { lat: pos[0] + off*(180/Math.PI)*Math.cos(perpRad),
+           lng: pos[1] + off*(180/Math.PI)*Math.sin(perpRad)/Math.cos(pos[0]*Math.PI/180), bear: bear };
+}
+// Poloha SO pro 🪨 značku: DOPLNKY_SO (mosty – km/lat) → SO_OSY (přeložky/MÚK – střed geometrie) → km z hlavičky.
+function _geoSOPos(soNum, kmFallback){
+  var dd=(typeof DOPLNKY_SO!=='undefined'?DOPLNKY_SO:[]);
+  for(var i=0;i<dd.length;i++){ var d=dd[i]; if(d.id==='SO '+soNum){ if(d.lat!=null&&d.lng!=null) return [d.lat,d.lng]; if(d.km!=null) return realKmToLatLng(d.km); } }
+  var oo=(typeof SO_OSY!=='undefined'?SO_OSY:[]);
+  for(var j=0;j<oo.length;j++){ var o=oo[j]; if(o.id && o.id.indexOf('SO '+soNum)===0 && o.geom && o.geom.length){ var m=o.geom[Math.floor(o.geom.length/2)]; return [m[0],m[1]]; } }
+  return (kmFallback!=null) ? realKmToLatLng(kmFallback) : null;
+}
+function _geoStoneMarker(badge, pos, color, popupHtml){
+  var icon=L.divIcon({className:'', iconSize:[0,0],
+    html:'<div style="position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;">'
+      +'<div style="font-size:19px;line-height:1;filter:drop-shadow(0 1px 1px rgba(0,0,0,.55));">🪨</div>'
+      +'<div style="margin-top:-3px;background:'+color+';color:#fff;font-size:9px;font-weight:800;line-height:1;padding:1px 4px;border-radius:5px;white-space:nowrap;border:1px solid #fff;box-shadow:0 1px 2px rgba(0,0,0,.4);">'+badge+'</div></div>'});
+  return L.marker(pos,{icon:icon, interactive:true, zIndexOffset:170}).bindPopup(popupHtml,{maxWidth:270});
+}
+function _geoDocBtn(soubor, nazev, color, text){
+  return '<button onclick="openGeoDoc(this.dataset.s,this.dataset.n)" data-s="'+soubor+'" data-n="'+nazev.replace(/"/g,'&quot;')+'" '
+    +'style="margin-top:7px;background:'+color+';color:#fff;border:none;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:700;cursor:pointer;">'+text+'</button>';
+}
+function buildGeoPasporty(){
+  if(geoPasportLayer) return;
+  geoPasportLayer = L.layerGroup();       // default vypnuto
+  layerGroups.geopasport = geoPasportLayer;
+  var OFF = 130;   // dál od osy než barevné SO pruhy (max 98)
+  // B – lineárně po km (barevný pás rovnoběžný s osou, klik na úsek = ta část PDF)
+  (typeof GEO_PASPORT_B!=='undefined'?GEO_PASPORT_B:[]).forEach(function(b){
+    var col=GEO_PAS_BARVA[b.typ]||'#6b7280';
+    var pts=[], km=b.kmOd;
+    while(km <= b.kmDo + 0.001){ var p=_geoPtAtKm(km, OFF); if(p) pts.push([p.lat,p.lng]); km=Math.round((km+0.020)*1000)/1000; }
+    if(pts.length<2) return;
+    var pop='<div style="font-size:13px;min-width:180px;"><b>🪨 Geotechnický pasport B'+b.n+'</b><br>'+escapeHtml(b.label)
+      +'<br>km <b>'+fmtKm(b.kmOd)+' – '+fmtKm(b.kmDo)+'</b>'
+      +_geoDocBtn(b.soubor,'Pasport B'+b.n+' – '+b.label,col,'📄 Otevřít pasport B'+b.n)+'</div>';
+    L.polyline(pts,{color:col,weight:5,opacity:0.85}).bindPopup(pop,{maxWidth:270}).addTo(geoPasportLayer);
+    L.polyline(pts,{color:col,weight:18,opacity:0,interactive:true}).bindPopup(pop,{maxWidth:270}).addTo(geoPasportLayer);   // široká naváděcí čára pro klik
+    var mid=_geoPtAtKm((b.kmOd+b.kmDo)/2, OFF);
+    if(mid){
+      var lbl=L.divIcon({className:'', iconSize:[0,0],
+        html:'<div style="transform:translate(-50%,-50%);color:'+col+';font-size:10px;font-weight:800;white-space:nowrap;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff;pointer-events:none;">B'+b.n+'</div>'});
+      L.marker([mid.lat,mid.lng],{icon:lbl,interactive:false,zIndexOffset:120}).addTo(geoPasportLayer);
+    }
+  });
+  // C – přeložky/MÚK po SO (🪨 tyrkysová)
+  (typeof GEO_PASPORT_C!=='undefined'?GEO_PASPORT_C:[]).forEach(function(c){
+    var pos=_geoSOPos(c.so, c.km); if(!pos) return;
+    var pop='<div style="font-size:13px;min-width:180px;"><b>🪨 Geotechnický pasport C – SO '+c.so+'</b><br>'+escapeHtml(c.label||'')
+      +_geoDocBtn(c.soubor,'Pasport C – SO '+c.so,'#0e7490','📄 Otevřít pasport C – SO '+c.so)+'</div>';
+    _geoStoneMarker(c.so, pos, '#0e7490', pop).addTo(geoPasportLayer);
+  });
+  // D – mostní zprávy po SO (🪨 fialová)
+  (typeof GEO_PASPORT_D!=='undefined'?GEO_PASPORT_D:[]).forEach(function(d){
+    var pos=_geoSOPos(d.so, null); if(!pos) return;
+    var pop='<div style="font-size:13px;min-width:180px;"><b>🪨 Geotechnická mostní zpráva '+d.dn+' – SO '+d.so+'</b><br>'+escapeHtml(d.label||'')
+      +_geoDocBtn(d.soubor,'Mostní zpráva '+d.dn+' – SO '+d.so,'#7c3aed','📄 Otevřít zprávu '+d.dn)+'</div>';
+    _geoStoneMarker(d.so, pos, '#7c3aed', pop).addTo(geoPasportLayer);
+  });
+}
+function setGeoPasportVisible(on){
+  if(on && !hasPerm('geotech')){ var c=document.getElementById('lyr-geopasport'); if(c) c.checked=false; showToast('🔒 Geotechniku ti administrátor nepovolil', 2800); return; }
+  if(!geoPasportLayer) buildGeoPasporty();
+  var cb=document.getElementById('lyr-geopasport'); if(cb) cb.checked=!!on;
+  if(on) geoPasportLayer.addTo(map);
+  else if(map.hasLayer(geoPasportLayer)) map.removeLayer(geoPasportLayer);
 }
 
 // ── KOORDINAČNÍ SITUACE (DWG) — čáry + odkazy + popisky ──────────────────
@@ -10476,6 +10666,7 @@ function _logPhotoActivity(so, key){
 }
 // „🆕 Co je nového" – changelog (developer-maintained; s novou funkcí přidej řádek nahoru + bump verze).
 var APP_NOVINKY = [
+  { datum:'2026-08-07', verze:'v0.44', text:'🪨 Geotechnika: vrty jsou teď dvě samostatné vrstvy – 🟣 PředGTP a 🔵 PoGTP. Nová vrstva „🪨 Pasporty B/C/D": B = pás podél trasy (klik na úsek otevře ten geotechnický pasport podle km), C = 🪨 značky u přeložek/MÚK (SO 111,112,121–127), D = 🪨 zprávy u mostů (SO 201–207,221–223). Vše jde vypnout ve ☰ Vrstvy, najít v 🔍 hledáčku a otevřít v panelu 🪨 Geotechnika (rozdělen na PředGTP/PoGTP).' },
   { datum:'2026-08-07', verze:'v0.43', text:'📷 Foťák teď i vpravo dole (rychlý přístup). ⋯ „Další nástroje" rozbalí poznámku/úkol, měření a 📝 zápisník; 🗂️ „Vše" prolistuje všechny panely z lišty jak ciferník; ⌂ Domů je i vlevo dole. Výchozí mapa je nově Outdoor (přehlednější terén). 🔒 Úkol jde označit jako „jen můj" (soukromý – vidíš ho jen ty). 📝 Nový osobní poznámkový blok (soukromé/veřejné poznámky). 🏆 Žebříček aktivity – měsíční soutěž týmu M - SILNICE (body za dokumentaci a řešení úkolů, série, odznaky).' },
   { datum:'2026-07-28', verze:'v0.41', text:'🖼️ Galerie: filtr objektů (SO) je teď VÍCE‑výběr (checklist). 📅 Změna data pořízení fotky (i hromadně, čas zůstane) + 📍 hromadné přenastavení km. 🖱️ Na počítači jde fotky označit TAHEM MYŠI (guma); „Vše (N)" ukáže, kolik odfiltrovaných vybere (na měsíční ZIP).' },
   { datum:'2026-07-28', verze:'v0.40', text:'✅ Úkoly mají průběh: 🙋 „Převzít / Řeším" (vidíš kdo úkol aktivně řeší), 🔄 „Předat" na jinou osobu, 📋 „Průběh úkolu" (kdo/kdy/komu) a u Hotovo se dá připsat výsledek. Nový řadič seznamu (hotové dle data vyřešení, ne náhodně).' },
@@ -16723,6 +16914,12 @@ function copyDiaryExport(){
       <ul style="margin:0 0 10px;padding-left:18px;">
         <li>Při zadání úkolu zaškrtni <b>„Jen můj úkol"</b> – takový úkol vidíš jen ty (v seznamu, na mapě, ve feedu se neobjeví).</li>
         <li><b>📝 Poznámkový blok</b> (v ⋯) je tvůj osobní zápisník. Poznámka je defaultně soukromá; zaškrtnutím „veřejná" ji uvidí všichni.</li>
+      </ul>
+      <h3 style="font-size:14px;margin:14px 0 6px;color:var(--accent2);">🪨 Geotechnika (PředGTP / PoGTP)</h3>
+      <ul style="margin:0 0 10px;padding-left:18px;">
+        <li>Vrty jsou dvě vrstvy: 🟣 <b>PředGTP</b> (předběžný) a 🔵 <b>PoGTP</b> (podrobný) – zapneš je ve ☰ Vrstvy.</li>
+        <li>Vrstva <b>🪨 Pasporty B/C/D</b>: <b>B</b> je barevný pás podél trasy (klik na úsek → geotechnický pasport toho km), <b>C</b> jsou 🪨 značky u přeložek/MÚK, <b>D</b> jsou 🪨 mostní zprávy u mostů. Klik na značku otevře přímo tu část PDF.</li>
+        <li>Vše najdeš i v 🔍 hledáčku (číslo SO nebo km) a v panelu 🪨 Geotechnika (ikona v liště), který je rozdělený na PředGTP a PoGTP.</li>
       </ul>
       <h3 style="font-size:14px;margin:14px 0 6px;color:var(--accent2);">🏆 Žebříček aktivity</h3>
       <ul style="margin:0 0 10px;padding-left:18px;">
