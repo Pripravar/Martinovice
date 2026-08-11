@@ -127,8 +127,9 @@ body.fab-open #btn-blok    { opacity:1; pointer-events:auto; transform:translate
 body.grid-open #btn-gps, body.grid-open #btn-foto-fab, body.grid-open #btn-fabmore, body.grid-open #btn-home-fab { opacity:0; pointer-events:none; }
 body.grid-open #fabgrid-trigger { border-color:var(--accent2); color:var(--accent2); }
 .fabgrid-item { position:fixed; right:16px; bottom:204px; width:46px; height:46px; border-radius:50%; background:var(--panel2); border:2px solid var(--border); color:var(--text); font-size:21px; cursor:pointer; z-index:1501; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 16px rgba(0,0,0,.45); opacity:0; transform:translate(0,0) scale(.4); transition:transform .2s cubic-bezier(.2,.7,.3,1), opacity .18s; }
-/* 🐞 Nahlásit chybu/vylepšení – vždy dostupné plovoucí tlačítko (#90) */
-#btn-report { position:fixed; left:6px; top:50%; transform:translateY(-50%); z-index:9600; width:38px; height:38px; border-radius:50%; background:rgba(0,0,0,.45); border:1px solid rgba(255,255,255,.3); color:#fff; font-size:19px; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:.72; }
+/* 🐞 Nahlásit chybu/vylepšení – vždy dostupné PLOVOUCÍ (přetahovatelné) tlačítko (#90) */
+#btn-report { position:fixed; left:6px; top:50%; transform:translateY(-50%); z-index:9600; width:38px; height:38px; border-radius:50%; background:rgba(0,0,0,.45); border:1px solid rgba(255,255,255,.3); color:#fff; font-size:19px; cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:.72; touch-action:none; -webkit-user-select:none; user-select:none; }
+#btn-report:hover { opacity:1; }
 .rep-tbtn { flex:1; padding:11px; border-radius:9px; border:2px solid var(--border); background:var(--panel2); color:var(--text); font-size:14px; font-weight:700; cursor:pointer; }
 .rep-tbtn.active { border-color:var(--accent2); color:var(--accent2); }
 
@@ -10537,6 +10538,7 @@ function _reportScreen(){
 function _repType(t){ _repTyp=t; ['chyba','vylepseni'].forEach(function(x){ var b=document.getElementById('rep-t-'+x); if(b) b.classList.toggle('active', x===t); }); }
 function _repKde(){ var jinde=(document.getElementById('rep-kde-jinde')||{}).checked; var el=document.getElementById('rep-misto'); if(el) el.style.display=jinde?'block':'none'; }
 function openReport(){
+  if(window._reportJustDragged) return;   // právě jsem berušku přetáhl → neotvírat
   if(!window.currentUser){ showToast('Nejdřív se přihlas', 2000); return; }
   if(typeof hasPerm==='function' && !hasPerm('beruska')){ showToast('🐞 Nahlašování Ti admin nepovolil', 3000); return; }
   _repType('chyba');
@@ -10551,6 +10553,19 @@ function openReport(){
   document.getElementById('report-modal').style.display='flex';
 }
 function closeReport(){ var m=document.getElementById('report-modal'); if(m) m.style.display='none'; }
+// 🐞 beruška je PLOVOUCÍ – dá se přetáhnout kamkoli (pozice v localStorage 'reportPos'). Tap = otevřít, tah = přesun.
+(function(){
+  function initReportDrag(){
+    var b=document.getElementById('btn-report'); if(!b || b._dragInit) return; b._dragInit=true;
+    try{ var p=JSON.parse(localStorage.getItem('reportPos')||'null'); if(p && p.left!=null){ b.style.left=p.left+'px'; b.style.top=p.top+'px'; b.style.right='auto'; b.style.bottom='auto'; b.style.transform='none'; } }catch(e){}
+    var sx=0,sy=0,ox=0,oy=0,moved=false,dragging=false;
+    b.addEventListener('pointerdown', function(e){ dragging=true; moved=false; sx=e.clientX; sy=e.clientY; var r=b.getBoundingClientRect(); ox=r.left; oy=r.top; try{ b.setPointerCapture(e.pointerId); }catch(_){}}, {passive:true});
+    b.addEventListener('pointermove', function(e){ if(!dragging) return; var dx=e.clientX-sx, dy=e.clientY-sy; if(!moved && (Math.abs(dx)+Math.abs(dy))>6) moved=true; if(moved){ var nx=Math.max(2, Math.min(window.innerWidth-b.offsetWidth-2, ox+dx)); var ny=Math.max(2, Math.min(window.innerHeight-b.offsetHeight-2, oy+dy)); b.style.left=nx+'px'; b.style.top=ny+'px'; b.style.right='auto'; b.style.bottom='auto'; b.style.transform='none'; e.preventDefault(); }});
+    function end(){ if(!dragging) return; dragging=false; if(moved){ window._reportJustDragged=true; setTimeout(function(){ window._reportJustDragged=false; }, 350); try{ localStorage.setItem('reportPos', JSON.stringify({ left:parseInt(b.style.left,10), top:parseInt(b.style.top,10) })); }catch(e){} } }
+    b.addEventListener('pointerup', end); b.addEventListener('pointercancel', end);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', initReportDrag); else initReportDrag();
+})();
 function submitReport(){
   if(!window.currentUser) return;
   var text=((document.getElementById('rep-text')||{}).value||'').trim();
@@ -11048,6 +11063,7 @@ function _logPhotoActivity(so, key){
 }
 // „🆕 Co je nového" – changelog (developer-maintained; s novou funkcí přidej řádek nahoru + bump verze).
 var APP_NOVINKY = [
+  { datum:'2026-08-08', verze:'v0.46', text:'🐞 Berušku (Nahlásit chybu) jde teď chytit a přetáhnout kamkoli – kam si ji dáš, tam zůstane (uloží se). Ťuk = otevřít, tah = přesun.' },
   { datum:'2026-08-08', verze:'v0.45', text:'🗒️ Poznámkový blok je teď plnohodnotný: každá poznámka má nadpis + text, otevře se jako dokument a kdykoli se k ní vrátíš a dopíšeš/upravíš. Přibylo 🔍 hledání (nadpis i text), filtr (soukromé/veřejné) a řazení, a 🖨️ uložení/sdílení poznámky jako PDF. ✏️ Umí i sledování změn (revize): zaškrtneš „Zaznamenat jako revizi" a je vidět, co přibylo/ubylo (👁 Editované) – funguje i u detailu úkolu. 🐞 Nové plovoucí tlačítko „Nahlásit chybu / návrh" (vlevo) – napíšeš chybu nebo nápad; koordinátor je vidí v přijatých hlášeních a napíše, jak to vyřešil (uvidíš to i ty, i subka/investor). 👁 Admin může vidět i cizí soukromé poznámky/úkoly a tlačítkem „Vidím vše / Jako ostatní" si je skrýt.' },
   { datum:'2026-08-07', verze:'v0.44', text:'🪨 Geotechnika: vrty jsou teď dvě samostatné vrstvy – 🟣 PředGTP a 🔵 PoGTP. Nová vrstva „🪨 Pasporty B/C/D": B = pás podél trasy (klik na úsek otevře ten geotechnický pasport podle km), C = 🪨 značky u přeložek/MÚK (SO 111,112,121–127), D = 🪨 zprávy u mostů (SO 201–207,221–223). Vše jde vypnout ve ☰ Vrstvy, najít v 🔍 hledáčku a otevřít v panelu 🪨 Geotechnika (rozdělen na PředGTP/PoGTP).' },
   { datum:'2026-08-07', verze:'v0.43', text:'📷 Foťák teď i vpravo dole (rychlý přístup). ⋯ „Další nástroje" rozbalí poznámku/úkol, měření a 📝 zápisník; 🗂️ „Vše" prolistuje všechny panely z lišty jak ciferník; ⌂ Domů je i vlevo dole. Výchozí mapa je nově Outdoor (přehlednější terén). 🔒 Úkol jde označit jako „jen můj" (soukromý – vidíš ho jen ty). 📝 Nový osobní poznámkový blok (soukromé/veřejné poznámky). 🏆 Žebříček aktivity – měsíční soutěž týmu M - SILNICE (body za dokumentaci a řešení úkolů, série, odznaky).' },
