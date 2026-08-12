@@ -10033,6 +10033,7 @@ function canViewPhoto(it){
 // POZOR: 'fotomapa' je ZÁMĚRNĚ oddělená od 'galerie' – jinak by si ji restriktivní kategorie
 // (SUB/investor) zapnula přes Vrstvy a proklikla cizí fotky.
 var FEATURES = [
+  {key:'prepinac', label:'🗺️ Přepínač staveb (rozcestník)', btns:[]},   // OZ-JIH switcher – kategorie silnice=ano, sub/investor=ne, + osobní výjimka
   // ── Funkce (tlačítka v liště) ──
   {key:'pdf',        label:'Prohlížení výkresů (PDF)',  btns:[]},   // otvírá se klikem na mapu → gating v openerech
   {key:'foto',       label:'Focení',                   btns:['btn-standalone-foto','btn-foto-fab']},
@@ -10888,6 +10889,9 @@ function applyPermsToUI(){
     (f.btns||[]).forEach(function(id){ var el=document.getElementById(id); if(el) el.style.display = vis ? '' : 'none'; });
   });
   // Viditelnost ve Vrstvách: zakázaná funkce se skryje + vypnou se její lyr-* přepínače (vrstva zmizí i z mapy).
+  // Plovoucí přepínač staveb (OZ-JIH) – řízeno právem 'prepinac' (stejně jako ostatní funkce)
+  window.MSWState = { override: hasPerm('prepinac') };
+  if(typeof window.MSWInit === 'function'){ window.MSWInit(window.MSWState); }
   document.querySelectorAll('[data-perm]').forEach(function(sec){
     var vis = hasPerm(sec.getAttribute('data-perm'));
     sec.style.display = vis ? '' : 'none';
