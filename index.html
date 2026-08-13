@@ -1677,6 +1677,13 @@ var DOCS_SVODIDLA = [
   {kmOd:2.500, kmDo:5.500, soubor:PDF_BASE+'svodidla_km_2500-5500.pdf', nazev:'C_03.2 Výkres svodidel km 2,500 – 5,500'},
   {kmOd:5.500, kmDo:8.200, soubor:PDF_BASE+'svodidla_km_5500-8200.pdf', nazev:'C_03.3 Výkres svodidel km 5,500 – 8,200'}
 ];
+// Situace SO 101 (po km) — RDS koncept 2026-08-13. Zobrazí se po kliknutí na staničení (vedle koordinační situace).
+var DOCS_SIT101  = [
+  {kmOd:0.000, kmDo:1.800, soubor:'pdf/SO_101_RDS/101_02_1_Situace_km_0_000_az_1_800.pdf', nazev:'Situace SO 101 km 0,000–1,800 (RDS)'},
+  {kmOd:1.800, kmDo:4.600, soubor:'pdf/SO_101_RDS/101_02_2_Situace_km_1_800_az_4_600.pdf', nazev:'Situace SO 101 km 1,800–4,600 (RDS)'},
+  {kmOd:4.500, kmDo:6.900, soubor:'pdf/SO_101_RDS/101_02_3_Situace_km_4_500_az_6_900.pdf', nazev:'Situace SO 101 km 4,500–6,900 (RDS)'},
+  {kmOd:6.900, kmDo:8.200, soubor:'pdf/SO_101_RDS/101_02_4_Situace_km_6_900_az_8_200.pdf', nazev:'Situace SO 101 km 6,900–8,200 (RDS)'}
+];
 // Podélné profily SO 101 (po km) — RDS koncept 2026-08-13 (nahrazuje PDPS). Soubory ve Firebase Storage.
 var DOCS_PP      = [
   {kmOd:0.000, kmDo:3.100, soubor:'pdf/SO_101_RDS/101_03.01_PP_v_km_0.000-3.100.pdf', nazev:'Podélný profil SO 101 km 0,000–3,100 (RDS)'},
@@ -1728,6 +1735,22 @@ var DOCS_PRR     = [
   {kmOd:7.560, kmDo:7.920, soubor:'pdf/SO_101_RDS/101_05_37_Pricne_rezy_km_7_560_az_km_7_920.pdf', nazev:'Pracovní řezy SO 101 km 7,560–7,920 (RDS)'},
   {kmOd:7.940, kmDo:8.200, soubor:'pdf/SO_101_RDS/101_05_38_Pricne_rezy_km_7_940_az_km_8_200.pdf', nazev:'Pracovní řezy SO 101 km 7,940–8,200 (RDS)'}
 ];
+// Technická zpráva SO 101 (RDS) – celotrasová (ukáže se u každého staničení)
+var DOCS_TZ101   = [ {kmOd:0.000, kmDo:8.200, soubor:'pdf/SO_101_RDS/101_01_Technicka_zprava.pdf', nazev:'Technická zpráva SO 101 (RDS)'} ];
+// Situace sanací SO 101 (RDS) – po km (jen pasující staničení); 07_2 sanační opatření = celotrasové
+var DOCS_SAN101  = [
+  {kmOd:0.000, kmDo:0.980, soubor:'pdf/SO_101_RDS/101_07_1_1_Situace_sanaci_km_0_000_0_980.pdf', nazev:'Situace sanací SO 101 km 0,000–0,980 (RDS)'},
+  {kmOd:0.940, kmDo:2.180, soubor:'pdf/SO_101_RDS/101_07_1_2_Situace_sanaci_km_0_940_2_180.pdf', nazev:'Situace sanací SO 101 km 0,940–2,180 (RDS)'},
+  {kmOd:2.100, kmDo:3.360, soubor:'pdf/SO_101_RDS/101_07_1_3_Situace_sanaci_km_2_100_3_360.pdf', nazev:'Situace sanací SO 101 km 2,100–3,360 (RDS)'},
+  {kmOd:3.240, kmDo:4.460, soubor:'pdf/SO_101_RDS/101_07_1_4_Situace_sanaci_km_3_240_4_460.pdf', nazev:'Situace sanací SO 101 km 3,240–4,460 (RDS)'},
+  {kmOd:4.440, kmDo:5.440, soubor:'pdf/SO_101_RDS/101_07_1_5_Situace_sanaci_km_4_440_5_440.pdf', nazev:'Situace sanací SO 101 km 4,440–5,440 (RDS)'},
+  {kmOd:5.400, kmDo:6.640, soubor:'pdf/SO_101_RDS/101_07_1_6_Situace_sanaci_km_5_400_6_640.pdf', nazev:'Situace sanací SO 101 km 5,400–6,640 (RDS)'},
+  {kmOd:6.620, kmDo:7.640, soubor:'pdf/SO_101_RDS/101_07_1_7_Situace_sanaci_km_6_620_7_640.pdf', nazev:'Situace sanací SO 101 km 6,620–7,640 (RDS)'},
+  {kmOd:7.640, kmDo:8.200, soubor:'pdf/SO_101_RDS/101_07_1_8_Situace_sanaci_km_7_640_8_200.pdf', nazev:'Situace sanací SO 101 km 7,640–8,200 (RDS)'},
+  {kmOd:0.000, kmDo:8.200, soubor:'pdf/SO_101_RDS/101_07_2_Sanacni_opatreni.pdf', nazev:'Sanační opatření SO 101 (RDS)'}
+];
+// Vytyčovací body SO 101 (RDS) – celotrasové
+var DOCS_VYT101  = [ {kmOd:0.000, kmDo:8.200, soubor:'pdf/SO_101_RDS/101_08_1_Vytycovaci_body.pdf', nazev:'Vytyčovací body SO 101 (RDS)'} ];
 var DOCS_DZ      = [ /* DOPLNIT: dopravní značení */ ];
 var DOCS_CHPR    = [ /* DOPLNIT: charakteristické příčné řezy */ ];
 var DOCS_KLAD    = [ /* DOPLNIT: kladečské plány */ ];
@@ -2430,10 +2453,11 @@ var SO_VYKRESY = {
   '101': [
   {nazev:'101 00 Desky', soubor:'pdf/SO_101/101_00_Desky_C.pdf', typ:'00'},
   {nazev:'101 00 Seznam příloh', soubor:'pdf/SO_101/101_00_Seznam_priloh_C.pdf', typ:'00'},
-  {nazev:'101 01 Technická zpráva 250318', soubor:'pdf/SO_101/101_01_Technicka_zprava_C_250318.pdf', typ:'01'},
-  {nazev:'101 02.1 Situace km 0,000-2,500', soubor:'pdf/SO_101/101_02.1_Situace_km_0_000-2_500_C.pdf', typ:'02.1'},
-  {nazev:'101 02.2 Situace km 2,500 - 5,500', soubor:'pdf/SO_101/101_02.2_Situace_km_2_500_-_5_500_C.pdf', typ:'02.2'},
-  {nazev:'101 02.3 Situace km 5,500 - 8,200', soubor:'pdf/SO_101/101_02.3_Situace_km_5_500_-_8_200_C.pdf', typ:'02.3'},
+  {nazev:'101 01 Technická zpráva (RDS)', soubor:'pdf/SO_101_RDS/101_01_Technicka_zprava.pdf', typ:'01'},
+  {nazev:'101 02.1 Situace km 0,000–1,800 (RDS)', soubor:'pdf/SO_101_RDS/101_02_1_Situace_km_0_000_az_1_800.pdf', typ:'02.1'},
+  {nazev:'101 02.2 Situace km 1,800–4,600 (RDS)', soubor:'pdf/SO_101_RDS/101_02_2_Situace_km_1_800_az_4_600.pdf', typ:'02.2'},
+  {nazev:'101 02.3 Situace km 4,500–6,900 (RDS)', soubor:'pdf/SO_101_RDS/101_02_3_Situace_km_4_500_az_6_900.pdf', typ:'02.3'},
+  {nazev:'101 02.4 Situace km 6,900–8,200 (RDS)', soubor:'pdf/SO_101_RDS/101_02_4_Situace_km_6_900_az_8_200.pdf', typ:'02.4'},
   {nazev:'Koordinační situace km 0,000 – 2,500', soubor:'pdf/C_02.1_situace_km_0-2500.pdf', typ:'KS'},
   {nazev:'Koordinační situace km 2,500 – 5,500', soubor:'pdf/C_02.2_situace_km_2500-5500.pdf', typ:'KS'},
   {nazev:'Koordinační situace km 5,500 – 8,200', soubor:'pdf/C_02.3_situace_km_5500-8200.pdf', typ:'KS'},
@@ -2494,7 +2518,16 @@ var SO_VYKRESY = {
   {nazev:'101 06.13 PROPUSTEK DN 1200 mm 5,970', soubor:'pdf/SO_101_RDS/101_06.13_Propustek_v_km_5_970.pdf', typ:'06.13'},
   {nazev:'101 06.14 PROPUSTEK RAM 2x2 m 6,500', soubor:'pdf/SO_101_RDS/101_06.14_Propustek_v_km_6_500.pdf', typ:'06.14'},
   {nazev:'101 06.15 PROPUSTEK DN 1200 mm 7,090', soubor:'pdf/SO_101_RDS/101_06.15_Propustek_v_km_7_090.pdf', typ:'06.15'},
-  {nazev:'101 07 Sanační opatření', soubor:'pdf/SO_101/101_07_Sanacni_opatreni_C.pdf', typ:'07'}
+  {nazev:'101 07.1 Situace sanací km 0,000–0,980 (RDS)', soubor:'pdf/SO_101_RDS/101_07_1_1_Situace_sanaci_km_0_000_0_980.pdf', typ:'07.1'},
+  {nazev:'101 07.2 Situace sanací km 0,940–2,180 (RDS)', soubor:'pdf/SO_101_RDS/101_07_1_2_Situace_sanaci_km_0_940_2_180.pdf', typ:'07.1'},
+  {nazev:'101 07.3 Situace sanací km 2,100–3,360 (RDS)', soubor:'pdf/SO_101_RDS/101_07_1_3_Situace_sanaci_km_2_100_3_360.pdf', typ:'07.1'},
+  {nazev:'101 07.4 Situace sanací km 3,240–4,460 (RDS)', soubor:'pdf/SO_101_RDS/101_07_1_4_Situace_sanaci_km_3_240_4_460.pdf', typ:'07.1'},
+  {nazev:'101 07.5 Situace sanací km 4,440–5,440 (RDS)', soubor:'pdf/SO_101_RDS/101_07_1_5_Situace_sanaci_km_4_440_5_440.pdf', typ:'07.1'},
+  {nazev:'101 07.6 Situace sanací km 5,400–6,640 (RDS)', soubor:'pdf/SO_101_RDS/101_07_1_6_Situace_sanaci_km_5_400_6_640.pdf', typ:'07.1'},
+  {nazev:'101 07.7 Situace sanací km 6,620–7,640 (RDS)', soubor:'pdf/SO_101_RDS/101_07_1_7_Situace_sanaci_km_6_620_7_640.pdf', typ:'07.1'},
+  {nazev:'101 07.8 Situace sanací km 7,640–8,200 (RDS)', soubor:'pdf/SO_101_RDS/101_07_1_8_Situace_sanaci_km_7_640_8_200.pdf', typ:'07.1'},
+  {nazev:'101 07 Sanační opatření (RDS)', soubor:'pdf/SO_101_RDS/101_07_2_Sanacni_opatreni.pdf', typ:'07'},
+  {nazev:'101 08 Vytyčovací body (RDS)', soubor:'pdf/SO_101_RDS/101_08_1_Vytycovaci_body.pdf', typ:'08'}
   ],
   '111': [
   {nazev:'111 00 Desky', soubor:'pdf/SO_111/111_00_Desky_C.pdf', typ:'00'},
@@ -4193,6 +4226,10 @@ function buildTrasaDocPages(realKm){
   findDocsForKm(DOCS_SITUACE, realKm).forEach(function(d, i) {
     pages.push({soubor:d.soubor, nazev:d.nazev, typ:'📐 Situace'+(i?' '+(i+1):'')});
   });
+  // Situace SO 101 (RDS) – VŠECHNY pasující
+  if(typeof DOCS_SIT101 !== 'undefined') findDocsForKm(DOCS_SIT101, realKm).forEach(function(d, i) {
+    pages.push({soubor:d.soubor, nazev:d.nazev, typ:'🗺️ Situace SO 101'+(i?' '+(i+1):'')});
+  });
   // Svodidla – VŠECHNY pasující
   findDocsForKm(DOCS_SVODIDLA, realKm).forEach(function(d, i) {
     pages.push({soubor:d.soubor, nazev:d.nazev, typ:'🛡️ Svodidla'+(i?' '+(i+1):'')});
@@ -4233,6 +4270,18 @@ function buildTrasaDocPages(realKm){
       pages.push({soubor:d.soubor, nazev:d.nazev, typ:'📋 Tech. zpráva'});
     });
   }
+  // Situace sanací SO 101 (RDS) – po km + sanační opatření (celotrasové)
+  if(typeof DOCS_SAN101 !== 'undefined') findDocsForKm(DOCS_SAN101, realKm).forEach(function(d, i) {
+    pages.push({soubor:d.soubor, nazev:d.nazev, typ:'🩹 Sanace'+(i?' '+(i+1):'')});
+  });
+  // Vytyčovací body SO 101 (RDS) – celotrasové
+  if(typeof DOCS_VYT101 !== 'undefined') findDocsForKm(DOCS_VYT101, realKm).forEach(function(d) {
+    pages.push({soubor:d.soubor, nazev:d.nazev, typ:'📍 Vytyč. body'});
+  });
+  // Technická zpráva SO 101 (RDS) – celotrasová
+  if(typeof DOCS_TZ101 !== 'undefined') findDocsForKm(DOCS_TZ101, realKm).forEach(function(d) {
+    pages.push({soubor:d.soubor, nazev:d.nazev, typ:'📋 Tech. zpráva'});
+  });
   // Uživatelsky nahrané výkresy hlavní trasy – ukážou se u celé trasy (na konec).
   pages = pages.concat(uploadedVykresyFor(TRASA_VYKRES_SO));
   return pages;
@@ -11145,7 +11194,7 @@ function _logPhotoActivity(so, key){
 }
 // „🆕 Co je nového" – changelog (developer-maintained; s novou funkcí přidej řádek nahoru + bump verze).
 var APP_NOVINKY = [
-  { datum:'2026-08-13', verze:'v0.47', text:'📐 SO 101 – výkresy hlavní trasy aktualizovány na RDS koncept: podélné profily, vzorové příčné řezy i pracovní (podrobné) příčné řezy (nově 38 jemných listů po km) a všechny propustky (P1–P15). Otevřou se po kliknutí na staničení i u značky propustku. Koordinační situace zůstává beze změny.' },
+  { datum:'2026-08-13', verze:'v0.47', text:'📐 SO 101 – výkresy hlavní trasy převedeny na RDS koncept. Po kliknutí na staničení teď najdeš VŠECHNY výkresy pro to místo: situaci, podélný profil, vzorové i podrobné příčné řezy, situaci sanací, sanační opatření, vytyčovací body a technickou zprávu – příčné řezy, sanace a situace se ukážou jen pro dané staničení. Propustky zůstávají zvlášť jako značky P1–P15 (klik = jejich RDS výkres). Koordinační situace beze změny.' },
   { datum:'2026-08-08', verze:'v0.46', text:'🐞 Berušku (Nahlásit chybu) jde teď chytit a přetáhnout kamkoli – kam si ji dáš, tam zůstane (uloží se). Ťuk = otevřít, tah = přesun.' },
   { datum:'2026-08-08', verze:'v0.45', text:'🗒️ Poznámkový blok je teď plnohodnotný: každá poznámka má nadpis + text, otevře se jako dokument a kdykoli se k ní vrátíš a dopíšeš/upravíš. Přibylo 🔍 hledání (nadpis i text), filtr (soukromé/veřejné) a řazení, a 🖨️ uložení/sdílení poznámky jako PDF. ✏️ Umí i sledování změn (revize): zaškrtneš „Zaznamenat jako revizi" a je vidět, co přibylo/ubylo (👁 Editované) – funguje i u detailu úkolu. 🐞 Nové plovoucí tlačítko „Nahlásit chybu / návrh" (vlevo) – napíšeš chybu nebo nápad; koordinátor je vidí v přijatých hlášeních a napíše, jak to vyřešil (uvidíš to i ty, i subka/investor). 👁 Admin může vidět i cizí soukromé poznámky/úkoly a tlačítkem „Vidím vše / Jako ostatní" si je skrýt.' },
   { datum:'2026-08-07', verze:'v0.44', text:'🪨 Geotechnika: vrty jsou teď dvě samostatné vrstvy – 🟣 PředGTP a 🔵 PoGTP. Nová vrstva „🪨 Pasporty B/C/D": B = pás podél trasy (klik na úsek otevře ten geotechnický pasport podle km), C = 🪨 značky u přeložek/MÚK (SO 111,112,121–127), D = 🪨 zprávy u mostů (SO 201–207,221–223). Vše jde vypnout ve ☰ Vrstvy, najít v 🔍 hledáčku a otevřít v panelu 🪨 Geotechnika (rozdělen na PředGTP/PoGTP).' },
