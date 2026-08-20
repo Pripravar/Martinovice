@@ -729,7 +729,7 @@ textarea.note-field { min-height:80px; resize:vertical; }
 .gallery-item { position:relative; aspect-ratio:1; cursor:pointer; }
 .gallery-item img { width:100%; height:100%; object-fit:cover; border-radius:6px; display:block; }
 .gallery-item.gallery-sub img { outline:3px solid #f97316; outline-offset:-3px; }
-.gallery-sub-badge { position:absolute; top:3px; left:3px; background:#f97316; color:#fff; font-size:9px; font-weight:800; border-radius:3px; padding:1px 4px; }
+.gallery-sub-badge { position:absolute; top:3px; right:3px; background:#1565c0; color:#fff; font-size:9px; font-weight:800; border-radius:3px; padding:1px 4px; z-index:3; box-shadow:0 1px 3px rgba(0,0,0,.4); }
 /* fotka OD investora – fialový rám + odznak INV */
 .gallery-item.gallery-inv img { outline:3px solid #8b5cf6; outline-offset:-3px; }
 .gallery-inv-badge { position:absolute; top:3px; left:3px; background:#8b5cf6; color:#fff; font-size:9px; font-weight:800; border-radius:3px; padding:1px 4px; z-index:3; }
@@ -9012,7 +9012,7 @@ function submitLibImport(){
       if((lat==null||lng==null) && realKm!=null){ var ll=realKmToLatLng(realKm); if(ll){ lat=ll[0]; lng=ll[1]; } }
       var soVal=(it.so||'').trim();
       if(!soVal && lat!=null && lng!=null){ try { soVal=_autoSOForPoint(lat,lng); } catch(e){} }
-      var meta={ km:(it.km||''), author:author, lat:lat, lng:lng, so:soVal, soList:(soVal?[soVal]:[]), ts:ts };
+      var meta={ km:(it.km||''), author:author, lat:lat, lng:lng, so:soVal, soList:(soVal?[soVal]:[]), ts:ts, zdrojFoto:'import' };
       enqueuePhoto(compressed, meta, true);   // true = v galerii razítkovaná verze (jako focení)
       started++;
       if(started===n){
@@ -9299,6 +9299,7 @@ function _processPhotoQueue(){
           var entry = {
             url: visibleUrl, stamped: !!yes,
             so: (meta.so || ''), soList: (meta.soList || (meta.so ? [meta.so] : [])), kmAxis: (meta.kmAxis || ''),
+            zdrojFoto: (meta.zdrojFoto || 'app'),   // #94: 📸 focené / 📥 import
             ownerUid: (window.currentUser ? window.currentUser.uid : ''),
             km: meta.km, author: meta.author, lat: meta.lat, lng: meta.lng,
             time: new Date(t).toLocaleString('cs-CZ'), date: new Date(t).toLocaleDateString('cs-CZ'), ts: t
@@ -9944,6 +9945,14 @@ function _galleryItemEl(item) {
     })(item);
     div.appendChild(badge);
   }
+  // #94: zdroj fotky – 📸 focené appkou / 📥 import z telefonu (vlevo dole)
+  if(!item.noteId && item.zdrojFoto){
+    var srcB = document.createElement('div');
+    srcB.textContent = (item.zdrojFoto==='import' ? '📥' : '📸');
+    srcB.title = (item.zdrojFoto==='import' ? 'Import z telefonu' : 'Focené aplikací');
+    srcB.style.cssText = 'position:absolute;bottom:4px;left:4px;font-size:11px;line-height:1;padding:2px 5px;border-radius:6px;z-index:3;box-shadow:0 1px 3px rgba(0,0,0,.45);background:'+(item.zdrojFoto==='import'?'#f59e0b':'#0891b2')+';';
+    div.appendChild(srcB);
+  }
   var _fromSub = (item.zdroj==='SUB' || item.sub);
   var _fromInv = (item.zdroj==='INVESTOR' || item.investor);
   if(_fromSub){
@@ -9965,7 +9974,7 @@ function _galleryItemEl(item) {
   }
   if(item.sdilenoInvestor && !_fromInv){
     div.classList.add('gallery-shared-inv');
-    var shI = document.createElement('div'); shI.className = 'gallery-shared-badge gallery-shared-badge-inv'; shI.textContent = '↗ INV';
+    var shI = document.createElement('div'); shI.className = 'gallery-shared-badge gallery-shared-badge-inv'; shI.textContent = '↗ TDS';
     shI.style.top = (_shTop + (item.sdilenoSub && !_fromSub ? 19 : 0)) + 'px';   // pod ↗SUB, když je i to
     div.appendChild(shI);
   }
