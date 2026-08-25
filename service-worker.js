@@ -4,7 +4,7 @@
 // DŮLEŽITÉ: HTML/navigace jde NETWORK-FIRST. Připnutá PWA na iOS si jinak
 // drží starý index.html z cache a po pushi neukazuje aktualizaci. Online
 // se vždy stáhne čerstvý HTML, offline padá zpět na poslední cache.
-var CACHE_NAME = 'martinovice-v0.47-2026-08-13';
+var CACHE_NAME = 'martinovice-v0.47-2026-08-13-fcm27';
 var ASSETS = [
   './',
   './index.html',
@@ -105,7 +105,9 @@ self.addEventListener('push', function(event) {
     tag:     (data.data && data.data.taskId) || 'stavba-notify',
     renotify: true
   };
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(self.registration.showNotification(title, options).then(function(){
+    try{ if(self.navigator && self.navigator.setAppBadge) self.navigator.setAppBadge(); }catch(e){}
+  }));
 });
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
