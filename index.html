@@ -12984,11 +12984,8 @@ function openReportExport(){
   var a=_reportAlbum();
   if(!a.m){ showToast('Nejdřív vyber měsíc ve filtru „Měsíční zpráva"',3200); return; }
   if(!a.items.length){ showToast('V tomto měsíci nejsou žádné označené fotky',3200); return; }
-  var rows=a.items.map(_reportLine);
-  var txt='MĚSÍČNÍ FOTOZPRÁVA '+_repFmtMonth(a.m)+' ('+rows.length+' fotek)\n\n'+rows.map(function(r,i){ return (i+1)+') '+r.loc+(r.pop?('\n   '+r.pop):''); }).join('\n\n');
-  window._reportExportTxt=txt; window._reportExportRows=rows; window._reportExportMonth=a.m;
-  var ta=document.getElementById('report-export-text'); if(ta) ta.value=txt;
-  var t=document.getElementById('report-export-title'); if(t) t.textContent='📄 Zpráva '+_repFmtMonth(a.m)+' — '+rows.length+' fotek';
+  window._reportExportItems=a.items; window._reportExportMonth=a.m;
+  var t=document.getElementById('report-export-title'); if(t) t.textContent='📄 Zpráva '+_repFmtMonth(a.m)+' — '+a.items.length+' fotek';
   var md=document.getElementById('report-export-modal'); if(md) md.style.display='flex';
 }
 function closeReportExport(){ var md=document.getElementById('report-export-modal'); if(md) md.style.display='none'; }
@@ -12996,34 +12993,44 @@ function reportCopyText(){ var t=window._reportExportTxt||''; if(navigator.clipb
 function _reportSelText(){ var ta=document.getElementById('report-export-text'); if(ta){ ta.focus(); ta.select(); showToast('Označeno – zkopíruj (Ctrl/⌘+C)',2500); } }
 function reportDownloadTxt(){ _downloadTextFile('fotozprava_'+(window._reportExportMonth||'').replace('-','_')+'.txt', window._reportExportTxt||'', 'text/plain'); }
 function _downloadTextFile(name, text, mime){ try{ var b=new Blob([text],{type:(mime||'text/plain')+';charset=utf-8'}); var u=URL.createObjectURL(b); var a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(u); a.remove(); },1200); showToast('⬇ Staženo: '+name,2000); }catch(e){ showToast('Stažení selhalo – použij Kopírovat',2800); } }
+function _repChk(id){ var e=document.getElementById(id); return e?!!e.checked:true; }
 function reportOpenWord(){
-  var rows=window._reportExportRows||[]; var m=window._reportExportMonth||'';
-  showToast('📄 Připravuji Word (načítám fotky)…',1800);
-  Promise.all(rows.map(function(rr){ if(!rr.url) return Promise.resolve(''); if(typeof resolveFileUrl==='function'){ return resolveFileUrl(rr.url).then(function(u){return u||rr.url;},function(){return rr.url;}); } return Promise.resolve(rr.url); })).then(function(_urls){
-  var head='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
-    +'<head><meta charset="utf-8"><title>Fotozpráva '+escapeHtml(_repFmtMonth(m))+'</title>'
-    +'<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->'
-    +'<style>@page{size:A4 portrait;margin:2cm;} body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#111;} '
-    +'h1{font-size:18pt;color:#0f3460;margin:0 0 14pt;} .cap{font-weight:bold;font-size:11pt;margin:0 0 4pt;} '
-    +'.pop{font-size:11pt;margin:4pt 0 0;} .item{margin:0 0 16pt;}</style></head><body>';
-  var html=head+'<h1>Měsíční fotozpráva '+escapeHtml(_repFmtMonth(m))+'</h1>';
-  rows.forEach(function(r,i){
-    html+='<div class="item"><p class="cap">'+(i+1)+') '+escapeHtml(r.loc)+'</p>';
-    if(_urls[i]) html+='<img src="'+escapeHtml(_urls[i])+'" width="480"><br>';
-    if(r.pop) html+='<p class="pop">'+escapeHtml(r.pop)+'</p>';
-    html+='</div>';
-  });
-  html+='</body></html>';
-  var name='fotozprava_'+(m||'').replace('-','_')+'.doc';
-  try{
-    var blob=new Blob(['﻿'+html],{type:'application/msword'});
-    var url=URL.createObjectURL(blob);
-    var a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click();
-    setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); },1500);
-    showToast('📄 Staženo: '+name+' – otevři ve Wordu (fotky se dotáhnou online)',4500);
-  }catch(e){
-    try{ var w=window.open('','_blank'); if(w){ w.document.write(html); w.document.close(); showToast('Otevřeno – ulož jako .doc / vytiskni do PDF',4000); } else showToast('Word se nepodařilo – zkus na PC',3000); }catch(_){ showToast('Word se nepodařilo stáhnout',3000); }
-  }
+  var items=window._reportExportItems||[]; var m=window._reportExportMonth||'';
+  if(!items.length){ showToast('Nic k exportu',2200); return; }
+  var f={ so:_repChk('rep-f-so'), km:_repChk('rep-f-km'), datum:_repChk('rep-f-datum'), cas:_repChk('rep-f-cas'), jmeno:_repChk('rep-f-jmeno'), popis:_repChk('rep-f-popis') };
+  showToast('📄 Připravuji Word (načítám fotky)…',2500);
+  Promise.all(items.map(function(it){
+    var u=it.url||'';
+    var pr=(u&&typeof resolveFileUrl==='function')?resolveFileUrl(u).then(function(x){return x||u;},function(){return u;}):Promise.resolve(u);
+    return pr.then(function(url){ return new Promise(function(res){
+      if(!url){ res({it:it,url:'',w:0,h:0}); return; }
+      var img=new Image();
+      // A4 portrait, okraje 2 cm → obsah ~17×25,7 cm; box 16×20 cm (605×756 px @96dpi), zmenšení POMĚROVĚ (obě strany)
+      img.onload=function(){ var maxW=605,maxH=756; var nw=img.naturalWidth||maxW,nh=img.naturalHeight||maxH; var sc=Math.min(maxW/nw,maxH/nh,1); res({it:it,url:url,w:Math.round(nw*sc),h:Math.round(nh*sc)}); };
+      img.onerror=function(){ res({it:it,url:url,w:605,h:0}); };
+      img.src=url;
+    }); });
+  })).then(function(list){
+    function cap(it){ var p=[]; if(f.so){ var so=(it.soList&&it.soList.length)?it.soList.join(', '):(it.so||''); if(so) p.push(so); } if(f.km&&it.km) p.push('km '+it.km); var d=(typeof photoCreationDate==='function')?photoCreationDate(it):null; if(f.datum){ var ds=d?d.toLocaleDateString('cs-CZ'):(it.date||''); if(ds) p.push(ds); } if(f.cas&&d) p.push(pad2(d.getHours())+':'+pad2(d.getMinutes())); if(f.jmeno&&it.author) p.push(it.author); return p.join('  ·  '); }
+    var head='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
+      +'<head><meta charset="utf-8"><title>Fotozpráva '+escapeHtml(_repFmtMonth(m))+'</title>'
+      +'<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->'
+      +'<style>@page{size:A4 portrait;margin:2cm;} body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#111;} '
+      +'h1{font-size:18pt;color:#0f3460;margin:0 0 14pt;} .cap{font-weight:bold;font-size:11pt;margin:0 0 4pt;} '
+      +'.pop{font-size:11pt;margin:4pt 0 0;} .item{margin:0 0 18pt;page-break-inside:avoid;}</style></head><body>';
+    var html=head+'<h1>Měsíční fotozpráva '+escapeHtml(_repFmtMonth(m))+'</h1>';
+    list.forEach(function(r,i){ var c=cap(r.it); html+='<div class="item">'; if(c) html+='<p class="cap">'+(i+1)+') '+escapeHtml(c)+'</p>'; if(r.url) html+='<img src="'+escapeHtml(r.url)+'"'+(r.w?(' width="'+r.w+'"'):'')+(r.h?(' height="'+r.h+'"'):'')+'><br>'; if(f.popis && r.it.reportPopis) html+='<p class="pop">'+escapeHtml(r.it.reportPopis)+'</p>'; html+='</div>'; });
+    html+='</body></html>';
+    var name='fotozprava_'+(m||'').replace('-','_')+'.doc';
+    try{
+      var blob=new Blob(['﻿'+html],{type:'application/msword'});
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click();
+      setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); },1500);
+      showToast('📄 Staženo: '+name+' – otevři ve Wordu (fotky se dotáhnou online)',4500);
+    }catch(e){
+      try{ var w=window.open('','_blank'); if(w){ w.document.write(html); w.document.close(); showToast('Otevřeno – ulož jako .doc / vytiskni do PDF',4000); } else showToast('Word se nepodařilo – zkus na PC',3000); }catch(_){ showToast('Word se nepodařilo stáhnout',3000); }
+    }
   });
 }
 
@@ -17969,14 +17976,17 @@ function copyDiaryExport(){
       <button onclick="closeReportExport()" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;min-width:44px;min-height:44px;">✕</button>
     </div>
     <div style="padding:12px 16px;overflow:auto;">
-      <button onclick="downloadReportPhotos()" style="width:100%;background:#0ea5e9;border:none;border-radius:8px;color:#fff;padding:12px;font-weight:800;cursor:pointer;margin-bottom:10px;">⬇ Stáhnout fotky zprávy (volba razítka)</button>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-        <button onclick="reportCopyText()" style="flex:1;min-width:120px;background:var(--accent);border:none;border-radius:8px;color:#fff;padding:11px;font-weight:700;cursor:pointer;">📋 Kopírovat popisy</button>
-        <button onclick="reportDownloadTxt()" style="flex:1;min-width:80px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:11px;font-weight:700;cursor:pointer;">⬇ .txt</button>
-        <button onclick="reportOpenWord()" style="flex:1;min-width:80px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:11px;font-weight:700;cursor:pointer;">📄 Word</button>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">Vyber, co se u každé fotky vypíše (z razítka). Fotky se do Wordu vloží zmenšené na A4 (poměrově, aby se vešly na stránku).</div>
+      <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px;">Co zobrazit u fotky:</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+        <label style="display:flex;align-items:center;gap:9px;font-size:14px;cursor:pointer;"><input type="checkbox" id="rep-f-so" checked style="width:18px;height:18px;"> SO / objekt</label>
+        <label style="display:flex;align-items:center;gap:9px;font-size:14px;cursor:pointer;"><input type="checkbox" id="rep-f-km" checked style="width:18px;height:18px;"> Staničení (km)</label>
+        <label style="display:flex;align-items:center;gap:9px;font-size:14px;cursor:pointer;"><input type="checkbox" id="rep-f-datum" checked style="width:18px;height:18px;"> Datum</label>
+        <label style="display:flex;align-items:center;gap:9px;font-size:14px;cursor:pointer;"><input type="checkbox" id="rep-f-cas" checked style="width:18px;height:18px;"> Čas</label>
+        <label style="display:flex;align-items:center;gap:9px;font-size:14px;cursor:pointer;"><input type="checkbox" id="rep-f-jmeno" checked style="width:18px;height:18px;"> Jméno (autor)</label>
+        <label style="display:flex;align-items:center;gap:9px;font-size:14px;cursor:pointer;"><input type="checkbox" id="rep-f-popis" checked style="width:18px;height:18px;"> Popis fotky</label>
       </div>
-      <div style="font-size:12px;color:var(--text2);margin-bottom:6px;">Nahoře stáhneš fotky zprávy (vybereš razítko / bez razítka). Tady jsou popisy k vložení do zprávy:</div>
-      <textarea id="report-export-text" readonly style="width:100%;height:40vh;box-sizing:border-box;background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px;font-size:13px;"></textarea>
+      <button onclick="reportOpenWord()" style="width:100%;background:var(--accent);border:none;border-radius:8px;color:#fff;padding:13px;font-weight:800;font-size:15px;cursor:pointer;">📄 Stáhnout Word</button>
     </div>
   </div>
 </div>
