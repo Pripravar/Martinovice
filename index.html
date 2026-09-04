@@ -12994,24 +12994,45 @@ function _reportSelText(){ var ta=document.getElementById('report-export-text');
 function reportDownloadTxt(){ _downloadTextFile('fotozprava_'+(window._reportExportMonth||'').replace('-','_')+'.txt', window._reportExportTxt||'', 'text/plain'); }
 function _downloadTextFile(name, text, mime){ try{ var b=new Blob([text],{type:(mime||'text/plain')+';charset=utf-8'}); var u=URL.createObjectURL(b); var a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(u); a.remove(); },1200); showToast('⬇ Staženo: '+name,2000); }catch(e){ showToast('Stažení selhalo – použij Kopírovat',2800); } }
 function _repChk(id){ var e=document.getElementById(id); return e?!!e.checked:true; }
+function _repLoadResized(url){
+  return new Promise(function(res){
+    if(!url){ res(null); return; }
+    fetch(url).then(function(r){ return r.blob(); }).then(function(blob){
+      var burl=URL.createObjectURL(blob); var img=new Image();
+      img.onload=function(){
+        var nw=img.naturalWidth||1200, nh=img.naturalHeight||900;
+        var maxPx=1200; var sc=Math.min(maxPx/nw, maxPx/nh, 1);
+        var cw=Math.max(1,Math.round(nw*sc)), chh=Math.max(1,Math.round(nh*sc));
+        var cv=document.createElement('canvas'); cv.width=cw; cv.height=chh;
+        try{ cv.getContext('2d').drawImage(img,0,0,cw,chh); }catch(e){}
+        var data; try{ data=cv.toDataURL('image/jpeg',0.82); }catch(e){ data=url; }
+        URL.revokeObjectURL(burl); res({data:data, nw:nw, nh:nh});
+      };
+      img.onerror=function(){ URL.revokeObjectURL(burl); res({data:url, nw:0, nh:0}); };
+      img.src=burl;
+    }).catch(function(){ res({data:url, nw:0, nh:0}); });
+  });
+}
 function reportOpenWord(){
   var items=window._reportExportItems||[]; var m=window._reportExportMonth||'';
   if(!items.length){ showToast('Nic k exportu',2200); return; }
   var f={ so:_repChk('rep-f-so'), km:_repChk('rep-f-km'), datum:_repChk('rep-f-datum'), cas:_repChk('rep-f-cas'), jmeno:_repChk('rep-f-jmeno'), popis:_repChk('rep-f-popis') };
-  showToast('📄 Připravuji Word (načítám fotky)…',2500);
+  showToast('📄 Připravuji Word – zmenšuji '+items.length+' fotek…',3000);
   Promise.all(items.map(function(it){
-    var u=(it.urlOriginal||it.url||'');   // ČISTÁ fotka bez vypáleného razítka (razítko dáváme textem)
+    var u=(it.urlOriginal||it.url||'');   // ČISTÁ fotka bez vypáleného razítka
     var pr=(u&&typeof resolveFileUrl==='function')?resolveFileUrl(u).then(function(x){return x||u;},function(){return u;}):Promise.resolve(u);
-    return pr.then(function(url){ return new Promise(function(res){
-      if(!url){ res({it:it,url:'',style:''}); return; }
-      var img=new Image();
-      // Word IGNORUJE px u obrázků → velikost dáváme v CM (to respektuje). Box 15×18 cm, POMĚROVĚ (obě strany).
-      img.onload=function(){ var boxW=15,boxH=18; var ar=(img.naturalWidth||1)/(img.naturalHeight||1); var wCm=Math.min(boxW, boxH*ar); var hCm=wCm/ar; res({it:it,url:url,style:'width:'+(Math.round(wCm*10)/10)+'cm;height:'+(Math.round(hCm*10)/10)+'cm;'}); };
-      img.onerror=function(){ res({it:it,url:url,style:'width:15cm;'}); };
-      img.src=url;
-    }); });
+    return pr.then(function(url){ return _repLoadResized(url).then(function(im){ return {it:it, im:im}; }); });
   })).then(function(list){
-    function cap(it){ var p=[]; if(f.so){ var so=(it.soList&&it.soList.length)?it.soList.join(', '):(it.so||''); if(so) p.push(so); } if(f.km&&it.km) p.push('km '+it.km); var d=(typeof photoCreationDate==='function')?photoCreationDate(it):null; if(f.datum){ var ds=d?d.toLocaleDateString('cs-CZ'):(it.date||''); if(ds) p.push(ds); } if(f.cas&&d) p.push(pad2(d.getHours())+':'+pad2(d.getMinutes())); if(f.jmeno&&it.author) p.push(it.author); return p.join('  ·  '); }
+    function cap(it){ var p=[];
+      if(f.so){ var so=(it.soList&&it.soList.length)?it.soList.join(', '):(it.so||''); if(so) p.push(so); }
+      if(f.km && it.km) p.push('km '+it.km);
+      var d=null; try{ d=(typeof photoCreationDate==='function')?photoCreationDate(it):null; }catch(e){}
+      if((!d||isNaN(d)) && it.ts) d=new Date(it.ts);
+      if(f.datum && d && !isNaN(d)) p.push(d.toLocaleDateString('cs-CZ'));
+      if(f.cas && d && !isNaN(d)) p.push(pad2(d.getHours())+':'+pad2(d.getMinutes()));
+      if(f.jmeno){ var au=(it.author||it.autor||''); if(au) p.push(au); }
+      return p.join('  ·  ');
+    }
     var head='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
       +'<head><meta charset="utf-8"><title>Fotozpráva '+escapeHtml(_repFmtMonth(m))+'</title>'
       +'<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->'
@@ -13019,7 +13040,14 @@ function reportOpenWord(){
       +'h1{font-size:18pt;color:#0f3460;margin:0 0 14pt;} .cap{font-weight:bold;font-size:11pt;margin:0 0 4pt;} '
       +'img{display:block;} .pop{font-size:11pt;margin:4pt 0 0;} .item{margin:0 0 18pt;page-break-inside:avoid;}</style></head><body>';
     var html=head+'<h1>Měsíční fotozpráva '+escapeHtml(_repFmtMonth(m))+'</h1>';
-    list.forEach(function(r,i){ var c=cap(r.it); html+='<div class="item">'; if(c) html+='<p class="cap">'+(i+1)+') '+escapeHtml(c)+'</p>'; if(r.url) html+='<img src="'+escapeHtml(r.url)+'" style="'+r.style+'"><br>'; if(f.popis && r.it.reportPopis) html+='<p class="pop">'+escapeHtml(r.it.reportPopis)+'</p>'; html+='</div>'; });
+    list.forEach(function(r,i){
+      var c=cap(r.it); html+='<div class="item">';
+      if(c) html+='<p class="cap">'+(i+1)+') '+escapeHtml(c)+'</p>';
+      var im=r.im;
+      if(im && im.data){ var boxW=12,boxH=15; var ar=(im.nw&&im.nh)?(im.nw/im.nh):1.3333; var wCm=Math.min(boxW, boxH*ar); var hCm=wCm/ar; var wPx=Math.round(wCm/2.54*96), hPx=Math.round(hCm/2.54*96); html+='<img src="'+im.data+'" width="'+wPx+'" height="'+hPx+'" style="width:'+(Math.round(wCm*10)/10)+'cm;height:'+(Math.round(hCm*10)/10)+'cm;"><br>'; }
+      if(f.popis){ var pp=(r.it.reportPopis||''); if(pp) html+='<p class="pop">'+escapeHtml(pp)+'</p>'; }
+      html+='</div>';
+    });
     html+='</body></html>';
     var name='fotozprava_'+(m||'').replace('-','_')+'.doc';
     try{
@@ -13027,7 +13055,7 @@ function reportOpenWord(){
       var url=URL.createObjectURL(blob);
       var a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click();
       setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); },1500);
-      showToast('📄 Staženo: '+name+' – otevři ve Wordu (fotky se dotáhnou online)',4500);
+      showToast('📄 Staženo: '+name+' (fotky jsou uvnitř souboru)',4500);
     }catch(e){
       try{ var w=window.open('','_blank'); if(w){ w.document.write(html); w.document.close(); showToast('Otevřeno – ulož jako .doc / vytiskni do PDF',4000); } else showToast('Word se nepodařilo – zkus na PC',3000); }catch(_){ showToast('Word se nepodařilo stáhnout',3000); }
     }
