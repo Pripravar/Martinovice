@@ -13000,14 +13000,14 @@ function reportOpenWord(){
   var f={ so:_repChk('rep-f-so'), km:_repChk('rep-f-km'), datum:_repChk('rep-f-datum'), cas:_repChk('rep-f-cas'), jmeno:_repChk('rep-f-jmeno'), popis:_repChk('rep-f-popis') };
   showToast('📄 Připravuji Word (načítám fotky)…',2500);
   Promise.all(items.map(function(it){
-    var u=it.url||'';
+    var u=(it.urlOriginal||it.url||'');   // ČISTÁ fotka bez vypáleného razítka (razítko dáváme textem)
     var pr=(u&&typeof resolveFileUrl==='function')?resolveFileUrl(u).then(function(x){return x||u;},function(){return u;}):Promise.resolve(u);
     return pr.then(function(url){ return new Promise(function(res){
-      if(!url){ res({it:it,url:'',w:0,h:0}); return; }
+      if(!url){ res({it:it,url:'',style:''}); return; }
       var img=new Image();
-      // A4 portrait, okraje 2 cm → obsah ~17×25,7 cm; box 16×20 cm (605×756 px @96dpi), zmenšení POMĚROVĚ (obě strany)
-      img.onload=function(){ var maxW=605,maxH=756; var nw=img.naturalWidth||maxW,nh=img.naturalHeight||maxH; var sc=Math.min(maxW/nw,maxH/nh,1); res({it:it,url:url,w:Math.round(nw*sc),h:Math.round(nh*sc)}); };
-      img.onerror=function(){ res({it:it,url:url,w:605,h:0}); };
+      // Word IGNORUJE px u obrázků → velikost dáváme v CM (to respektuje). Box 15×18 cm, POMĚROVĚ (obě strany).
+      img.onload=function(){ var boxW=15,boxH=18; var ar=(img.naturalWidth||1)/(img.naturalHeight||1); var wCm=Math.min(boxW, boxH*ar); var hCm=wCm/ar; res({it:it,url:url,style:'width:'+(Math.round(wCm*10)/10)+'cm;height:'+(Math.round(hCm*10)/10)+'cm;'}); };
+      img.onerror=function(){ res({it:it,url:url,style:'width:15cm;'}); };
       img.src=url;
     }); });
   })).then(function(list){
@@ -13017,9 +13017,9 @@ function reportOpenWord(){
       +'<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->'
       +'<style>@page{size:A4 portrait;margin:2cm;} body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#111;} '
       +'h1{font-size:18pt;color:#0f3460;margin:0 0 14pt;} .cap{font-weight:bold;font-size:11pt;margin:0 0 4pt;} '
-      +'.pop{font-size:11pt;margin:4pt 0 0;} .item{margin:0 0 18pt;page-break-inside:avoid;}</style></head><body>';
+      +'img{display:block;} .pop{font-size:11pt;margin:4pt 0 0;} .item{margin:0 0 18pt;page-break-inside:avoid;}</style></head><body>';
     var html=head+'<h1>Měsíční fotozpráva '+escapeHtml(_repFmtMonth(m))+'</h1>';
-    list.forEach(function(r,i){ var c=cap(r.it); html+='<div class="item">'; if(c) html+='<p class="cap">'+(i+1)+') '+escapeHtml(c)+'</p>'; if(r.url) html+='<img src="'+escapeHtml(r.url)+'"'+(r.w?(' width="'+r.w+'"'):'')+(r.h?(' height="'+r.h+'"'):'')+'><br>'; if(f.popis && r.it.reportPopis) html+='<p class="pop">'+escapeHtml(r.it.reportPopis)+'</p>'; html+='</div>'; });
+    list.forEach(function(r,i){ var c=cap(r.it); html+='<div class="item">'; if(c) html+='<p class="cap">'+(i+1)+') '+escapeHtml(c)+'</p>'; if(r.url) html+='<img src="'+escapeHtml(r.url)+'" style="'+r.style+'"><br>'; if(f.popis && r.it.reportPopis) html+='<p class="pop">'+escapeHtml(r.it.reportPopis)+'</p>'; html+='</div>'; });
     html+='</body></html>';
     var name='fotozprava_'+(m||'').replace('-','_')+'.doc';
     try{
@@ -17976,7 +17976,7 @@ function copyDiaryExport(){
       <button onclick="closeReportExport()" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;min-width:44px;min-height:44px;">✕</button>
     </div>
     <div style="padding:12px 16px;overflow:auto;">
-      <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">Vyber, co se u každé fotky vypíše (z razítka). Fotky se do Wordu vloží zmenšené na A4 (poměrově, aby se vešly na stránku).</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">Fotky se vloží <b>bez vypáleného razítka</b> a zmenšené na A4 (poměrově). Vyber, co se vypíše <b>textem</b> pod každou fotku:</div>
       <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px;">Co zobrazit u fotky:</div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
         <label style="display:flex;align-items:center;gap:9px;font-size:14px;cursor:pointer;"><input type="checkbox" id="rep-f-so" checked style="width:18px;height:18px;"> SO / objekt</label>
