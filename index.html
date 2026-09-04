@@ -12994,45 +12994,74 @@ function _reportSelText(){ var ta=document.getElementById('report-export-text');
 function reportDownloadTxt(){ _downloadTextFile('fotozprava_'+(window._reportExportMonth||'').replace('-','_')+'.txt', window._reportExportTxt||'', 'text/plain'); }
 function _downloadTextFile(name, text, mime){ try{ var b=new Blob([text],{type:(mime||'text/plain')+';charset=utf-8'}); var u=URL.createObjectURL(b); var a=document.createElement('a'); a.href=u; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(u); a.remove(); },1200); showToast('⬇ Staženo: '+name,2000); }catch(e){ showToast('Stažení selhalo – použij Kopírovat',2800); } }
 function _repChk(id){ var e=document.getElementById(id); return e?!!e.checked:true; }
-function _repLoadResized(url){
-  return new Promise(function(res){
-    if(!url){ res(null); return; }
-    fetch(url).then(function(r){ return r.blob(); }).then(function(blob){
-      var burl=URL.createObjectURL(blob); var img=new Image();
-      img.onload=function(){
-        var nw=img.naturalWidth||1200, nh=img.naturalHeight||900;
-        var maxPx=1200; var sc=Math.min(maxPx/nw, maxPx/nh, 1);
-        var cw=Math.max(1,Math.round(nw*sc)), chh=Math.max(1,Math.round(nh*sc));
-        var cv=document.createElement('canvas'); cv.width=cw; cv.height=chh;
-        try{ cv.getContext('2d').drawImage(img,0,0,cw,chh); }catch(e){}
-        var data; try{ data=cv.toDataURL('image/jpeg',0.82); }catch(e){ data=url; }
-        URL.revokeObjectURL(burl); res({data:data, nw:nw, nh:nh});
-      };
-      img.onerror=function(){ URL.revokeObjectURL(burl); res({data:url, nw:0, nh:0}); };
-      img.src=burl;
-    }).catch(function(){ res({data:url, nw:0, nh:0}); });
-  });
+function _repCapFields(it, f){ var p=[];
+  if(f.so){ var so=(it.soList&&it.soList.length)?it.soList.join(', '):(it.so||''); if(so) p.push(so); }
+  if(f.km && it.km) p.push('km '+it.km);
+  var d=null; try{ d=(typeof photoCreationDate==='function')?photoCreationDate(it):null; }catch(e){}
+  if((!d||isNaN(d)) && it.ts) d=new Date(it.ts);
+  if(f.datum && d && !isNaN(d)) p.push(d.toLocaleDateString('cs-CZ'));
+  if(f.cas && d && !isNaN(d)) p.push(pad2(d.getHours())+':'+pad2(d.getMinutes()));
+  if(f.jmeno){ var au=(it.author||it.autor||''); if(au) p.push(au); }
+  return p.join('  ·  ');
 }
+// Vypálí zvolená pole razítka na (zmenšenou) fotku – reuse _drawStampBox/_soStampLabel. Když je nemáme (starší appka), cb(...,false) → fallback na text.
+function _repBurnStamp(dataUrl, item, fields, d, cb){
+  if(typeof _drawStampBox!=='function'){ cb(dataUrl, false); return; }
+  var img=new Image();
+  img.onload=function(){
+    try{
+      var cv=document.createElement('canvas'); cv.width=img.width; cv.height=img.height; var ctx=cv.getContext('2d'); ctx.drawImage(img,0,0);
+      var lines=[];
+      if(fields.so){ var soLbl=(typeof _soStampLabel==='function')?_soStampLabel(item.so):(item.so||''); if(soLbl) lines.push({t:soLbl,bold:true}); }
+      var dt=[]; if(fields.datum && d && !isNaN(d)) dt.push(d.toLocaleDateString('cs-CZ')); if(fields.cas && d && !isNaN(d)) dt.push(pad2(d.getHours())+':'+pad2(d.getMinutes()));
+      if(dt.length) lines.push({t:dt.join('   •   '),bold:true});
+      if(fields.km) lines.push({t:'km '+(item.km||'-'),bold:true});
+      if(fields.jmeno && item.author) lines.push({t:item.author,bold:false});
+      if(!lines.length){ cb(dataUrl,false); return; }
+      _drawStampBox(ctx,img,lines);
+      cb(cv.toDataURL('image/jpeg',0.85), true);
+    }catch(e){ cb(dataUrl,false); }
+  };
+  img.onerror=function(){ cb(dataUrl,false); };
+  img.src=dataUrl;
+}
+function _repPopis(it){ return new Promise(function(res){
+  if(it && it.reportPopis){ res(it.reportPopis); return; }
+  if(it && it.fbKey && typeof db!=='undefined' && db && db.ref){ try{ db.ref('standalone_photos/'+it.fbKey+'/reportPopis').once('value').then(function(s){ res((s&&s.val())||''); },function(){ res(''); }); }catch(e){ res(''); } }
+  else res('');
+}); }
+function _repPreparePhoto(url, item, fields){ return new Promise(function(res){
+  if(!url){ res(null); return; }
+  fetch(url).then(function(r){ return r.blob(); }).then(function(blob){
+    var burl=URL.createObjectURL(blob); var img=new Image();
+    img.onload=function(){
+      var nw=img.naturalWidth||1200, nh=img.naturalHeight||900;
+      var maxPx=1200; var sc=Math.min(maxPx/nw,maxPx/nh,1);
+      var cw=Math.max(1,Math.round(nw*sc)), chh=Math.max(1,Math.round(nh*sc));
+      var cv=document.createElement('canvas'); cv.width=cw; cv.height=chh;
+      try{ cv.getContext('2d').drawImage(img,0,0,cw,chh); }catch(e){}
+      var resized; try{ resized=cv.toDataURL('image/jpeg',0.82); }catch(e){ resized=url; }
+      URL.revokeObjectURL(burl);
+      var anyF=!!(fields&&(fields.so||fields.km||fields.datum||fields.cas||fields.jmeno));
+      if(anyF){ var d=null; try{ d=photoCreationDate(item); }catch(e){} if(!d||isNaN(d)) d=new Date(item.ts||Date.now());
+        _repBurnStamp(resized, item, fields, d, function(out, burned){ res({data:out||resized, w:cw, h:chh, burned:!!burned}); }); }
+      else res({data:resized, w:cw, h:chh, burned:false});
+    };
+    img.onerror=function(){ URL.revokeObjectURL(burl); res({data:url, w:0, h:0, burned:false}); };
+    img.src=burl;
+  }).catch(function(){ res({data:url, w:0, h:0, burned:false}); });
+}); }
 function reportOpenWord(){
   var items=window._reportExportItems||[]; var m=window._reportExportMonth||'';
   if(!items.length){ showToast('Nic k exportu',2200); return; }
-  var f={ so:_repChk('rep-f-so'), km:_repChk('rep-f-km'), datum:_repChk('rep-f-datum'), cas:_repChk('rep-f-cas'), jmeno:_repChk('rep-f-jmeno'), popis:_repChk('rep-f-popis') };
-  showToast('📄 Připravuji Word – zmenšuji '+items.length+' fotek…',3000);
+  var fields={ so:_repChk('rep-f-so'), km:_repChk('rep-f-km'), datum:_repChk('rep-f-datum'), cas:_repChk('rep-f-cas'), jmeno:_repChk('rep-f-jmeno') };
+  var wantPopis=_repChk('rep-f-popis');
+  showToast('📄 Připravuji Word – zpracovávám '+items.length+' fotek…',3500);
   Promise.all(items.map(function(it){
-    var u=(it.urlOriginal||it.url||'');   // ČISTÁ fotka bez vypáleného razítka
+    var u=(it.urlOriginal||it.url||'');   // razítko vypálíme z ČISTÉHO originálu
     var pr=(u&&typeof resolveFileUrl==='function')?resolveFileUrl(u).then(function(x){return x||u;},function(){return u;}):Promise.resolve(u);
-    return pr.then(function(url){ return _repLoadResized(url).then(function(im){ return {it:it, im:im}; }); });
+    return pr.then(function(url){ return Promise.all([ _repPreparePhoto(url, it, fields), (wantPopis?_repPopis(it):Promise.resolve('')) ]).then(function(a){ return {it:it, im:a[0], popis:a[1]}; }); });
   })).then(function(list){
-    function cap(it){ var p=[];
-      if(f.so){ var so=(it.soList&&it.soList.length)?it.soList.join(', '):(it.so||''); if(so) p.push(so); }
-      if(f.km && it.km) p.push('km '+it.km);
-      var d=null; try{ d=(typeof photoCreationDate==='function')?photoCreationDate(it):null; }catch(e){}
-      if((!d||isNaN(d)) && it.ts) d=new Date(it.ts);
-      if(f.datum && d && !isNaN(d)) p.push(d.toLocaleDateString('cs-CZ'));
-      if(f.cas && d && !isNaN(d)) p.push(pad2(d.getHours())+':'+pad2(d.getMinutes()));
-      if(f.jmeno){ var au=(it.author||it.autor||''); if(au) p.push(au); }
-      return p.join('  ·  ');
-    }
     var head='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
       +'<head><meta charset="utf-8"><title>Fotozpráva '+escapeHtml(_repFmtMonth(m))+'</title>'
       +'<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->'
@@ -13041,11 +13070,11 @@ function reportOpenWord(){
       +'img{display:block;} .pop{font-size:11pt;margin:4pt 0 0;} .item{margin:0 0 18pt;page-break-inside:avoid;}</style></head><body>';
     var html=head+'<h1>Měsíční fotozpráva '+escapeHtml(_repFmtMonth(m))+'</h1>';
     list.forEach(function(r,i){
-      var c=cap(r.it); html+='<div class="item">';
-      if(c) html+='<p class="cap">'+(i+1)+') '+escapeHtml(c)+'</p>';
-      var im=r.im;
-      if(im && im.data){ var boxW=12,boxH=15; var ar=(im.nw&&im.nh)?(im.nw/im.nh):1.3333; var wCm=Math.min(boxW, boxH*ar); var hCm=wCm/ar; var wPx=Math.round(wCm/2.54*96), hPx=Math.round(hCm/2.54*96); html+='<img src="'+im.data+'" width="'+wPx+'" height="'+hPx+'" style="width:'+(Math.round(wCm*10)/10)+'cm;height:'+(Math.round(hCm*10)/10)+'cm;"><br>'; }
-      if(f.popis){ var pp=(r.it.reportPopis||''); if(pp) html+='<p class="pop">'+escapeHtml(pp)+'</p>'; }
+      var im=r.im; html+='<div class="item">';
+      var capTxt=(im && im.burned)?'':_repCapFields(r.it, fields);   // když je razítko na fotce, text nedávej
+      html+='<p class="cap">'+escapeHtml((i+1)+')'+(capTxt?(' '+capTxt):''))+'</p>';
+      if(im && im.data){ var boxW=12,boxH=15; var ar=(im.w&&im.h)?(im.w/im.h):1.3333; var wCm=Math.min(boxW, boxH*ar); var hCm=wCm/ar; var wPx=Math.round(wCm/2.54*96), hPx=Math.round(hCm/2.54*96); html+='<img src="'+im.data+'" width="'+wPx+'" height="'+hPx+'" style="width:'+(Math.round(wCm*10)/10)+'cm;height:'+(Math.round(hCm*10)/10)+'cm;"><br>'; }
+      if(wantPopis && r.popis) html+='<p class="pop">'+escapeHtml(r.popis)+'</p>';
       html+='</div>';
     });
     html+='</body></html>';
@@ -18004,7 +18033,7 @@ function copyDiaryExport(){
       <button onclick="closeReportExport()" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;min-width:44px;min-height:44px;">✕</button>
     </div>
     <div style="padding:12px 16px;overflow:auto;">
-      <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">Fotky se vloží <b>bez vypáleného razítka</b> a zmenšené na A4 (poměrově). Vyber, co se vypíše <b>textem</b> pod každou fotku:</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">Vyber, co se <b>vypálí do razítka</b> na fotce. Fotky se zmenší na A4 a vloží přímo do souboru; <b>popis</b> se přidá textem pod fotku.</div>
       <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px;">Co zobrazit u fotky:</div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
         <label style="display:flex;align-items:center;gap:9px;font-size:14px;cursor:pointer;"><input type="checkbox" id="rep-f-so" checked style="width:18px;height:18px;"> SO / objekt</label>
