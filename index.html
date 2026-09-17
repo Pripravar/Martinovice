@@ -6165,11 +6165,22 @@ function editPhotoComment(){
   if(!box || !inp) return;
   inp.value = ''; window._mentionPicks = {};
   box.style.display = 'flex';
-  setTimeout(function(){ try { inp.focus(); } catch(e){} }, 60);
+  if(window.visualViewport && !window.__fsCmtVpBound){ window.__fsCmtVpBound=true; window.visualViewport.addEventListener('resize', _fsCmtVpAdjust); window.visualViewport.addEventListener('scroll', _fsCmtVpAdjust); }
+  setTimeout(function(){ try { inp.focus(); } catch(e){} _fsCmtVpAdjust(); }, 60);
+  setTimeout(_fsCmtVpAdjust, 400);
 }
 function _closePhotoCmtBox(){
-  var box = document.getElementById('photo-fs-cmt-box'); if(box) box.style.display='none';
+  var box = document.getElementById('photo-fs-cmt-box'); if(box){ box.style.display='none'; box.style.bottom='0px'; }
+  var img=document.getElementById('photo-fs-img'); if(img) img.style.maxHeight='';
   window._mentionPicks = {}; _hideMentionPop();
+}
+function _fsCmtVpAdjust(){
+  var box=document.getElementById('photo-fs-cmt-box'); if(!box || box.style.display==='none') return;
+  var vv=window.visualViewport; var img=document.getElementById('photo-fs-img');
+  if(!vv){ box.style.bottom='0px'; if(img) img.style.maxHeight=''; return; }
+  var kb=Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+  box.style.bottom=kb+'px';
+  if(img){ var avail=Math.max(120, Math.round(vv.height - (box.offsetHeight||50) - 14)); img.style.maxHeight=avail+'px'; }
 }
 function submitPhotoComment(){
   var inp = document.getElementById('photo-fs-cmt-input'); if(!inp) return;
@@ -17445,7 +17456,7 @@ function copyDiaryExport(){
     <button id="photo-fs-dateedit" onclick="editPhotoDate()" title="Změnit datum pořízení fotky (čas zůstane)" style="display:none;text-align:left;background:var(--panel2);color:var(--text);border:1px solid var(--border);padding:12px 14px;border-radius:9px;font-size:15px;font-weight:700;cursor:pointer;min-height:48px;">📅 Změnit datum pořízení</button>
     <button id="photo-fs-delete" onclick="deleteStandalonePhoto()" style="display:none;text-align:left;background:rgba(233,69,96,0.15);color:#e94560;border:1px solid #e94560;padding:12px 14px;border-radius:9px;font-size:15px;font-weight:700;cursor:pointer;min-height:48px;">&#128465; Smazat</button>
   </div>
-  <div id="photo-fs-cmt-box" onclick="event.stopPropagation()" ontouchstart="event.stopPropagation()" style="display:none;flex:0 0 auto;width:100%;box-sizing:border-box;background:rgba(12,14,20,0.98);padding:8px 12px;border-top:1px solid rgba(255,255,255,0.16);align-items:center;gap:8px;">
+  <div id="photo-fs-cmt-box" onclick="event.stopPropagation()" ontouchstart="event.stopPropagation()" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:12;width:100%;box-sizing:border-box;background:rgba(12,14,20,0.98);padding:8px 12px;border-top:1px solid rgba(255,255,255,0.16);align-items:center;gap:8px;">
     <input id="photo-fs-cmt-input" type="text" placeholder="Komentář… (@ označí osobu)" autocomplete="off" oninput="_onCommentInput(this)" onblur="setTimeout(_hideMentionPop,180)" onkeydown="if(event.key==='Enter')submitPhotoComment()" style="flex:1;background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 11px;font-size:14px;">
     <button onclick="submitPhotoComment()" style="background:var(--accent);border:none;border-radius:8px;color:#fff;padding:10px 14px;font-weight:700;cursor:pointer;min-height:42px;">Odeslat</button>
   </div>
