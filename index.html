@@ -9263,7 +9263,7 @@ window.addEventListener('load', function(){
     files.forEach(function(file, idx){
       var reader=new FileReader();
       reader.onload=function(ev){
-        window.libImportItems[idx]={ dataUrl:String(ev.target.result), date:_libTodayYmd(), km:'', so:'', lat:null, lng:null, name:file.name };
+        window.libImportItems[idx]={ dataUrl:String(ev.target.result), date:_libTodayYmd(), km:'', so:'', komentar:'', lat:null, lng:null, name:file.name };
         if(--pending===0){ window.libImportItems=window.libImportItems.filter(Boolean); showLibImportModal(); }
       };
       reader.onerror=function(){ if(--pending===0){ window.libImportItems=window.libImportItems.filter(Boolean); showLibImportModal(); } };
@@ -9276,6 +9276,7 @@ function showLibImportModal(){
   document.getElementById('lib-bulk-date').value=_libTodayYmd();
   document.getElementById('lib-bulk-km').value='';
   var lbso=document.getElementById('lib-bulk-so'); if(lbso) lbso.value='';
+  var lbk=document.getElementById('lib-bulk-komentar'); if(lbk) lbk.value='';
   _fillSoCatalogList();
   document.getElementById('lib-import-status').textContent='';
   var btn=document.getElementById('lib-import-submit'); btn.disabled=false; btn.style.opacity='1';
@@ -9288,11 +9289,13 @@ function libApplyBulk(){
   var d=document.getElementById('lib-bulk-date').value;
   var kmRaw=(document.getElementById('lib-bulk-km').value||'').trim();
   var soRaw=(document.getElementById('lib-bulk-so')?document.getElementById('lib-bulk-so').value:'').trim();
+  var kmtRaw=(document.getElementById('lib-bulk-komentar')?document.getElementById('lib-bulk-komentar').value:'').trim();
   var rk=kmRaw?parseKmStr(kmRaw):null;
   window.libImportItems.forEach(function(it){
     if(d) it.date=d;
     if(kmRaw){ if(rk!=null){ it.km=fmtKm(rk); var ll=realKmToLatLng(rk); if(ll){ it.lat=ll[0]; it.lng=ll[1]; } } else { it.km=kmRaw; it.lat=null; it.lng=null; } }
     if(soRaw) it.so=soRaw;
+    if(kmtRaw) it.komentar=kmtRaw;
   });
   renderLibImportList();
   showToast('Vyplněno u všech', 1500);
@@ -9321,7 +9324,10 @@ function renderLibImportList(){
     var soInp=document.createElement('input'); soInp.type='text'; soInp.placeholder='SO'; soInp.value=it.so||''; soInp.setAttribute('list','so-catalog-list'); soInp.autocomplete='off';
     soInp.style.cssText='flex:1;min-width:80px;padding:7px;font-size:13px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text);';
     soInp.onchange=(function(idx){ return function(e){ window.libImportItems[idx].so=(e.target.value||'').trim(); }; })(i);
-    fields.appendChild(dInp); fields.appendChild(kInp); fields.appendChild(soInp); row.appendChild(fields);
+    var cInp=document.createElement('input'); cInp.type='text'; cInp.placeholder='💬 komentář (nepovinné)'; cInp.value=it.komentar||'';
+    cInp.style.cssText='flex:1 1 100%;min-width:140px;padding:7px;font-size:13px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text);';
+    cInp.onchange=(function(idx){ return function(e){ window.libImportItems[idx].komentar=(e.target.value||'').trim(); }; })(i);
+    fields.appendChild(dInp); fields.appendChild(kInp); fields.appendChild(soInp); fields.appendChild(cInp); row.appendChild(fields);
     var rm=document.createElement('button'); rm.textContent='✕'; rm.title='Odebrat z výběru';
     rm.style.cssText='background:none;border:none;color:#e57373;font-size:16px;cursor:pointer;min-width:34px;min-height:34px;';
     rm.onclick=(function(idx){ return function(){ window.libImportItems.splice(idx,1); if(!window.libImportItems.length){ closeLibraryImport(); return; } renderLibImportList(); var b=document.getElementById('lib-import-submit'); b.textContent='Nahrát '+window.libImportItems.length+' do galerie'; }; })(i);
@@ -9347,7 +9353,7 @@ function submitLibImport(){
       if((lat==null||lng==null) && realKm!=null){ var ll=realKmToLatLng(realKm); if(ll){ lat=ll[0]; lng=ll[1]; } }
       var soVal=(it.so||'').trim();
       if(!soVal && lat!=null && lng!=null){ try { soVal=_autoSOForPoint(lat,lng); } catch(e){} }
-      var meta={ km:(it.km||''), author:author, lat:lat, lng:lng, so:soVal, soList:(soVal?[soVal]:[]), ts:ts, zdrojFoto:'import' };
+      var meta={ km:(it.km||''), author:author, lat:lat, lng:lng, so:soVal, soList:(soVal?[soVal]:[]), ts:ts, zdrojFoto:'import', komentar:(it.komentar||'') };
       enqueuePhoto(compressed, meta, true);   // true = v galerii razítkovaná verze (jako focení)
       started++;
       if(started===n){
@@ -9643,6 +9649,11 @@ function _processPhotoQueue(){
           if(urlOrig)  entry.urlOriginal = urlOrig;
           if(urlStamp) entry.urlStamped  = urlStamp;
           entry.uid = entry.ownerUid;   // kvůli komentářům/upozorněním (autor fotky)
+          // Komentář zadaný při importu → ulož rovnou jako komentář fotky (zobrazí se v galerii i fullscreenu, jde editovat).
+          if(meta.komentar && String(meta.komentar).trim()){
+            var _kc = 'c_'+t+'_'+Math.random().toString(36).substr(2,4);
+            entry.komentare = {}; entry.komentare[_kc] = { text:String(meta.komentar).trim(), author:(meta.author||''), uid:(entry.ownerUid||''), ts:t };
+          }
           if(meta.sdilenoSub)      entry.sdilenoSub = true;        // sdíleno subce (volba při focení)
           if(meta.sdilenoInvestor) entry.sdilenoInvestor = true;  // sdíleno investorovi
           if(typeof isSubOnly==='function' && isSubOnly()){ entry.zdroj='SUB'; entry.sub=true; }   // fotka subky
@@ -17759,6 +17770,7 @@ function copyDiaryExport(){
         <input id="lib-bulk-date" type="date" style="padding:9px;font-size:14px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);">
         <input id="lib-bulk-km" type="text" placeholder="km (např. 2+350)" style="flex:1;min-width:90px;padding:9px;font-size:14px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);">
         <input id="lib-bulk-so" type="text" list="so-catalog-list" placeholder="SO (jinak dle km)" autocomplete="off" style="flex:1;min-width:90px;padding:9px;font-size:14px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);">
+        <input id="lib-bulk-komentar" type="text" placeholder="💬 komentář (nepovinné)" style="flex:1 1 100%;min-width:140px;padding:9px;font-size:14px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);">
         <button onclick="libApplyBulk()" style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 12px;font-size:13px;font-weight:700;cursor:pointer;">Použít u všech</button>
       </div>
     </div>
