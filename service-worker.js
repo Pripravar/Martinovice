@@ -4,7 +4,7 @@
 // DŮLEŽITÉ: HTML/navigace jde NETWORK-FIRST. Připnutá PWA na iOS si jinak
 // drží starý index.html z cache a po pushi neukazuje aktualizaci. Online
 // se vždy stáhne čerstvý HTML, offline padá zpět na poslední cache.
-var CACHE_NAME = 'martinovice-v0.54-2026-11-04-pdpsRdsPrepinac';
+var CACHE_NAME = 'martinovice-v0.56-2026-11-04-teprStazeniPodpisy';
 var ASSETS = [
   './',
   './index.html',
