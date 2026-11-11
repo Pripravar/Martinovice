@@ -9488,7 +9488,7 @@ function takeStandalonePhoto() {
 
 // ── #65 Import fotek z galerie telefonu (dávkově, rovnou s SO/km/datem) ──
 // Fotky projdou STEJNOU pipeline jako focení (enqueuePhoto → kompres/razítko/2 verze/thumb/fronta),
-// jen ts = historické datum (klíč i zobrazené datum sedí) a SO/km se zadá ručně (bez GPS).
+// jen ts = historické datum (klíč i zobrazené datum sedí); SO/km z GPS fotky (EXIF, přepínač) nebo ručně.
 window.libImportItems = [];
 function _libTodayYmd(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function _libDateObj(ymd){
@@ -9517,7 +9517,8 @@ window.addEventListener('load', function(){
     files.forEach(function(file, idx){
       var reader=new FileReader();
       reader.onload=function(ev){
-        window.libImportItems[idx]={ dataUrl:String(ev.target.result), date:_libTodayYmd(), km:'', so:'', komentar:'', lat:null, lng:null, name:file.name };
+        var _du=String(ev.target.result), _ex=_libReadExif(_du);
+        window.libImportItems[idx]={ dataUrl:_du, date:_libTodayYmd(), km:'', so:'', komentar:'', lat:null, lng:null, name:file.name, exifGps:_ex.gps, exifDate:_ex.date };
         if(--pending===0){ window.libImportItems=window.libImportItems.filter(Boolean); showLibImportModal(); }
       };
       reader.onerror=function(){ if(--pending===0){ window.libImportItems=window.libImportItems.filter(Boolean); showLibImportModal(); } };
@@ -9525,6 +9526,69 @@ window.addEventListener('load', function(){
     });
   });
 });
+// ── Poloha a datum z EXIF fotky (GPS → km + SO), přepínač „📍 z fotky" (2026-11-11) ──
+// Funguje jen u JPEG, kde telefon GPS do fotky zapsal (iPhone: Foťák → Poloha; v nabídce výběru
+// fotek „Možnosti → Poloha" zapnuto). Android/Chrome polohu někdy z výběru odstraní → zadat ručně.
+function _libReadExif(dataUrl){
+  var out={gps:null, date:''};
+  try{
+    if(typeof piexif==='undefined' || !/^data:image\/jpe?g/i.test(dataUrl)) return out;
+    var ex=piexif.load(dataUrl), g=ex && ex.GPS;
+    function dms(v){ if(!v || v.length<3) return null; var f=function(r){ return (r && r[1]) ? r[0]/r[1] : 0; }; return f(v[0])+f(v[1])/60+f(v[2])/3600; }
+    if(g){
+      var la=dms(g[piexif.GPSIFD.GPSLatitude]), lo=dms(g[piexif.GPSIFD.GPSLongitude]);
+      if(la!=null && lo!=null && (la||lo)){
+        if(String(g[piexif.GPSIFD.GPSLatitudeRef]||'N').toUpperCase()==='S') la=-la;
+        if(String(g[piexif.GPSIFD.GPSLongitudeRef]||'E').toUpperCase()==='W') lo=-lo;
+        out.gps={lat:la, lng:lo};
+      }
+    }
+    var dt=(ex.Exif && ex.Exif[piexif.ExifIFD.DateTimeOriginal]) || (ex['0th'] && ex['0th'][piexif.ImageIFD.DateTime]) || '';
+    var m=String(dt).match(/^(\d{4}):(\d{2}):(\d{2})/); if(m) out.date=m[1]+'-'+m[2]+'-'+m[3];
+  }catch(e){}
+  return out;
+}
+function _libExifOn(){ try{ return localStorage.getItem('libUseExif')!=='0'; }catch(e){ return true; } }
+function libToggleExif(on){
+  try{ localStorage.setItem('libUseExif', on?'1':'0'); }catch(e){}
+  _libApplyExif(on); renderLibImportList();
+}
+// Zapnuto: z GPS spočítá km (jako živé focení – hlavní osa, u bočních SO km jejich osy) + SO, datum pořízení.
+// Vypnuto: vrátí jen to, co se z fotky vyplnilo (ruční úpravy nechá).
+function _libApplyExif(on){
+  var items=window.libImportItems||[], nGps=0, nOut=0;
+  items.forEach(function(it){
+    if(on){
+      if(it.exifDate && !it._dateManual){ it.date=it.exifDate; it._fromExifDate=true; }
+      if(it.exifGps && !it._kmManual){
+        var la=it.exifGps.lat, lo=it.exifGps.lng; nGps++;
+        it.lat=la; it.lng=lo; it._fromGps=true; it.kmAxis='';
+        var nr=null; try{ nr=nearestOnRoute(la,lo); }catch(e){}
+        // Boční SO (přeložka, polní cesta, objekt) jen když je fotka BLÍŽ k němu než k hlavní trase;
+        // jinak hlavní trasa (km hlavní osy, SO necháme prázdné = nepřiřazovat boční objekt).
+        var kand=[]; try{ kand=soKandidatiGPS(la,lo)||[]; }catch(e){}
+        var mainD=nr?nr.dist:Infinity, so='';
+        if(kand[0] && kand[0].dist < mainD) so=kand[0].id;
+        it._soMainRoute = !so && mainD<=400;
+        var km='';
+        if(nr && nr.dist<=400){ try{ km=fmtKm(gpxCumToRealKm(nr.cum)); }catch(e){} }
+        if(so){ var br=null; try{ br=branchKmForSO(so, la, lo); }catch(e){} if(br){ km=fmtKm(br.km); it.kmAxis=br.id||''; } }
+        if(!km && !so) nOut++;
+        it.km=km; if(!it._soManual) it.so=so;
+        it._gpsInfo = (km||so) ? '' : 'mimo stavbu';
+      }
+    } else {
+      if(it._fromExifDate && !it._dateManual){ it.date=_libTodayYmd(); it._fromExifDate=false; }
+      if(it._fromGps && !it._kmManual){ it.km=''; it.lat=null; it.lng=null; it.kmAxis=''; if(!it._soManual) it.so=''; it._fromGps=false; it._gpsInfo=''; it._soMainRoute=false; }
+    }
+  });
+  var st=document.getElementById('lib-exif-info');
+  if(st){
+    var withGps=items.filter(function(it){ return it.exifGps; }).length;
+    st.textContent = !on ? 'Vypnuto – km/SO zadej ručně.' :
+      (withGps ? ('📍 GPS má '+withGps+' z '+items.length+' fotek'+(nOut?(' ('+nOut+' mimo stavbu – doplň ručně)'):'')+'. Ostatní doplň ručně.') : '⚠️ Žádná fotka nemá GPS – zadej km ručně (telefon polohu nezapsal nebo ji při výběru odstranil).');
+  }
+}
 function showLibImportModal(){
   if(!window.libImportItems.length){ showToast('Nevybral jsi žádnou fotku', 2500); return; }
   document.getElementById('lib-bulk-date').value=_libTodayYmd();
@@ -9532,6 +9596,8 @@ function showLibImportModal(){
   var lbso=document.getElementById('lib-bulk-so'); if(lbso) lbso.value='';
   var lbk=document.getElementById('lib-bulk-komentar'); if(lbk) lbk.value='';
   _fillSoCatalogList();
+  var _xt=document.getElementById('lib-exif-toggle'); if(_xt) _xt.checked=_libExifOn();
+  _libApplyExif(_libExifOn());
   document.getElementById('lib-import-status').textContent='';
   var btn=document.getElementById('lib-import-submit'); btn.disabled=false; btn.style.opacity='1';
   btn.textContent='Nahrát '+window.libImportItems.length+' do galerie';
@@ -9566,22 +9632,30 @@ function renderLibImportList(){
     var fields=document.createElement('div'); fields.style.cssText='flex:1;display:flex;gap:6px;flex-wrap:wrap;';
     var dInp=document.createElement('input'); dInp.type='date'; dInp.value=it.date||'';
     dInp.style.cssText='flex:1;min-width:120px;padding:7px;font-size:13px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text);';
-    dInp.onchange=(function(idx){ return function(e){ window.libImportItems[idx].date=e.target.value; }; })(i);
+    dInp.onchange=(function(idx){ return function(e){ window.libImportItems[idx].date=e.target.value; window.libImportItems[idx]._dateManual=true; }; })(i);
     var kInp=document.createElement('input'); kInp.type='text'; kInp.placeholder='km'; kInp.value=it.km||'';
     kInp.style.cssText='flex:1;min-width:80px;padding:7px;font-size:13px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text);';
     kInp.onchange=(function(idx){ return function(e){
       var raw=(e.target.value||'').trim(); var rk=raw?parseKmStr(raw):null;
+      window.libImportItems[idx]._kmManual=true; window.libImportItems[idx]._fromGps=false; window.libImportItems[idx].kmAxis=''; window.libImportItems[idx]._gpsInfo='';
       if(rk!=null){ window.libImportItems[idx].km=fmtKm(rk); var ll=realKmToLatLng(rk); if(ll){ window.libImportItems[idx].lat=ll[0]; window.libImportItems[idx].lng=ll[1]; } }
       else { window.libImportItems[idx].km=raw; window.libImportItems[idx].lat=null; window.libImportItems[idx].lng=null; }
       e.target.value=window.libImportItems[idx].km;
     }; })(i);
     var soInp=document.createElement('input'); soInp.type='text'; soInp.placeholder='SO'; soInp.value=it.so||''; soInp.setAttribute('list','so-catalog-list'); soInp.autocomplete='off';
     soInp.style.cssText='flex:1;min-width:80px;padding:7px;font-size:13px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text);';
-    soInp.onchange=(function(idx){ return function(e){ window.libImportItems[idx].so=(e.target.value||'').trim(); }; })(i);
+    soInp.onchange=(function(idx){ return function(e){ window.libImportItems[idx].so=(e.target.value||'').trim(); window.libImportItems[idx]._soManual=true; }; })(i);
     var cInp=document.createElement('input'); cInp.type='text'; cInp.placeholder='💬 komentář (nepovinné)'; cInp.value=it.komentar||'';
     cInp.style.cssText='flex:1 1 100%;min-width:140px;padding:7px;font-size:13px;border-radius:6px;border:1px solid var(--border);background:var(--panel);color:var(--text);';
     cInp.onchange=(function(idx){ return function(e){ window.libImportItems[idx].komentar=(e.target.value||'').trim(); }; })(i);
-    fields.appendChild(dInp); fields.appendChild(kInp); fields.appendChild(soInp); fields.appendChild(cInp); row.appendChild(fields);
+    fields.appendChild(dInp); fields.appendChild(kInp); fields.appendChild(soInp); fields.appendChild(cInp);
+    if(it._fromGps || (it.exifGps===null && _libExifOn())){
+      var gTag=document.createElement('div');
+      gTag.style.cssText='flex:1 1 100%;font-size:11px;font-weight:700;color:'+(it._fromGps?(it._gpsInfo?'#f5a623':'#22c55e'):'var(--text2)')+';';
+      gTag.textContent = it._fromGps ? ('📍 z GPS fotky'+(it._gpsInfo?(' – '+it._gpsInfo+', doplň km ručně'):'')) : '📍 fotka nemá GPS – doplň km ručně';
+      fields.appendChild(gTag);
+    }
+    row.appendChild(fields);
     var rm=document.createElement('button'); rm.textContent='✕'; rm.title='Odebrat z výběru';
     rm.style.cssText='background:none;border:none;color:#e57373;font-size:16px;cursor:pointer;min-width:34px;min-height:34px;';
     rm.onclick=(function(idx){ return function(){ window.libImportItems.splice(idx,1); if(!window.libImportItems.length){ closeLibraryImport(); return; } renderLibImportList(); var b=document.getElementById('lib-import-submit'); b.textContent='Nahrát '+window.libImportItems.length+' do galerie'; }; })(i);
@@ -9606,8 +9680,10 @@ function submitLibImport(){
       var lat=it.lat, lng=it.lng;
       if((lat==null||lng==null) && realKm!=null){ var ll=realKmToLatLng(realKm); if(ll){ lat=ll[0]; lng=ll[1]; } }
       var soVal=(it.so||'').trim();
-      if(!soVal && lat!=null && lng!=null){ try { soVal=_autoSOForPoint(lat,lng); } catch(e){} }
+      if(!soVal && lat!=null && lng!=null && !(it._fromGps && it._soMainRoute)){ try { soVal=_autoSOForPoint(lat,lng); } catch(e){} }
       var meta={ km:(it.km||''), author:author, lat:lat, lng:lng, so:soVal, soList:(soVal?[soVal]:[]), ts:ts, zdrojFoto:'import', komentar:(it.komentar||'') };
+      if(it.kmAxis) meta.kmAxis=it.kmAxis;   // km boční osy (SO_OSY), stejně jako u živého focení
+      if(it._fromGps) meta.polohaZdroj='exif';
       enqueuePhoto(compressed, meta, true);   // true = v galerii razítkovaná verze (jako focení)
       started++;
       if(started===n){
@@ -12090,6 +12166,13 @@ function openUserAdmin(){
   var m=document.getElementById('user-admin-modal'); if(m) m.style.display='flex';
 }
 function closeUserAdmin(){ var m=document.getElementById('user-admin-modal'); if(m) m.style.display='none'; }
+// Počet zařízení s push upozorněním (FCM token) – přehled „kdo má zapnutá upozornění"
+function _userNotifDevices(u){
+  if(!u) return 0; var t={};
+  if(u.fcmToken) t[u.fcmToken]=1;
+  if(u.fcmTokens) Object.keys(u.fcmTokens).forEach(function(k){ if(u.fcmTokens[k]) t[u.fcmTokens[k]]=1; });
+  return Object.keys(t).length;
+}
 function _renderUserAdmin(){
   var box=document.getElementById('user-admin-list'); if(!box) return;
   var d=window.allUsers||{}; var me=(window.currentUser&&window.currentUser.uid);
@@ -12100,7 +12183,10 @@ function _renderUserAdmin(){
   });
   if(!keys.length){ box.innerHTML='<div style="padding:18px;color:var(--text2);text-align:center;">Zatím žádní přihlášení uživatelé.</div>'; return; }
   var bs='border:none;border-radius:7px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;';
-  box.innerHTML=keys.map(function(uid){
+  var _nOn=keys.filter(function(k){ return _userNotifDevices(d[k])>0; }).length;
+  var _meOn=_userNotifDevices(d[me]);
+  var _sum='<div style="font-size:12px;color:var(--text2);padding:2px 2px 10px;">🔔 Upozornění zapnutá: <b style="color:var(--text);">'+_nOn+' z '+keys.length+'</b> uživatelů · ty: '+(_meOn?('<b style="color:#22c55e;">zapnuto ('+_meOn+' zař.)</b>'):'<b style="color:#ef4444;">vypnuto</b>')+'</div>';
+  box.innerHTML=_sum+keys.map(function(uid){
     var u=d[uid]||{}; var admin=isAdmin(uid), blocked=isBlocked(uid), self=(uid===me);
     var pending=(!admin && u.approved!==true);
     var badges=(admin?'<span style="background:#f59e0b;color:#111;font-size:10px;font-weight:800;padding:1px 5px;border-radius:5px;margin-left:6px;">ADMIN</span>':'')+
@@ -12129,6 +12215,7 @@ function _renderUserAdmin(){
         '<img src="'+(u.photo||_uaDefAvatar)+'" style="width:30px;height:30px;border-radius:50%;object-fit:cover;background:#556;flex-shrink:0;">'+
         '<div style="flex:1;min-width:0;"><div style="font-weight:700;color:var(--text);">'+escapeHtml(u.name||'—')+badges+'</div>'+
           '<div style="font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escapeHtml(u.email||u.phone||'')+' · '+_relTime(u.lastSeen)+'</div></div>'+
+        (function(){ var n=_userNotifDevices(u); return '<span title="'+(n?('Upozornění zapnutá na '+n+' zařízení'):'Upozornění nemá zapnutá')+'" style="flex-shrink:0;font-size:11px;font-weight:700;padding:2px 6px;border-radius:6px;'+(n?'background:rgba(34,197,94,.15);color:#22c55e;':'background:var(--panel);color:var(--text2);border:1px solid var(--border);')+'">'+(n?('🔔 '+n):'🔕')+'</span>'; })()+
       '</div>'+
       '<div style="display:flex;align-items:center;gap:6px;margin-top:8px;">'+
         '<span style="font-size:13px;flex-shrink:0;">🏢</span>'+
@@ -14222,6 +14309,10 @@ function _handleNotifDeepLink(){
       (function go(){ if(window._chatChannels && window._chatChannels[k]){ if(typeof openChatThread==='function') openChatThread(k); clearHash(); } else if(tr++<25){ setTimeout(go,400); } else clearHash(); })();
     } else if(/[#&]chat(\b|$)/.test(h)){
       if(typeof openChatPanel==='function') openChatPanel(); clearHash();
+    } else if(/[#&]schvaleni(\b|$)/.test(h)){
+      // Push „nový uživatel čeká na schválení" → otevři Správu uživatelů (až jsou načtení uživatelé a víme, že jsem admin)
+      var ts=0;
+      (function go(){ if(window._usersLoaded && window.currentUser && typeof isAdmin==='function' && isAdmin()){ openUserAdmin(); clearHash(); } else if(ts++<30){ setTimeout(go,400); } else clearHash(); })();
     } else if((m=h.match(/[#&]foto=([^&]+)/))){
       var key=decodeURIComponent(m[1]);
       db.ref('standalone_photos/'+key).once('value',function(s){ var it=s.val(); if(it && typeof openPhotoFs==='function'){ it.fbKey=key; openPhotoFs(it.url, key, it); } clearHash(); });
@@ -18212,6 +18303,11 @@ function copyDiaryExport(){
       <button onclick="closeLibraryImport()" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;min-width:44px;min-height:44px;">✕</button>
     </div>
     <div style="padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:4px;">
+        <input type="checkbox" id="lib-exif-toggle" checked onchange="libToggleExif(this.checked)" style="width:20px;height:20px;flex-shrink:0;">
+        <span style="font-size:14px;font-weight:700;color:var(--text);">📍 Staničení a SO z GPS fotky <span style="font-weight:400;color:var(--text2);font-size:12px;">(+ datum pořízení)</span></span>
+      </label>
+      <div id="lib-exif-info" style="font-size:12px;color:var(--text2);margin:0 0 10px 28px;"></div>
       <div style="font-size:11px;color:var(--text2);text-transform:uppercase;margin-bottom:5px;">Vyplnit všem najednou (jde pak upravit u každé)</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
         <input id="lib-bulk-date" type="date" style="padding:9px;font-size:14px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--text);">

@@ -4,7 +4,7 @@
 // DŮLEŽITÉ: HTML/navigace jde NETWORK-FIRST. Připnutá PWA na iOS si jinak
 // drží starý index.html z cache a po pushi neukazuje aktualizaci. Online
 // se vždy stáhne čerstvý HTML, offline padá zpět na poslední cache.
-var CACHE_NAME = 'martinovice-v0.56-2026-11-04-teprStazeniPodpisy';
+var CACHE_NAME = 'martinovice-v0.57-2026-11-11-schvaleniPush-gpsImport';
 var ASSETS = [
   './',
   './index.html',
@@ -110,7 +110,7 @@ self.addEventListener('push', function(event) {
     icon:    n.icon || './manifest.json',
     badge:   n.badge,
     data:    data.data || {},
-    tag:     (data.data && data.data.taskId) || 'stavba-notify',
+    tag:     (data.data && (data.data.taskId || (data.data.typ === 'schvaleni' ? ('schvaleni-' + (data.data.uid || '')) : ''))) || 'stavba-notify',
     renotify: true
   };
   event.waitUntil(self.registration.showNotification(title, options).then(function(){
@@ -125,6 +125,7 @@ self.addEventListener('notificationclick', function(event) {
   else if(d.kanalId) hash = '#chat=' + encodeURIComponent(d.kanalId);
   else if(d.typ === 'chat') hash = '#chat';
   else if(d.fotoKey) hash = '#foto=' + encodeURIComponent(d.fotoKey);
+  else if(d.typ === 'schvaleni') hash = '#schvaleni';   // nový uživatel čeká → Správa uživatelů
   var url = './' + hash;
   event.waitUntil(
     self.clients.matchAll({type:'window', includeUncontrolled:true}).then(function(list){
