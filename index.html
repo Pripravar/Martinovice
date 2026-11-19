@@ -3903,6 +3903,17 @@ function addVykresStart(){
   if(!window._docPanelSO){ showToast('Nejdřív otevři výkresy nějakého objektu', 2500); return; }
   var u = (typeof fbAuth!=='undefined' && fbAuth) ? fbAuth.currentUser : null;
   if(!u){ showToast('❌ Pro nahrání výkresu musíš být přihlášen', 3000); return; }
+  window._vykUpSO = null; window._vykUpProp = null;   // cíl = otevřený panel výkresů SO
+  _openVykUpSheet();
+}
+// ➕ u propustku / mostu (bodový objekt) – nahrané výkresy v vykresy_uzivatelske/prop_<id>
+function _propVykKey(prop){ return 'prop_' + _sanitizeFnamePart(prop && prop.id); }
+function addPropVykres(){
+  if(!_permGuard('vykresy','Nahrávání výkresů')) return;
+  var prop = window._currentProp; if(!prop){ showToast('Nejdřív otevři propustek', 2200); return; }
+  var u = (typeof fbAuth!=='undefined' && fbAuth) ? fbAuth.currentUser : null;
+  if(!u){ showToast('❌ Pro nahrání výkresu musíš být přihlášen', 3000); return; }
+  window._vykUpSO = _propVykKey(prop); window._vykUpProp = prop;
   _openVykUpSheet();
 }
 // List „➕ Přidat výkres(y)" – víc PDF naráz (celý SO), drag&drop, volba RDS/PDPS
@@ -3926,7 +3937,7 @@ function _openVykUpSheet(){
     '</div>';
     document.body.appendChild(sh);
   }
-  var lbl = document.getElementById('vyk-up-so'); if(lbl) lbl.textContent = window._docPanelSO ? ('· SO '+window._docPanelSO) : '';
+  var lbl = document.getElementById('vyk-up-so'); if(lbl) lbl.textContent = window._vykUpProp ? ('· '+(window._vykUpProp.nazev||window._vykUpProp.id)) : (window._docPanelSO ? ('· SO '+window._docPanelSO) : '');
   document.getElementById('vyk-up-nazev').value = '';
   document.getElementById('vyk-up-file').value = '';
   document.getElementById('vyk-up-count').textContent = '';
@@ -3936,7 +3947,8 @@ function _openVykUpSheet(){
 }
 function _closeVykUpSheet(){ var sh=document.getElementById('vyk-up-sheet'); if(sh) sh.style.display='none'; }
 function _vykUpGo(){
-  var soId = window._docPanelSO; if(!soId){ showToast('Chybí objekt pro výkres', 2500); return; }
+  var soId = window._vykUpSO || window._docPanelSO; if(!soId){ showToast('Chybí objekt pro výkres', 2500); return; }
+  var upProp = window._vykUpProp || null;
   var fi = document.getElementById('vyk-up-file'), st = document.getElementById('vyk-up-status');
   var col = _collectPdfFiles(fi.files);
   if(!col.ok.length){ st.textContent = col.err.length ? ('⚠️ '+col.err.map(function(e){return e.name+' ('+e.why+')';}).join(', ')) : '⚠️ Vyber PDF soubor(y)'; return; }
@@ -3953,7 +3965,8 @@ function _vykUpGo(){
       showToast(fail ? ('Nahráno '+done+'/'+total) : (done>1 ? ('✅ Nahráno '+done+' výkresů') : '✅ Výkres přidán'), 2200);
       if(done) logActivity('📐', 'nahrál/a '+(done>1?(done+' výkresů'):'výkres')+' k SO '+soNum);
       fi.value = ''; var c = document.getElementById('vyk-up-count'); if(c) c.textContent = '';
-      try { reopenDocPanel(); } catch(e){}
+      if(upProp){ if(done && window._currentProp && window._currentProp.id===upProp.id){ window._propViewAfterOpen = dokTyp; try{ openPropPanel(window._currentProp); }catch(e){} } }
+      else { try { reopenDocPanel(); } catch(e){} }
       if(!fail) setTimeout(_closeVykUpSheet, 900);
       return;
     }
@@ -8758,6 +8771,9 @@ function openPropPanel(prop) {
   // PDPS/RDS + ⛔ neplatné (statické výkresy propustků → /vykres_revize, s důvodem)
   propPages = propPages.map(function(p){ var q=Object.assign({},p); if(!q.dokTyp) q.dokTyp='PDPS';
     var si=q.soubor && invalidStaticSoubory[q.soubor]; if(si){ q._invalid=true; q._duvod=si.duvod||''; q._by=si.jmeno||''; q._ts=si.ts||0; } return q; });
+  // + výkresy nahrané k propustku přes ➕ (RDS / PDPS), neplatné na konec
+  var _up = uploadedVykresyFor(_propVykKey(prop));
+  if(_up.length){ var _ok=[], _bad=[]; propPages.concat(_up).forEach(function(p){ (p._invalid?_bad:_ok).push(p); }); propPages=_ok.concat(_bad); }
   currentPropSrc = propPages[0].soubor;
   propPageIdx = 0;
 
@@ -8771,6 +8787,7 @@ function openPropPanel(prop) {
 
   // Přepínač PDPS / RDS / ⛔ Neplatné + filtrované záložky
   window._propView = _docGroupOf(propPages[0]) || 'PDPS';
+  if(window._propViewAfterOpen){ window._propView = window._propViewAfterOpen; window._propViewAfterOpen = null; var _vl=_propIdxInView(); if(_vl.length) propPageIdx=_vl[_vl.length-1]; }
   renderPropSwitch();
   renderPropTabs();
   renderPropPage(propPageIdx);
@@ -8832,6 +8849,18 @@ function setPropView(v){
 function togglePropInvalidate(){
   if(!window.currentUser){ showToast('Pro zneplatnění se přihlas (úkolníček → přihlášení)', 3500); return; }
   var p = propPages && propPages[propPageIdx]; if(!p || !p.soubor) return;
+  if(p._vkey && p._vso){   // nahraný výkres → příznak neplatny (jako v panelu výkresů SO)
+    var rec = (window.uploadedVykresy[p._vso] && window.uploadedVykresy[p._vso][p._vkey]) || null;
+    if(rec && typeof canDeleteRecord==='function' && !canDeleteRecord(rec)){ showToast('🔒 Zneplatnit může jen ten, kdo výkres nahrál', 3000); return; }
+    var toInv = !p._invalid, duvodU = '';
+    if(toInv){ duvodU = prompt('Zneplatnit výkres „'+(p.nazev||'')+'".\nUveď DŮVOD (zobrazí se u výkresu, výkres zůstane dohledatelný):', ''); if(duvodU===null) return; }
+    else if(!confirm('Obnovit výkres „'+(p.nazev||'')+'" jako platný?')) return;
+    db.ref('vykresy_uzivatelske/'+p._vso+'/'+p._vkey).update(toInv
+      ? { neplatny:true, neplatnyDuvod:(duvodU||'').trim(), zneplatnilUid:window.currentUser.uid, zneplatnilJmeno:(window.currentUser.name||''), zneplatnenoTs:Date.now() }
+      : { neplatny:false, neplatnyDuvod:null })
+      .then(function(){ showToast(toInv ? '🗄️ Výkres zneplatněn' : '♻️ Výkres obnoven', 1800); if(window._currentProp){ window._propViewAfterOpen = toInv ? 'NEPLATNE' : (p.dokTyp||'RDS'); openPropPanel(window._currentProp); } });
+    return;
+  }
   var sref = invalidStaticSoubory[p.soubor];
   if(sref){
     if(!confirm('Obnovit výkres „'+(p.nazev||'')+'" jako platný?')) return;
@@ -11916,7 +11945,7 @@ var FN_PERM = {
   // ── Výkresy / PDF ──
   onStaniceniClick:'pdf', openSOVykresy:'pdf', openPropPanel:'pdf', openPdfExternal:'pdf', docNav:'pdf', pdfZoom:'pdf',
   togglePdfFs:'pdf', openPropPdfExternal:'pdf', togglePropFs:'pdf',
-  addVykresStart:'vykresy', addVykresFilePicked:'vykresy', delCurrentVykres:'vykresy', _vykUpGo:'vykresy',
+  addVykresStart:'vykresy', addVykresFilePicked:'vykresy', delCurrentVykres:'vykresy', _vykUpGo:'vykresy', addPropVykres:'vykresy',
   toggleInvalidateCurrentDoc:'vykresy', togglePropInvalidate:'vykresy',
   // ── Měření ──
   toggleMeasure:'mereni', measureAddPoint:'mereni', measureUndo:'mereni', measureClear:'mereni',
@@ -18566,6 +18595,7 @@ function copyDiaryExport(){
     <button id="btn-prop-zoom-out" onclick="pdfZoom(-1)" title="Zmenšit" style="display:none;background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer;padding:4px 6px;font-weight:700;">−</button>
     <button id="btn-prop-zoom-in"  onclick="pdfZoom(+1)" title="Zvětšit" style="display:none;background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer;padding:4px 6px;font-weight:700;">+</button>
     <button onclick="openPropPdfExternal()" title="Otevřít v Safari s plnou lupou" style="background:none;border:none;color:var(--text2);font-size:16px;cursor:pointer;padding:4px 6px;">↗</button>
+    <button id="btn-prop-add" onclick="addPropVykres()" title="Přidat výkres(y) k propustku – i více PDF naráz (RDS/PDPS)" style="background:var(--accent);border:none;border-radius:6px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;padding:4px 10px;flex-shrink:0;min-width:40px;min-height:40px;">➕</button>
     <button id="btn-prop-invalidate" onclick="togglePropInvalidate()" title="Zneplatnit tento výkres" style="background:none;border:none;color:var(--text2);font-size:17px;cursor:pointer;padding:4px 6px;flex-shrink:0;min-width:44px;min-height:44px;">🗄️</button>
     <button id="btn-prop-fs" onclick="togglePropFs()">⛶</button>
     <button id="btn-prop-close" onclick="closePropPanel()">✕</button>
