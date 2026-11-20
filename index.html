@@ -1736,6 +1736,7 @@ document.addEventListener('touchend', function(e){
     <button id="btn-pdf-zoom-in"  onclick="pdfZoom(+1)" title="Zvětšit" style="display:none;background:none;border:none;color:var(--text2);font-size:18px;cursor:pointer;padding:4px 6px;font-weight:700;">+</button>
     <button onclick="openPdfExternal()" title="Otevřít v Safari s plnou lupou" style="background:none;border:none;color:var(--text2);font-size:16px;cursor:pointer;padding:4px 6px;">↗</button>
     <button id="btn-pdf-addvk" onclick="addVykresStart()" title="Přidat výkres (PDF) pod tento objekt" style="display:none;background:none;border:none;color:var(--accent);font-size:16px;cursor:pointer;padding:4px 6px;font-weight:700;">➕</button>
+    <button id="btn-pdf-kmvk" onclick="editCurrentVykresKm()" title="Úsek km, kde se výkres ukazuje" style="display:none;background:none;border:none;color:var(--accent2);font-size:15px;cursor:pointer;padding:4px 6px;">📏</button>
     <button id="btn-pdf-delvk" onclick="delCurrentVykres()" title="Odebrat tento nahraný výkres" style="display:none;background:none;border:none;color:#ff6b6b;font-size:15px;cursor:pointer;padding:4px 6px;">🗑</button>
     <button id="btn-pdf-invalidate" onclick="toggleInvalidateCurrentDoc()" title="Zneplatnit tento výkres" style="display:none;background:none;border:none;color:var(--text2);font-size:16px;cursor:pointer;padding:4px 6px;">🗄️</button>
     <button id="btn-pdf-fs" onclick="togglePdfFs()">⛶</button>
@@ -3769,7 +3770,8 @@ function uploadedVykresyFor(soId){
     return { soubor:v.soubor, nazev:v.nazev || 'Nahraný výkres', typ:(v.typ||'⬆ nahráno'),
              dokTyp:(v.dokTyp||'RDS'),
              _vkey:k, _vso:soId, ownerUid:(v.ownerUid||''), author:(v.author||''),
-             _invalid: !!v.neplatny, _duvod:(v.neplatnyDuvod||''), _by:(v.zneplatnilJmeno||''), _ts:(v.zneplatnenoTs||0) };   // zneplatněné se zobrazí na konci jako ⛔ (stará verze)
+             _invalid: !!v.neplatny, _duvod:(v.neplatnyDuvod||''), _by:(v.zneplatnilJmeno||''), _ts:(v.zneplatnenoTs||0),
+             _kmOd:(typeof v.kmOd==='number'?v.kmOd:null), _kmDo:(typeof v.kmDo==='number'?v.kmDo:null) };   // zneplatněné se zobrazí na konci jako ⛔ (stará verze)
   }).sort(function(a,b){ return (a.nazev||'').localeCompare(b.nazev||'', 'cs', {numeric:true}); });
 }
 
@@ -3932,17 +3934,23 @@ function _openVykUpSheet(){
       '<div id="vyk-up-drop" style="border:2px dashed var(--border);border-radius:10px;padding:16px 12px;text-align:center;cursor:pointer;background:var(--panel2);font-size:13px;color:var(--text2);">📥 Přetáhni sem PDF nebo <b style="color:var(--accent2);">klikni pro výběr</b><br><span style="font-size:11px;opacity:.75;">(lze i více výkresů najednou – celý SO)</span>'+
       '<div id="vyk-up-count" style="font-size:11px;color:var(--accent2);margin-top:6px;word-break:break-word;"></div>'+
       '<input id="vyk-up-file" type="file" accept="application/pdf,.pdf" multiple style="display:none;"></div>'+
+      '<div id="vyk-up-kmbox" style="display:none;flex-direction:column;gap:6px;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:9px;">'+
+        '<div style="font-size:12px;color:var(--text2);line-height:1.4;">📏 <b style="color:var(--text);">Úsek hlavní trasy</b> – výkres se ukáže jen při kliknutí na staničení v tomto úseku. Úsek čtu z názvu souboru (např. „situace km 0,000–1,800"), zkontroluj ho. Prázdné = celá trasa.</div>'+
+        '<div id="vyk-up-kmlist" style="display:flex;flex-direction:column;gap:6px;"></div></div>'+
       '<div id="vyk-up-status" style="font-size:12px;color:var(--text2);min-height:16px;"></div>'+
       '<button id="vyk-up-go" onclick="_vykUpGo()" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;min-height:48px;">Nahrát</button>'+
     '</div>';
     document.body.appendChild(sh);
   }
-  var lbl = document.getElementById('vyk-up-so'); if(lbl) lbl.textContent = window._vykUpProp ? ('· '+(window._vykUpProp.nazev||window._vykUpProp.id)) : (window._docPanelSO ? ('· SO '+window._docPanelSO) : '');
+  var lbl = document.getElementById('vyk-up-so'); if(lbl) lbl.textContent = window._vykUpProp ? ('· '+(window._vykUpProp.nazev||window._vykUpProp.id)) : (window._docPanelSO ? (window._docPanelSO===TRASA_VYKRES_SO ? '· hlavní trasa' : ('· SO '+window._docPanelSO)) : '');
   document.getElementById('vyk-up-nazev').value = '';
   document.getElementById('vyk-up-file').value = '';
   document.getElementById('vyk-up-count').textContent = '';
   document.getElementById('vyk-up-status').textContent = '';
   _setupPdfDrop('vyk-up-drop','vyk-up-file','vyk-up-count');
+  var fiK = document.getElementById('vyk-up-file');
+  if(fiK && !fiK.dataset.kmBound){ fiK.dataset.kmBound = '1'; fiK.addEventListener('change', _vykUpRenderKm); }
+  _vykUpRenderKm();
   sh.style.display = 'flex';
 }
 function _closeVykUpSheet(){ var sh=document.getElementById('vyk-up-sheet'); if(sh) sh.style.display='none'; }
@@ -3955,6 +3963,18 @@ function _vykUpGo(){
   var dokTyp = document.getElementById('vyk-up-doktyp').value || 'RDS';
   var nazevIn = (document.getElementById('vyk-up-nazev').value || '').trim();
   var soNum = _sanitizeFnamePart(soId), files = col.ok, total = files.length, done = 0, fail = 0;
+  var kmRanges = [];
+  if(!upProp && soId === TRASA_VYKRES_SO){
+    for(var ki=0; ki<files.length; ki++){
+      var eo = document.getElementById('vk-od-'+ki), ed = document.getElementById('vk-do-'+ki);
+      var so_ = eo ? eo.value.trim() : '', sd_ = ed ? ed.value.trim() : '';
+      if(!so_ && !sd_){ kmRanges.push(null); continue; }
+      var ko = _kmInputVal(so_), kd = _kmInputVal(sd_);
+      if(ko==null || kd==null){ st.textContent = '⚠️ '+files[ki].name+': vyplň km od i do (např. 0+000 a 1+800), nebo obojí smaž = celá trasa'; return; }
+      if(ko > kd){ var tk = ko; ko = kd; kd = tk; }
+      kmRanges.push({ od:Math.round(ko*1000)/1000, do:Math.round(kd*1000)/1000 });
+    }
+  }
   var btn = document.getElementById('vyk-up-go'); btn.disabled = true; btn.style.opacity = '.6';
   trackEvent('vykresy');
   st.textContent = '⏳ Nahrávám 0/'+total+'…';
@@ -3973,8 +3993,10 @@ function _vykUpGo(){
     var f = files[i], nazev = ((total===1 && nazevIn) ? nazevIn : f.name.replace(/\.pdf$/i,'')).slice(0,80);
     var soubor = 'pdf/SO_'+soNum+'/u_'+Date.now()+'_'+i+'_'+_sanitizeFnamePart(f.name.replace(/\.pdf$/i,'')).slice(0,40)+'.pdf';
     _uploadPdfFile(f, soubor).then(function(){
-      return db.ref('vykresy_uzivatelske/'+soNum).push({ soubor:soubor, nazev:nazev, typ:'⬆ nahráno', dokTyp:dokTyp,
-        ownerUid:(window.currentUser?window.currentUser.uid:''), author:(window.currentUser?window.currentUser.name:''), origName:f.name, ts:Date.now() });
+      var rec = { soubor:soubor, nazev:nazev, typ:'⬆ nahráno', dokTyp:dokTyp,
+        ownerUid:(window.currentUser?window.currentUser.uid:''), author:(window.currentUser?window.currentUser.name:''), origName:f.name, ts:Date.now() };
+      if(kmRanges[i]){ rec.kmOd = kmRanges[i].od; rec.kmDo = kmRanges[i].do; }
+      return db.ref('vykresy_uzivatelske/'+soNum).push(rec);
     }).then(function(){ done++; st.textContent = '⏳ Nahrávám '+done+'/'+total+'…'; next(i+1); })
       .catch(function(e){ console.error('vyk upload:', e); fail++; next(i+1); });
   })(0);
@@ -4046,6 +4068,333 @@ function deleteUploadedVykres(soNum, vkey){
     .then(function(){ showToast('🗑️ Výkres odebrán', 1800); })
     .catch(function(){ showToast('❌ Chyba mazání', 2500); });
 }
+
+// ════════════════════════════════════════════════════════════════
+//  ➕ VLASTNÍ SO V MAPĚ (2026-11-20) – objekty, které v mapě chybí
+//  ➕ (křížek) nebo dlouhý stisk → „🏗️ Objekt SO" → bodový (na místě křížku)
+//  nebo liniový podél hlavní osy (km od–do, vlevo/vpravo). Barva podle stovky čísla
+//  SO (100 žlutá, 200 červená, 300 modrá… jako ostatní SO v mapě). Výkresy PDPS/RDS
+//  přes 📂 Výkresy → ➕ (vykresy_uzivatelske/<číslo SO>); má-li SO statické výkresy
+//  v SO_VYKRESY, ukážou se taky. DB: /so_mapa/<key>. Právo: 'so_pridat'.
+// ════════════════════════════════════════════════════════════════
+var SO_STOVKA = {
+  '0':{c:'#6b7280',t:'příprava, demolice'}, '1':{c:'#ca8a04',t:'komunikace'}, '2':{c:'#e94560',t:'mosty, nadjezdy'},
+  '3':{c:'#3182ce',t:'vodohospodářské'},   '4':{c:'#dd6b20',t:'elektro, sdělovací'}, '5':{c:'#805ad5',t:'plynovody'},
+  '6':{c:'#0d9488',t:'technologie'},       '7':{c:'#718096',t:'PHS, zdi'},         '8':{c:'#65a30d',t:'vegetace, rekultivace'},
+  '9':{c:'#475569',t:'ostatní'}
+};
+function _soNumOf(id){ var m = String(id||'').replace(/^SO\s*/i,'').trim().match(/^\d+(?:\.\d+)?/); return m ? m[0] : ''; }
+function _soStovka(num){ var ip = String(num||'').split('.')[0]; if(!ip) return null; while(ip.length<3) ip='0'+ip; return SO_STOVKA[ip.charAt(0)] || null; }
+function _soBarvaNum(num){ var st = _soStovka(num); return st ? st.c : '#888'; }
+// Bod s kolmým odsazením off (m) od hlavní osy: kladné = vlevo, záporné = vpravo (jako STAVEBNI_OBJEKTY).
+function _ptAtKmOff(km, off){
+  var pos = realKmToLatLng(km); if(!pos) return null;
+  var bear = bearingAtGpxM(interp(calibSorted,'realKm','gpxM',km));
+  var pr = (bear - 90) * Math.PI / 180, o = (off||0) / 6371000;
+  return { lat: pos[0] + o*(180/Math.PI)*Math.cos(pr), lng: pos[1] + o*(180/Math.PI)*Math.sin(pr)/Math.cos(pos[0]*Math.PI/180), bear: bear };
+}
+// Staničení z textu: „1+800", „1,8", „1.800", „1800" (> KÚ+1 → metry).
+function _kmInputVal(t){
+  t = String(t==null?'':t).trim().replace(/^km\s*/i,'').replace(/\s+/g,'');
+  if(!t) return null;
+  var m = t.match(/^(\d+)\+(\d{1,3})(?:[.,]\d+)?$/);
+  if(m) return parseInt(m[1],10) + parseInt(m[2],10)/1000;
+  if(/^\d+[.,]\d+$/.test(t)) return parseFloat(t.replace(',','.'));
+  if(/^\d+$/.test(t)){ var n = parseInt(t,10); return (n > KM_END + 1) ? n/1000 : n; }
+  return null;
+}
+window.mapSO = [];
+var _mapSoPtGrp = null, _mapSoLineGrp = null;
+function loadMapSO(){
+  if(typeof db==='undefined' || !db) return;
+  db.ref('so_mapa').on('value', function(snap){
+    var v = snap.val() || {};
+    window.mapSO = Object.keys(v).map(function(k){ var o = v[k] || {}; o._key = k; return o; })
+      .filter(function(o){ return o && o.id; })
+      .sort(function(a,b){ return String(a.id).localeCompare(String(b.id),'cs',{numeric:true}); });
+    window._soSearchIndex = null;      // hledáček SO si index postaví znovu
+    try { _renderMapSO(); } catch(e){ console.warn('renderMapSO:', e); }
+  }, function(err){ console.warn('so_mapa:', err && err.message); });
+}
+function _mapSoVk(o){ return soVykresyKey(o.id) || _sanitizeFnamePart(o.num || _soNumOf(o.id)); }
+function _mapSoCanEdit(o){ return !!window.currentUser && (typeof canDeleteRecord==='function' ? canDeleteRecord(o) : true) && hasPerm('so_pridat'); }
+function _mapSoPopup(o){
+  var vk = _mapSoVk(o), c = _soBarvaNum(o.num || _soNumOf(o.id));
+  var nSt = (typeof SO_VYKRESY!=='undefined' && SO_VYKRESY[vk]) ? SO_VYKRESY[vk].length : 0;
+  var nUp = uploadedVykresyFor(vk).length;
+  var h = '<div style="font-size:13px;min-width:180px;"><b>'+escapeHtml(o.id)+'</b>'+(o.nazev?('<br>'+escapeHtml(o.nazev)):'');
+  if(o.tvar==='linie') h += '<br>km <b>'+fmtKm(o.kmOd)+' – '+fmtKm(o.kmDo)+'</b>'+(o.off>0?' · vlevo':(o.off<0?' · vpravo':' · na ose'));
+  else if(o.km!=null) h += '<br>km '+fmtKm(o.km);
+  h += '<div style="font-size:11px;color:#888;margin-top:3px;">➕ doplněno v appce'+(o.author?(' · '+escapeHtml(o.author)):'')+'</div>';
+  h += '<button onclick="openSOVykresy(\''+vk+'\')" style="margin-top:6px;background:'+c+';color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer;">📂 Výkresy '+escapeHtml(o.id)+((nSt+nUp)?(' ('+(nSt+nUp)+')'):'')+'</button>';
+  if(!(nSt+nUp)) h += '<div style="font-size:11px;color:#888;margin-top:3px;">Zatím bez výkresů – v panelu je přidáš přes ➕</div>';
+  if(_mapSoCanEdit(o)){
+    h += '<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;">'+
+      '<button onclick="mapSoEdit(\''+o._key+'\')" style="background:#0f3460;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;">✏️ Upravit</button>'+
+      (o.tvar!=='linie'?'<button onclick="mapSoMove(\''+o._key+'\')" style="background:#0f3460;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;">📍 Přesunout</button>':'')+
+      '<button onclick="mapSoDelete(\''+o._key+'\')" style="background:#7f1d1d;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;">🗑️</button></div>';
+  }
+  return h + '</div>';
+}
+function _renderMapSO(){
+  if(typeof map==='undefined' || !map) return;
+  if(!_mapSoPtGrp){ _mapSoPtGrp = L.layerGroup(); (typeof doplnkyLayer!=='undefined' && doplnkyLayer ? doplnkyLayer : map).addLayer(_mapSoPtGrp); }
+  if(!_mapSoLineGrp){ _mapSoLineGrp = L.layerGroup(); (layerGroups && layerGroups.ekvi ? layerGroups.ekvi : map).addLayer(_mapSoLineGrp); }
+  _mapSoPtGrp.clearLayers(); _mapSoLineGrp.clearLayers();
+  (window.mapSO||[]).forEach(function(o){
+    var num = o.num || _soNumOf(o.id), c = _soBarvaNum(num);
+    if(o.tvar === 'linie'){
+      if(o.kmOd==null || o.kmDo==null) return;
+      var pts = [], km = Math.min(o.kmOd,o.kmDo), kEnd = Math.max(o.kmOd,o.kmDo);
+      while(km <= kEnd + 0.0005){ var p = _ptAtKmOff(km, o.off||0); if(p) pts.push([p.lat,p.lng]); km = Math.round((km+0.020)*1000)/1000; }
+      var pe = _ptAtKmOff(kEnd, o.off||0); if(pe) pts.push([pe.lat,pe.lng]);
+      if(pts.length < 2) return;
+      L.polyline(pts, {color:c, weight:4, opacity:0.75}).addTo(_mapSoLineGrp);
+      var hit = L.polyline(pts, {color:c, weight:18, opacity:0, interactive:true});
+      hit.bindPopup(function(){ return _mapSoPopup(o); }, {className:'so-tooltip', maxWidth:260}); hit.addTo(_mapSoLineGrp);
+      var mid = _ptAtKmOff((o.kmOd+o.kmDo)/2, o.off||0);
+      if(mid){
+        var br = mid.bear*Math.PI/180, th = Math.atan2(-Math.cos(br), Math.sin(br))*180/Math.PI; if(Math.sin(br) < 0) th += 180;
+        var lbl = L.divIcon({className:'', iconSize:[120,30], iconAnchor:[60,15],
+          html:'<div style="width:120px;height:30px;display:flex;align-items:center;justify-content:center;transform:rotate('+th.toFixed(1)+'deg);cursor:pointer;">'+
+               '<span style="color:'+c+';font-size:11px;font-weight:700;white-space:nowrap;text-shadow:-1px -1px 0 #fff,1px -1px 0 #fff,-1px 1px 0 #fff,1px 1px 0 #fff;">'+escapeHtml(o.id)+'</span></div>'});
+        var lm = L.marker([mid.lat,mid.lng], {icon:lbl, interactive:true, zIndexOffset:120});
+        lm.bindPopup(function(){ return _mapSoPopup(o); }, {className:'so-tooltip', maxWidth:260}); lm.addTo(_mapSoLineGrp);
+      }
+    } else {
+      if(o.lat==null || o.lng==null) return;
+      var icon = L.divIcon({className:'', iconSize:[0,0],
+        html:'<div style="background:'+c+';color:#fff;font-size:11px;font-weight:800;line-height:1;padding:3px 6px;border-radius:8px;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5);white-space:nowrap;position:absolute;transform:translate(-50%,-50%);">'+escapeHtml(num || o.id)+'</div>'});
+      var m = L.marker([o.lat,o.lng], {icon:icon, interactive:true, zIndexOffset:180});
+      m.bindPopup(function(){ return _mapSoPopup(o); });
+      m.addTo(_mapSoPtGrp);
+    }
+  });
+}
+// Je SO už v mapě (statické vrstvy nebo doplněné)? → vrátí popis, jinak ''.
+function _soNaMape(id, exceptKey){
+  var n = _soNumOf(id); if(!n) return '';
+  var hit = '';
+  (typeof DOPLNKY_SO!=='undefined'?DOPLNKY_SO:[]).forEach(function(d){ if(!hit && _soNumOf(d.id)===n) hit = 'bodový objekt v mapě'; });
+  (typeof STAVEBNI_OBJEKTY!=='undefined'?STAVEBNI_OBJEKTY:[]).forEach(function(d){ if(!hit && _soNumOf(d.id)===n) hit = 'pruh podél osy'; });
+  (typeof SO_OSY!=='undefined'?SO_OSY:[]).forEach(function(d){ if(!hit && _soNumOf(d.id)===n) hit = 'boční osa'; });
+  (window.mapSO||[]).forEach(function(d){ if(!hit && d._key!==exceptKey && _soNumOf(d.id)===n) hit = 'už doplněný v appce'+(d.author?(' ('+d.author+')'):''); });
+  return hit;
+}
+// ── List „🏗️ Objekt SO" (nový i úprava) ──
+window._mapSoEditKey = null; window._mapSoPt = null; window._mapSoTvar = 'bod';
+function openMapSoSheet(editKey, lat, lng){
+  if(!_permGuard('so_pridat','Přidávání objektů SO do mapy')) return;
+  if(!window.currentUser){ showToast('Pro přidání objektu se přihlas', 3000); return; }
+  var o = null;
+  if(editKey){ o = (window.mapSO||[]).filter(function(x){ return x._key===editKey; })[0]; if(!o){ showToast('Objekt nenalezen', 2000); return; } }
+  window._mapSoEditKey = editKey || null;
+  window._mapSoPt = o ? (o.lat!=null ? {lat:o.lat,lng:o.lng} : null) : ((lat!=null) ? {lat:lat,lng:lng} : null);
+  var sh = document.getElementById('mapso-sheet');
+  if(!sh){
+    sh = document.createElement('div'); sh.id = 'mapso-sheet';
+    sh.style.cssText = 'display:none;position:fixed;inset:0;z-index:6000;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:14px;';
+    var inp = 'padding:10px;font-size:15px;border-radius:8px;border:1px solid var(--border);background:var(--panel2);color:var(--text);';
+    sh.innerHTML = '<div style="background:var(--panel);border:1px solid var(--border);border-radius:14px;width:min(96vw,440px);max-height:90vh;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px;">'+
+      '<div style="display:flex;align-items:center;gap:8px;"><div id="mapso-title" style="flex:1;font-weight:800;color:var(--accent2);font-size:15px;">🏗️ Objekt SO do mapy</div>'+
+      '<button onclick="closeMapSoSheet()" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;min-width:44px;min-height:44px;">✕</button></div>'+
+      '<label style="font-size:12px;color:var(--text2);display:flex;flex-direction:column;gap:4px;">Číslo SO'+
+      '<input id="mapso-num" type="text" inputmode="decimal" maxlength="12" placeholder="např. 231 nebo 360.11" oninput="_mapSoRefresh()" style="'+inp+'"></label>'+
+      '<div id="mapso-barva" style="font-size:12px;color:var(--text2);min-height:16px;"></div>'+
+      '<label style="font-size:12px;color:var(--text2);display:flex;flex-direction:column;gap:4px;">Název'+
+      '<input id="mapso-nazev" type="text" maxlength="90" placeholder="např. Přeložka polní cesty" style="'+inp+'"></label>'+
+      '<div style="display:flex;gap:6px;">'+
+        '<button id="mapso-t-bod" onclick="_mapSoSetTvar(\'bod\')" style="flex:1;padding:10px;border-radius:9px;font-weight:700;font-size:13px;cursor:pointer;">● Bodový</button>'+
+        '<button id="mapso-t-linie" onclick="_mapSoSetTvar(\'linie\')" style="flex:1;padding:10px;border-radius:9px;font-weight:700;font-size:13px;cursor:pointer;">━ Liniový podél osy</button></div>'+
+      '<div id="mapso-bodbox" style="font-size:12px;color:var(--text2);"></div>'+
+      '<div id="mapso-liniebox" style="display:none;flex-direction:column;gap:8px;">'+
+        '<div style="display:flex;gap:8px;align-items:flex-end;">'+
+          '<label style="flex:1;font-size:12px;color:var(--text2);display:flex;flex-direction:column;gap:4px;">km od<input id="mapso-kmod" type="text" inputmode="decimal" placeholder="0+000" style="'+inp+'"></label>'+
+          '<label style="flex:1;font-size:12px;color:var(--text2);display:flex;flex-direction:column;gap:4px;">km do<input id="mapso-kmdo" type="text" inputmode="decimal" placeholder="1+800" style="'+inp+'"></label></div>'+
+        '<div style="display:flex;gap:8px;">'+
+          '<label style="flex:1;font-size:12px;color:var(--text2);display:flex;flex-direction:column;gap:4px;">Strana'+
+          '<select id="mapso-strana" style="'+inp+'"><option value="L">⬅ vlevo</option><option value="P">vpravo ➡</option><option value="O">na ose</option></select></label>'+
+          '<label style="flex:1;font-size:12px;color:var(--text2);display:flex;flex-direction:column;gap:4px;">Odsazení od osy (m)'+
+          '<input id="mapso-off" type="number" min="0" max="300" step="1" value="25" style="'+inp+'"></label></div>'+
+        '<div style="font-size:11px;color:var(--text2);opacity:.8;">Čára se vykreslí podél hlavní trasy (I/16) v zadaném úseku – jako ostatní pruhy SO.</div></div>'+
+      '<div id="mapso-warn" style="font-size:12px;color:#f59e0b;min-height:0;"></div>'+
+      '<button onclick="saveMapSo()" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;min-height:48px;">💾 Uložit do mapy</button>'+
+    '</div>';
+    document.body.appendChild(sh);
+  }
+  document.getElementById('mapso-title').textContent = o ? ('✏️ Upravit '+o.id) : '🏗️ Objekt SO do mapy';
+  document.getElementById('mapso-num').value = o ? (o.num || _soNumOf(o.id)) : '';
+  document.getElementById('mapso-nazev').value = o ? (o.nazev||'') : '';
+  var kmHere = null; try { if(window._mapSoPt) kmHere = gpsToKm(window._mapSoPt.lat, window._mapSoPt.lng); } catch(e){}
+  if(o && o.tvar==='linie'){
+    document.getElementById('mapso-kmod').value = fmtKm(o.kmOd); document.getElementById('mapso-kmdo').value = fmtKm(o.kmDo);
+    document.getElementById('mapso-strana').value = o.off>0 ? 'L' : (o.off<0 ? 'P' : 'O');
+    document.getElementById('mapso-off').value = Math.abs(o.off||0) || 25;
+  } else {
+    var k0 = (kmHere!=null) ? Math.max(KM_START, Math.min(KM_END, kmHere)) : KM_START;
+    document.getElementById('mapso-kmod').value = fmtKm(k0);
+    document.getElementById('mapso-kmdo').value = fmtKm(Math.min(KM_END, k0 + 0.1));
+    document.getElementById('mapso-strana').value = 'L'; document.getElementById('mapso-off').value = 25;
+    if(window._mapSoPt){
+      // strana podle polohy křížku vůči ose (předvyplnění pro liniový)
+      try { var pa = _ptAtKmOff(k0, 10); if(pa){ var dL = map.distance([pa.lat,pa.lng],[window._mapSoPt.lat,window._mapSoPt.lng]), pb = _ptAtKmOff(k0,-10), dP = map.distance([pb.lat,pb.lng],[window._mapSoPt.lat,window._mapSoPt.lng]); document.getElementById('mapso-strana').value = dL<=dP ? 'L' : 'P'; } } catch(e){}
+    }
+  }
+  _mapSoSetTvar(o ? (o.tvar||'bod') : (window._mapSoPt ? 'bod' : 'linie'));
+  sh.style.display = 'flex';
+  _mapSoRefresh();
+}
+function closeMapSoSheet(){ var sh = document.getElementById('mapso-sheet'); if(sh) sh.style.display = 'none'; }
+function _mapSoSetTvar(t){
+  if(t==='bod' && !window._mapSoPt){ showToast('Bodový objekt: zavři okno, dej ➕, najeď křížkem na místo a vyber 🏗️ Objekt SO', 4500); t = 'linie'; }
+  window._mapSoTvar = t;
+  ['bod','linie'].forEach(function(k){ var b = document.getElementById('mapso-t-'+k); if(!b) return; var on = (k===t);
+    b.style.background = on ? 'var(--accent)' : 'var(--panel2)'; b.style.color = on ? '#fff' : 'var(--text)'; b.style.border = '1px solid '+(on?'var(--accent)':'var(--border)'); });
+  document.getElementById('mapso-liniebox').style.display = (t==='linie') ? 'flex' : 'none';
+  var bb = document.getElementById('mapso-bodbox');
+  if(t==='bod' && window._mapSoPt){ var kt = _placeKmText(window._mapSoPt.lat, window._mapSoPt.lng); bb.textContent = '📍 Poloha: místo křížku'+(kt?(' ('+kt+')'):'')+(window._mapSoEditKey?' – posunout jde přes 📍 Přesunout v bublině objektu':''); bb.style.display = ''; }
+  else bb.style.display = 'none';
+}
+function _mapSoRefresh(){
+  var num = _soNumOf(document.getElementById('mapso-num').value), bx = document.getElementById('mapso-barva'), w = document.getElementById('mapso-warn');
+  if(!num){ bx.innerHTML = ''; w.textContent = ''; return; }
+  var st = _soStovka(num);
+  var nSt = (typeof SO_VYKRESY!=='undefined' && SO_VYKRESY[num]) ? SO_VYKRESY[num].length : 0;
+  bx.innerHTML = '<span style="display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;background:'+_soBarvaNum(num)+';border:1px solid #fff;"></span> barva podle stovky: <b>'+(st?st.t:'—')+'</b>'+
+    (nSt ? (' · 📂 k SO '+num+' už je v appce '+nSt+' výkres(ů) – ukážou se u objektu') : '');
+  var dup = _soNaMape('SO '+num, window._mapSoEditKey);
+  w.textContent = dup ? ('⚠️ SO '+num+' už v mapě je ('+dup+'). Uložit jde i tak.') : '';
+}
+function saveMapSo(){
+  if(!_permGuard('so_pridat','Přidávání objektů SO do mapy')) return;
+  var num = _soNumOf(document.getElementById('mapso-num').value);
+  if(!num){ showToast('Zadej číslo SO (např. 231)', 2500); return; }
+  var nazev = (document.getElementById('mapso-nazev').value||'').trim().slice(0,90);
+  var rec = { id:'SO '+num, num:num, nazev:nazev, tvar:window._mapSoTvar, barva:_soBarvaNum(num) };
+  if(rec.tvar === 'linie'){
+    var a = _kmInputVal(document.getElementById('mapso-kmod').value), b = _kmInputVal(document.getElementById('mapso-kmdo').value);
+    if(a==null || b==null){ showToast('Vyplň km od i km do (např. 1+200)', 2800); return; }
+    if(a > b){ var t = a; a = b; b = t; }
+    if(b - a < 0.005){ showToast('Úsek je moc krátký – pro jedno místo zvol ● Bodový', 3000); return; }
+    a = Math.max(KM_START, a); b = Math.min(KM_END, b);
+    var off = Math.abs(parseFloat(document.getElementById('mapso-off').value)||0), str = document.getElementById('mapso-strana').value;
+    rec.kmOd = Math.round(a*1000)/1000; rec.kmDo = Math.round(b*1000)/1000; rec.off = (str==='O') ? 0 : (str==='P' ? -off : off);
+    rec.lat = null; rec.lng = null; rec.km = null;
+  } else {
+    if(!window._mapSoPt){ showToast('Chybí poloha – použij ➕ a křížek', 3000); return; }
+    rec.lat = Math.round(window._mapSoPt.lat*1e6)/1e6; rec.lng = Math.round(window._mapSoPt.lng*1e6)/1e6;
+    var k = null; try { k = gpsToKm(rec.lat, rec.lng); } catch(e){}
+    rec.km = (k!=null) ? Math.round(k*1000)/1000 : null; rec.kmOd = null; rec.kmDo = null; rec.off = null;
+  }
+  var key = window._mapSoEditKey, pr;
+  if(key){ rec.upravilJmeno = (window.currentUser.name||''); rec.upravenoTs = Date.now(); pr = db.ref('so_mapa/'+key).update(rec); }
+  else { rec.ownerUid = window.currentUser.uid; rec.author = (window.currentUser.name||''); rec.ts = Date.now(); pr = db.ref('so_mapa').push(rec); }
+  pr.then(function(){
+    closeMapSoSheet();
+    showToast(key ? '✅ Objekt upraven' : ('✅ '+rec.id+' je v mapě – výkresy přidáš v bublině → 📂 → ➕'), 3500);
+    if(!key){ try { logActivity('🏗️', 'doplnil/a do mapy '+rec.id+(nazev?(' („'+nazev+'")'):'')); } catch(e){} }
+  }).catch(function(e){ console.error('so_mapa:', e); showToast('❌ Uložení selhalo', 3000); });
+}
+function mapSoEdit(key){ try { map.closePopup(); } catch(e){} openMapSoSheet(key); }
+function mapSoMove(key){
+  var o = (window.mapSO||[]).filter(function(x){ return x._key===key; })[0]; if(!o || !_mapSoCanEdit(o)) return;
+  try { map.closePopup(); } catch(e){}
+  window._placeTarget = { kind:'mapso-move', key:key };
+  startPlaceMode(true);
+  var info = document.getElementById('place-info'); if(info) info.textContent = '📍 Najeď křížkem na novou polohu '+o.id+' a potvrď';
+}
+function mapSoDelete(key){
+  var o = (window.mapSO||[]).filter(function(x){ return x._key===key; })[0]; if(!o) return;
+  if(!_mapSoCanEdit(o)){ showToast('🔒 Smazat může jen ten, kdo objekt přidal (nebo admin)', 3000); return; }
+  if(!confirm('Odebrat '+o.id+(o.nazev?(' („'+o.nazev+'")'):'')+' z mapy?\n(Nahrané výkresy u SO zůstanou.)')) return;
+  try { map.closePopup(); } catch(e){}
+  db.ref('so_mapa/'+key).remove().then(function(){ showToast('🗑️ Objekt odebrán z mapy', 2000); }).catch(function(){ showToast('❌ Chyba mazání', 2500); });
+}
+
+// ════════════════════════════════════════════════════════════════
+//  📏 VÝKRESY HLAVNÍ TRASY S ROZSAHEM KM (2026-11-20)
+//  Nahraný výkres k trase může mít kmOd/kmDo → ukáže se jen při kliknutí na staničení
+//  v tom úseku. Rozsah se čte z NÁZVU SOUBORU (km 0,000–1,800 · 0+000-1+800 · km_0-2500),
+//  jde opravit při nahrání i později (📏 v hlavičce panelu). Bez rozsahu = celá trasa.
+// ════════════════════════════════════════════════════════════════
+function _kmTokVal(t, asM){
+  t = String(t).replace(/\s+/g,'');
+  var m = t.match(/^(\d+)\+(\d{1,3})$/); if(m) return parseInt(m[1],10) + parseInt(m[2],10)/1000;
+  if(/[.,]/.test(t)) return parseFloat(t.replace(',','.'));
+  var n = parseInt(t,10); return asM ? n/1000 : n;
+}
+function _parseKmRangeFromName(name){
+  var s = String(name||'').replace(/\.pdf$/i,'').replace(/_/g,' ');
+  var NUM = '(\\d+\\s?\\+\\s?\\d{3}|\\d+[.,]\\d+|\\d+)';
+  var pats = [
+    new RegExp('km\\.?\\s*'+NUM+'\\s*(?:-|–|—|až|az|do)\\s*(?:km\\.?\\s*)?'+NUM, 'gi'),
+    new RegExp('od\\s*(?:km\\.?\\s*)?'+NUM+'\\s*do\\s*(?:km\\.?\\s*)?'+NUM, 'gi'),
+    new RegExp('(?:^|[^\\d.,+])'+NUM+'\\s*[-–—]\\s*'+NUM+'(?![\\d.,+])', 'g')
+  ];
+  for(var pi=0; pi<pats.length; pi++){
+    var re = pats[pi], m;
+    while((m = re.exec(s)) !== null){
+      var a = m[1], b = m[2];
+      var isInt = function(x){ return /^\d+$/.test(String(x).replace(/\s+/g,'')); };
+      var asM = (isInt(a) && parseInt(a,10) > KM_END + 1) || (isInt(b) && parseInt(b,10) > KM_END + 1);
+      var od = _kmTokVal(a, asM && isInt(a)), dd = _kmTokVal(b, asM && isInt(b));
+      if(isNaN(od) || isNaN(dd)) continue;
+      if(od < dd && (dd - od) >= 0.02 && od >= KM_START - 0.5 && dd <= KM_END + 0.5)
+        return { od: Math.round(od*1000)/1000, do: Math.round(dd*1000)/1000 };
+    }
+  }
+  return null;
+}
+function _vykKmMatch(p, km){
+  if(!p || p._kmOd==null || p._kmDo==null || km==null) return true;
+  return km >= p._kmOd - 0.0005 && km <= p._kmDo + 0.0005;
+}
+// Řádky „soubor · km od – do" v listu nahrávání (jen pro hlavní trasu)
+function _vykUpRenderKm(){
+  var box = document.getElementById('vyk-up-kmbox'), list = document.getElementById('vyk-up-kmlist');
+  if(!box || !list) return;
+  var soId = window._vykUpSO || window._docPanelSO;
+  if(window._vykUpProp || soId !== TRASA_VYKRES_SO){ box.style.display = 'none'; list.innerHTML = ''; return; }
+  box.style.display = 'flex';
+  var files = _collectPdfFiles(document.getElementById('vyk-up-file').files).ok;
+  if(!files.length){ list.innerHTML = '<div style="font-size:11px;color:var(--text2);opacity:.8;">Po výběru souborů se tu ukáže úsek každého výkresu.</div>'; return; }
+  var inp = 'width:78px;padding:7px;font-size:14px;border-radius:7px;border:1px solid var(--border);background:var(--panel);color:var(--text);';
+  list.innerHTML = files.map(function(f, i){
+    var r = _parseKmRangeFromName(f.name);
+    return '<div style="border:1px solid var(--border);border-radius:9px;padding:7px 8px;display:flex;flex-direction:column;gap:5px;">'+
+      '<div style="font-size:12px;color:var(--text);word-break:break-all;">'+escapeHtml(f.name)+'</div>'+
+      '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px;color:var(--text2);">km '+
+        '<input id="vk-od-'+i+'" type="text" inputmode="decimal" placeholder="od" value="'+(r?fmtKm(r.od):'')+'" style="'+inp+'"> – '+
+        '<input id="vk-do-'+i+'" type="text" inputmode="decimal" placeholder="do" value="'+(r?fmtKm(r.do):'')+'" style="'+inp+'">'+
+        '<span style="font-size:11px;'+(r?'color:#22c55e;':'opacity:.75;')+'">'+(r?'🔎 z názvu':'prázdné = celá trasa')+'</span></div></div>';
+  }).join('');
+}
+// 📏 v hlavičce panelu – změna úseku u už nahraného výkresu hlavní trasy
+function editCurrentVykresKm(){
+  var p = (typeof docPages!=='undefined' && docPages[docPageIdx]) ? docPages[docPageIdx] : null;
+  if(!p || !p._vkey || p._vso !== TRASA_VYKRES_SO) return;
+  var rec = (window.uploadedVykresy[p._vso] && window.uploadedVykresy[p._vso][p._vkey]) || null; if(!rec) return;
+  if(!canDeleteRecord(rec)){ showToast('🔒 Úsek mění jen ten, kdo výkres nahrál (nebo admin)', 3000); return; }
+  var cur = (p._kmOd!=null) ? (fmtKm(p._kmOd)+' - '+fmtKm(p._kmDo)) : '';
+  var sug = cur;
+  if(!sug){ var r0 = _parseKmRangeFromName(rec.origName || rec.nazev || ''); if(r0) sug = fmtKm(r0.od)+' - '+fmtKm(r0.do); }
+  var v = prompt('Na jakém úseku hlavní trasy se má výkres „'+(p.nazev||'')+'" ukazovat?\nNapř. 0+000 - 1+800 (nebo 0 - 1,8).\nPrázdné = celá trasa.', sug);
+  if(v === null) return;
+  v = v.trim();
+  var upd;
+  if(!v){ upd = { kmOd:null, kmDo:null }; }
+  else {
+    var r = _parseKmRangeFromName('km '+v) || _parseKmRangeFromName(v);
+    if(!r){ showToast('Nerozumím úseku – zkus např. 0+000 - 1+800', 3500); return; }
+    upd = { kmOd:r.od, kmDo:r.do };
+  }
+  db.ref('vykresy_uzivatelske/'+p._vso+'/'+p._vkey).update(upd).then(function(){
+    var kNow = window._docPanelKm;
+    showToast(upd.kmOd==null ? '📏 Výkres se ukazuje na celé trase' :
+      ('📏 Výkres jen pro km '+fmtKm(upd.kmOd)+' – '+fmtKm(upd.kmDo)+((kNow!=null && (kNow<upd.kmOd||kNow>upd.kmDo))?' (tady už nebude)':'')), 3500);
+  }).catch(function(){ showToast('❌ Uložení úseku selhalo', 3000); });
+}
+
 // Z id objektu (SO_OSY / DOPLNKY_SO) odvodí klíč do SO_VYKRESY (číslo SO).
 function soVykresyKey(id){
   if(!id || typeof SO_VYKRESY==='undefined') return null;
@@ -4076,6 +4425,11 @@ function _buildSoSearchIndex(){
   (typeof DOPLNKY_SO!=='undefined'?DOPLNKY_SO:[]).forEach(function(d){
     if(!d || !d.id) return;
     add(d.id, (d.nazev||d.id), (d.kat||''), (d.km!=null ? realKmToLatLng(d.km) : null), soVykresyKey(d.id));
+  });
+  // 1b) Objekty doplněné v appce (/so_mapa)
+  (window.mapSO||[]).forEach(function(o){
+    var pos = (o.tvar==='linie') ? realKmToLatLng((o.kmOd+o.kmDo)/2) : (o.lat!=null ? [o.lat,o.lng] : null);
+    add(o.id, (o.nazev ? (o.id+' – '+o.nazev) : o.id), (o.tvar==='linie'?'pas':'mapso'), pos, _mapSoVk(o));
   });
   // 2) Boční osy (SO_OSY): přeložky/cesty/MÚK – poloha = střed geometrie
   (typeof SO_OSY!=='undefined'?SO_OSY:[]).forEach(function(o){
@@ -4619,7 +4973,8 @@ function buildTrasaDocPages(realKm){
     pages.push({soubor:d.soubor, nazev:d.nazev, typ:'📋 Tech. zpráva', dokTyp:'RDS'});
   });
   // Uživatelsky nahrané výkresy hlavní trasy – ukážou se u celé trasy (na konec).
-  pages = pages.concat(uploadedVykresyFor(TRASA_VYKRES_SO));
+  // 📏 s rozsahem km jen v tom úseku, bez rozsahu u celé trasy
+  pages = pages.concat(uploadedVykresyFor(TRASA_VYKRES_SO).filter(function(p){ return _vykKmMatch(p, realKm); }));
   return pages;
 }
 
@@ -4764,6 +5119,7 @@ function renderDocPage(realKm) {
     title.textContent='Výkresy — km '+(realKm?fmtKm(realKm):'');
     ctr.textContent=''; btnP.disabled=true; btnN.disabled=true;
     if(invBtn) invBtn.style.display='none';
+    var km0=document.getElementById('btn-pdf-kmvk'); if(km0) km0.style.display='none';
     var sw0=document.getElementById('pdf-viewswitch'); if(sw0){ sw0.style.display='none'; sw0.innerHTML=''; }
     var ib0=document.getElementById('pdf-invalid-bar'); if(ib0) ib0.style.display='none';
     return;
@@ -4781,6 +5137,7 @@ function renderDocPage(realKm) {
       title.textContent=(window._docView==='RDS'?'📗 RDS':(window._docView==='NEPLATNE'?'⛔ Neplatné':'📘 PDPS'));
       ctr.textContent=''; btnP.disabled=true; btnN.disabled=true;
       if(invBtn) invBtn.style.display='none';
+      var kmx=document.getElementById('btn-pdf-kmvk'); if(kmx) kmx.style.display='none';
       var ibx=document.getElementById('pdf-invalid-bar'); if(ibx) ibx.style.display='none';
       return;
     }
@@ -4818,6 +5175,9 @@ function renderDocPage(realKm) {
   // Tlačítko 🗑 jen u nahraného výkresu, který smí mazat přihlášený vlastník
   var delVk = document.getElementById('btn-pdf-delvk');
   if(delVk) delVk.style.display = (p._vkey && typeof canDeleteRecord==='function' && canDeleteRecord(p)) ? '' : 'none';
+  var kmVk = document.getElementById('btn-pdf-kmvk');
+  if(kmVk) kmVk.style.display = (p._vkey && p._vso===TRASA_VYKRES_SO && window.currentUser && canDeleteRecord(p)) ? '' : 'none';
+  if(p._vkey && p._kmOd!=null) title.textContent = (p.nazev || p.typ || '') + ' · km ' + fmtKm(p._kmOd) + '–' + fmtKm(p._kmDo);
 
   // VŽDY iframe (jako Votice). V Safari iOS dostane nativní PDF viewer
   // s toolbarem a pinch-zoom. V PWA módu iframe zobrazí PDF základně, plnou
@@ -5191,6 +5551,7 @@ function init() {
   loadDodakCustomCols();
   loadVykresy();
   loadVykresRevize();
+  loadMapSO();           // ➕ objekty SO doplněné do mapy v appce (/so_mapa)
   loadCustomSO();        // vlastní objekty (deponie…) ze sdíleného /so_custom
   loadZkousky();         // zkoušky na stavbě → vrstva + modal
   loadCategoryPerms();   // výchozí práva kategorií (silnice/sub/investor)
@@ -5640,6 +6001,7 @@ function initLongPress() {
         }
       } catch(e){}
       document.getElementById('lp-km-info').textContent = '📍 Co tady přidat?' + kmTxt;
+      if(typeof _lpSyncButtons==='function') _lpSyncButtons();
       document.getElementById('lp-chooser').classList.add('open');
     }, 700);
   });
@@ -5673,6 +6035,8 @@ function lpChoose(kind) {
     var km = null;
     try { if(typeof gpsToKm === 'function') km = gpsToKm(_lpLat, _lpLng); } catch(e){}
     openNewTaskModal(_lpLat, _lpLng, km);
+  } else if(kind === 'so') {
+    openMapSoSheet(null, _lpLat, _lpLng);
   }
   _lpLat = _lpLng = null;
 }
@@ -5707,9 +6071,14 @@ function _updatePlaceInfo() {
   var info = document.getElementById('place-info');
   if(info) info.textContent = '📍 Najeď křížkem na místo' + (kmTxt ? ' — ' + kmTxt : '') + ' a potvrď';
 }
-function startPlaceMode() {
-  if(!_permGuard('pripominky','Přidávání poznámek/úkolů')) return;
-  trackEvent('pin');
+function startPlaceMode(keepTarget) {
+  if(keepTarget !== true) window._placeTarget = null;
+  if(!window._placeTarget){
+    // Křížek slouží i pro 🏗️ Objekt SO → stačí jedno z práv
+    var canPin = hasPerm('pripominky'), canSo = hasPerm('so_pridat');
+    if(!canPin && !canSo){ if(!_permGuard('pripominky','Přidávání poznámek/úkolů')) return; }
+    trackEvent('pin');
+  }
   if(!map) return;
   // kdyby běžel starý chooser, zavři ho
   document.getElementById('lp-chooser').classList.remove('open');
@@ -5731,12 +6100,26 @@ function confirmPlace() {
   if(!map) return;
   var c = map.getCenter();
   cancelPlaceMode();
+  // 📍 Přesun doplněného objektu SO
+  if(window._placeTarget && window._placeTarget.kind === 'mapso-move'){
+    var tk = window._placeTarget.key; window._placeTarget = null;
+    var kk = null; try { kk = gpsToKm(c.lat, c.lng); } catch(e){}
+    db.ref('so_mapa/'+tk).update({ lat:Math.round(c.lat*1e6)/1e6, lng:Math.round(c.lng*1e6)/1e6, km:(kk!=null?Math.round(kk*1000)/1000:null), upravilJmeno:(window.currentUser?window.currentUser.name:''), upravenoTs:Date.now() })
+      .then(function(){ showToast('📍 Objekt přesunut', 1800); }).catch(function(){ showToast('❌ Přesun selhal', 2500); });
+    return;
+  }
   _lpLat = c.lat; _lpLng = c.lng;
   // Legacy mód (bez Auth konfigurace) → rovnou poznámka, žádný chooser
   if(typeof authConfigOk === 'function' && !authConfigOk()) { lpChoose('note'); return; }
   var kmTxt = _placeKmText(c.lat, c.lng);
   document.getElementById('lp-km-info').textContent = '📍 Co tady přidat?' + (kmTxt ? ' (' + kmTxt + ')' : '');
+  _lpSyncButtons();
   document.getElementById('lp-chooser').classList.add('open');
+}
+function _lpSyncButtons(){
+  var b = document.getElementById('lp-btn-so'); if(b) b.style.display = (window.currentUser && hasPerm('so_pridat')) ? '' : 'none';
+  var canPin = !window.currentUser || hasPerm('pripominky');   // nepřihlášený: chování beze změny
+  document.querySelectorAll('#lp-chooser button[onclick^="lpChoose(\'note\')"], #lp-chooser button[onclick^="lpChoose(\'task\')"]').forEach(function(x){ x.style.display = canPin ? '' : 'none'; });
 }
 
 // ── Preference razítka (km, datum, jméno) do fotek ──
@@ -11025,6 +11408,7 @@ var FEATURES = [
   {key:'komentare',  label:'Komentáře k fotkám',       btns:[]},
   {key:'zbv',        label:'ZBV (označit + filtrovat fotky)', btns:[]},
   {key:'vykresy',    label:'Nahrávání výkresů',        btns:['btn-pdf-addvk']},
+  {key:'so_pridat',  label:'🏗️ Přidávání objektů SO do mapy', btns:['lp-btn-so']},
   {key:'mereni',     label:'Měření',                   btns:['btn-measure','btn-mereni-evidence']},
   {key:'pripominky', label:'Poznámky a úkoly na mapě', btns:['btn-place','btn-notes-evidence']},
   {key:'ukoly',      label:'Úkolníček',                btns:['btn-tasks']},
@@ -15365,6 +15749,7 @@ function getCatalogSOs(){
   }
   if(typeof DOPLNKY_SO !== 'undefined' && Array.isArray(DOPLNKY_SO))
     DOPLNKY_SO.forEach(function(o){ if(o && o.id) set.add(o.id); });
+  (window.mapSO||[]).forEach(function(o){ if(o && o.id) set.add(o.id); });
   if(typeof SO_OSY !== 'undefined' && Array.isArray(SO_OSY))
     SO_OSY.forEach(function(o){ if(o && o.id) set.add(typeof soCanonId === 'function' ? soCanonId(o.id) : o.id); });
   return set;
@@ -17706,7 +18091,7 @@ function _setupPdfDrop(dropId, inputId, countId){
     e.preventDefault(); e.stopPropagation(); zone.style.borderColor=''; zone.style.background='';
     var dt=e.dataTransfer; if(!dt || !dt.files || !dt.files.length) return;
     try { input.files = dt.files; } catch(_){ }
-    refreshCount();
+    try { input.dispatchEvent(new Event('change')); } catch(_){ refreshCount(); }
   });
 }
 
@@ -19842,6 +20227,7 @@ function copyDiaryExport(){
     <h3 id="lp-km-info">📍 Co tady přidat?</h3>
     <button class="btn-primary" style="background:var(--accent);color:#fff;" onclick="lpChoose('note')">📝 Poznámka</button>
     <button class="btn-primary" style="background:var(--accent2);color:#0f3460;" onclick="lpChoose('task')">✅ Úkol</button>
+    <button id="lp-btn-so" class="btn-primary" style="background:#e94560;color:#fff;" onclick="lpChoose('so')">🏗️ Objekt SO (chybí v mapě)</button>
     <button class="btn-secondary" onclick="lpCancel()">Zrušit</button>
   </div>
 </div>
